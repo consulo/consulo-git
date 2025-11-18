@@ -294,12 +294,12 @@ public class GitFetcher {
         if (result.isSuccess()) {
             NotificationService.getInstance().newInfo(VcsNotifier.NOTIFICATION_GROUP_ID)
                 .content(LocalizeValue.localizeTODO("Fetched successfully" + result.getAdditionalInfo()))
-                .notifyAndGet(project);
+                .notify(project);
         }
         else if (result.isCancelled()) {
             NotificationService.getInstance().newWarn(VcsNotifier.STANDARD_NOTIFICATION)
                 .content(LocalizeValue.localizeTODO("Fetch cancelled by user" + result.getAdditionalInfo()))
-                .notifyAndGet(project);
+                .notify(project);
         }
         else if (result.isNotAuthorized()) {
             LocalizeValue title;

@@ -216,7 +216,7 @@ public class GitUpdateLocallyModifiedDialog extends DialogWrapper {
         myRootPanel = new JPanel();
         myRootPanel.setLayout(new GridLayoutManager(3, 3, JBUI.emptyInsets(), -1, -1));
         JLabel label1 = new JLabel();
-        this.$$$loadLabelText$$$(label1, ResourceBundle.getBundle("git4idea/i18n/GitBundle").getString("update.locally.modified.git.root"));
+        this.$$$loadLabelText$$$(label1, GitLocalize.updateLocallyModifiedGitRoot().get());
         myRootPanel.add(
             label1,
             new GridConstraints(
@@ -295,7 +295,7 @@ public class GitUpdateLocallyModifiedDialog extends DialogWrapper {
             )
         );
         myFilesList = new JBList<>();
-        myFilesList.setToolTipText(ResourceBundle.getBundle("git4idea/i18n/GitBundle").getString("update.locally.modified.files.tooltip"));
+        myFilesList.setToolTipText(GitLocalize.updateLocallyModifiedFilesTooltip().get());
         jBScrollPane1.setViewportView(myFilesList);
         myRescanButton = new JButton();
         this.$$$loadButtonText$$$(myRescanButton, GitLocalize.updateLocallyModifiedRescan().get());

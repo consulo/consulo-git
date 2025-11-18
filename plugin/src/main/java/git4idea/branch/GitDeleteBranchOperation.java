@@ -406,7 +406,7 @@ class GitDeleteBranchOperation extends GitBranchOperation {
             myNotificationService.newError(VcsNotifier.IMPORTANT_ERROR_NOTIFICATION)
                 .title(LocalizeValue.localizeTODO("Couldn't Restore " + formatBranchName(myBranchName)))
                 .content(result.getErrorOutputWithReposIndication())
-                .notifyAndGet(myProject);
+                .notify(myProject);
         }
     }
 

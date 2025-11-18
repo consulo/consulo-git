@@ -47,14 +47,14 @@ public class GitIntegrationEnabler extends VcsIntegrationEnabler<GitVcs> {
             refreshVcsDir(projectDir, GitUtil.DOT_GIT);
             notificationService.newInfo(VcsNotifier.NOTIFICATION_GROUP_ID)
                 .content(LocalizeValue.localizeTODO("Created Git repository in " + projectDir.getPresentableUrl()))
-                .notifyAndGet(myProject);
+                .notify(myProject);
             return true;
         }
         else if (myVcs.getExecutableValidator().checkExecutableAndNotifyIfNeeded()) {
             notificationService.newError(VcsNotifier.IMPORTANT_ERROR_NOTIFICATION)
                 .title(LocalizeValue.localizeTODO("Couldn't git init " + projectDir.getPresentableUrl()))
                 .content(result.getErrorOutputAsHtmlValue())
-                .notifyAndGet(myProject);
+                .notify(myProject);
             LOG.info(result.getErrorOutputAsHtmlString());
         }
         return false;

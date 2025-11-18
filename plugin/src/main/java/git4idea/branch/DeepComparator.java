@@ -19,8 +19,10 @@ import consulo.application.progress.ProgressIndicator;
 import consulo.application.progress.Task;
 import consulo.disposer.Disposable;
 import consulo.disposer.Disposer;
+import consulo.localize.LocalizeValue;
 import consulo.logging.Logger;
 import consulo.project.Project;
+import consulo.project.ui.notification.NotificationService;
 import consulo.ui.annotation.RequiredUIAccess;
 import consulo.util.dataholder.Key;
 import consulo.versionControlSystem.VcsException;
@@ -270,8 +272,10 @@ public class DeepComparator implements VcsLogDeepComparator, Disposable {
             removeHighlighting();
 
             if (myException != null) {
-                VcsNotifier.getInstance(myProject)
-                    .notifyError("Couldn't compare with branch " + myComparedBranch, myException.getMessage());
+                NotificationService.getInstance().newError(VcsNotifier.IMPORTANT_ERROR_NOTIFICATION)
+                    .title(LocalizeValue.localizeTODO("Couldn't compare with branch " + myComparedBranch))
+                    .content(LocalizeValue.of(myException.getMessage()))
+                    .notify(myProject);
                 return;
             }
             myNonPickedCommits = myCollectedNonPickedCommits;

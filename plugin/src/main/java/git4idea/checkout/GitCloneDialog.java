@@ -45,7 +45,6 @@ import java.awt.*;
 import java.io.File;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.ResourceBundle;
 import java.util.regex.Pattern;
 
 /**
@@ -394,7 +393,7 @@ public class GitCloneDialog extends DialogWrapper {
         myRootPanel = new JPanel();
         myRootPanel.setLayout(new GridLayoutManager(5, 4, JBUI.emptyInsets(), -1, -1));
         JLabel label1 = new JLabel();
-        this.$$$loadLabelText$$$(label1, ResourceBundle.getBundle("git4idea/i18n/GitBundle").getString("clone.repository.url"));
+        this.$$$loadLabelText$$$(label1, GitLocalize.cloneRepositoryUrl().get());
         myRootPanel.add(
             label1,
             new GridConstraints(
@@ -470,7 +469,7 @@ public class GitCloneDialog extends DialogWrapper {
             )
         );
         JLabel label2 = new JLabel();
-        this.$$$loadLabelText$$$(label2, ResourceBundle.getBundle("git4idea/i18n/GitBundle").getString("clone.parent.dir"));
+        this.$$$loadLabelText$$$(label2, GitLocalize.cloneParentDir().get());
         myRootPanel.add(
             label2,
             new GridConstraints(
@@ -509,7 +508,7 @@ public class GitCloneDialog extends DialogWrapper {
             )
         );
         JLabel label3 = new JLabel();
-        this.$$$loadLabelText$$$(label3, ResourceBundle.getBundle("git4idea/i18n/GitBundle").getString("clone.dir.name"));
+        this.$$$loadLabelText$$$(label3, GitLocalize.cloneDirName().get());
         myRootPanel.add(
             label3,
             new GridConstraints(
@@ -529,7 +528,7 @@ public class GitCloneDialog extends DialogWrapper {
             )
         );
         myTestButton = new JButton();
-        this.$$$loadButtonText$$$(myTestButton, ResourceBundle.getBundle("git4idea/i18n/GitBundle").getString("clone.test"));
+        this.$$$loadButtonText$$$(myTestButton, GitLocalize.cloneTest().get());
         myRootPanel.add(
             myTestButton,
             new GridConstraints(
@@ -587,7 +586,7 @@ public class GitCloneDialog extends DialogWrapper {
             )
         );
         myPuttyLabel = new JLabel();
-        this.$$$loadLabelText$$$(myPuttyLabel, ResourceBundle.getBundle("git4idea/i18n/GitBundle").getString("clone.repository.putty.key"));
+        this.$$$loadLabelText$$$(myPuttyLabel, GitLocalize.cloneRepositoryPuttyKey().get());
         myRootPanel.add(
             myPuttyLabel,
             new GridConstraints(
