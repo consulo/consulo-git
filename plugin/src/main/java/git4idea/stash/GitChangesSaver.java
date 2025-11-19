@@ -22,6 +22,7 @@ import consulo.project.Project;
 import consulo.project.ui.notification.Notification;
 import consulo.project.ui.notification.NotificationService;
 import consulo.project.ui.notification.event.NotificationListener;
+import consulo.ui.annotation.RequiredUIAccess;
 import consulo.versionControlSystem.VcsException;
 import consulo.versionControlSystem.VcsNotifier;
 import consulo.versionControlSystem.change.ChangeListManager;
@@ -160,20 +161,21 @@ public abstract class GitChangesSaver {
      * The right panel title of the merge conflict dialog: changes that came from update.
      */
     @Nonnull
-    protected static String getConflictRightPanelTitle() {
-        return "Changes from remote";
+    protected static LocalizeValue getConflictRightPanelTitle() {
+        return LocalizeValue.localizeTODO("Changes from remote");
     }
 
     /**
      * The left panel title of the merge conflict dialog: changes that were preserved in this saver during update.
      */
     @Nonnull
-    protected static String getConflictLeftPanelTitle() {
-        return "Your uncommitted changes";
+    protected static LocalizeValue getConflictLeftPanelTitle() {
+        return LocalizeValue.localizeTODO("Your uncommitted changes");
     }
 
     protected class ShowSavedChangesNotificationListener implements NotificationListener {
         @Override
+        @RequiredUIAccess
         public void hyperlinkUpdate(@Nonnull Notification notification, @Nonnull HyperlinkEvent event) {
             if (event.getEventType() == HyperlinkEvent.EventType.ACTIVATED && event.getDescription().equals("saver")) {
                 showSavedChanges();

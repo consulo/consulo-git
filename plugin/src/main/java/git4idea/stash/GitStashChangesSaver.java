@@ -20,6 +20,7 @@ import consulo.localize.LocalizeValue;
 import consulo.logging.Logger;
 import consulo.project.Project;
 import consulo.project.ui.notification.NotificationService;
+import consulo.ui.annotation.RequiredUIAccess;
 import consulo.util.lang.StringUtil;
 import consulo.versionControlSystem.VcsException;
 import consulo.versionControlSystem.VcsNotifier;
@@ -47,7 +48,6 @@ import java.util.HashSet;
 import java.util.Set;
 
 public class GitStashChangesSaver extends GitChangesSaver {
-
     private static final Logger LOG = Logger.getInstance(GitStashChangesSaver.class);
     private static final String NO_LOCAL_CHANGES_TO_SAVE = "No local changes to save";
 
@@ -73,7 +73,7 @@ public class GitStashChangesSaver extends GitChangesSaver {
         for (VirtualFile root : rootsToSave) {
             String message = GitHandlerUtil.formatOperationName("Stashing changes from", root);
             LOG.info(message);
-            String oldProgressTitle = myProgressIndicator.getText();
+            LocalizeValue oldProgressTitle = myProgressIndicator.getTextValue();
             myProgressIndicator.setText(message);
             GitRepository repository = myRepositoryManager.getRepositoryForRoot(root);
             if (repository == null) {
@@ -94,7 +94,7 @@ public class GitStashChangesSaver extends GitChangesSaver {
                     }
                 }
             }
-            myProgressIndicator.setText(oldProgressTitle);
+            myProgressIndicator.setTextValue(oldProgressTitle);
         }
     }
 
@@ -104,6 +104,7 @@ public class GitStashChangesSaver extends GitChangesSaver {
     }
 
     @Override
+    @RequiredUIAccess
     public void load() {
         for (VirtualFile root : myStashedRoots) {
             loadRoot(root);
@@ -130,6 +131,7 @@ public class GitStashChangesSaver extends GitChangesSaver {
     }
 
     @Override
+    @RequiredUIAccess
     public void showSavedChanges() {
         GitUnstashDialog.showUnstashDialog(myProject, new ArrayList<>(myStashedRoots), myStashedRoots.iterator().next());
     }
@@ -230,14 +232,16 @@ public class GitStashChangesSaver extends GitChangesSaver {
             return "Uncommitted changes that were stashed before update have conflicts with updated files.";
         }
 
+        @Nonnull
         @Override
         public String getLeftPanelTitle(@Nonnull VirtualFile file) {
-            return getConflictLeftPanelTitle();
+            return getConflictLeftPanelTitle().get();
         }
 
+        @Nonnull
         @Override
         public String getRightPanelTitle(@Nonnull VirtualFile file, VcsRevisionNumber revisionNumber) {
-            return getConflictRightPanelTitle();
+            return getConflictRightPanelTitle().get();
         }
     }
 }
