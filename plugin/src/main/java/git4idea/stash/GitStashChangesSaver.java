@@ -19,6 +19,7 @@ import consulo.application.progress.ProgressIndicator;
 import consulo.localize.LocalizeValue;
 import consulo.logging.Logger;
 import consulo.project.Project;
+import consulo.project.ui.notification.NotificationService;
 import consulo.util.lang.StringUtil;
 import consulo.versionControlSystem.VcsException;
 import consulo.versionControlSystem.VcsNotifier;
@@ -173,7 +174,6 @@ public class GitStashChangesSaver extends GitChangesSaver {
     }
 
     private static class UnstashConflictResolver extends GitConflictResolver {
-
         private final Set<VirtualFile> myStashedRoots;
 
         public UnstashConflictResolver(
@@ -190,22 +190,22 @@ public class GitStashChangesSaver extends GitChangesSaver {
             if (givenParams != null) {
                 return givenParams;
             }
-            Params params = new Params();
-            params.setErrorNotificationTitle("Local changes were not restored");
-            params.setMergeDialogCustomizer(new UnstashMergeDialogCustomizer());
-            params.setReverse(true);
-            return params;
+            return new Params()
+                .setErrorNotificationTitle(LocalizeValue.localizeTODO("Local changes were not restored"))
+                .setMergeDialogCustomizer(new UnstashMergeDialogCustomizer())
+                .setReverse(true);
         }
-
 
         @Override
         protected void notifyUnresolvedRemain() {
-            VcsNotifier.getInstance(myProject).notifyImportantWarning(
-                "Local changes were restored with conflicts",
-                "Your uncommitted changes were saved to <a href='saver'>stash</a>.<br/>" +
-                    "Unstash is not complete, you have unresolved merges in your working tree<br/>" +
-                    "<a href='resolve'>Resolve</a> conflicts and drop the stash.",
-                (notification, event) -> {
+            NotificationService.getInstance().newWarn(VcsNotifier.IMPORTANT_ERROR_NOTIFICATION)
+                .title(LocalizeValue.localizeTODO("Local changes were restored with conflicts"))
+                .content(LocalizeValue.localizeTODO(
+                    "Your uncommitted changes were saved to <a href='saver'>stash</a>.<br/>" +
+                        "Unstash is not complete, you have unresolved merges in your working tree<br/>" +
+                        "<a href='resolve'>Resolve</a> conflicts and drop the stash."
+                ))
+                .hyperlinkListener((notification, event) -> {
                     if (event.getEventType() == HyperlinkEvent.EventType.ACTIVATED) {
                         if (event.getDescription().equals("saver")) {
                             // we don't use #showSavedChanges to specify unmerged root first
@@ -219,8 +219,8 @@ public class GitStashChangesSaver extends GitChangesSaver {
                             mergeNoProceed();
                         }
                     }
-                }
-            );
+                })
+                .notify(myProject);
         }
     }
 
