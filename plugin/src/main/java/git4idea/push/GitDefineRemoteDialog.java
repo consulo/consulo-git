@@ -18,7 +18,6 @@ package git4idea.push;
 import consulo.application.progress.ProgressManager;
 import consulo.component.ProcessCanceledException;
 import consulo.localize.LocalizeValue;
-import consulo.logging.Logger;
 import consulo.ui.annotation.RequiredUIAccess;
 import consulo.ui.ex.awt.*;
 import consulo.util.lang.StringUtil;
@@ -30,12 +29,14 @@ import git4idea.repo.GitRepository;
 import git4idea.validators.GitRefNameValidator;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
 import java.awt.*;
 
 class GitDefineRemoteDialog extends DialogWrapper {
-    private static final Logger LOG = Logger.getInstance(GitDefineRemoteDialog.class);
+    private static final Logger LOG = LoggerFactory.getLogger(GitDefineRemoteDialog.class);
 
     @Nonnull
     private final GitRepository myRepository;
@@ -94,32 +95,42 @@ class GitDefineRemoteDialog extends DialogWrapper {
     @Override
     @RequiredUIAccess
     protected void doOKAction() {
-        String name = getRemoteName();
-        String url = getRemoteUrl();
-        String error = validateRemoteUnderModal(name, url);
-        if (error != null) {
-            LOG.warn(String.format("Invalid remote. Name: [%s], URL: [%s], error: %s", name, url, error));
-            Messages.showErrorDialog(myRepository.getProject(), error, "Invalid Remote");
+        LocalizeValue error = validateRemoteUnderModal(getRemoteName(), getRemoteUrl());
+        if (error != LocalizeValue.empty()) {
+            Messages.showErrorDialog(myRepository.getProject(), error.get(), "Invalid Remote");
         }
         else {
             super.doOKAction();
         }
     }
 
-    @Nullable
-    private String validateRemoteUnderModal(@Nonnull String name, @Nonnull String url) throws ProcessCanceledException {
+    @Nonnull
+    private LocalizeValue validateRemoteUnderModal(@Nonnull String name, @Nonnull String url) throws ProcessCanceledException {
         if (url.isEmpty()) {
-            return "URL can't be empty";
+            LOG.warn("Invalid remote. Name: {}, URL: {}, error: {}", name, url, "URL can't be empty");
+            return LocalizeValue.localizeTODO("URL can't be empty");
         }
         if (!GitRefNameValidator.getInstance().checkInput(name)) {
-            return "Remote name contains illegal characters";
+            LOG.warn("Invalid remote. Name: {}, URL: {}, error: {}", name, url, "Remote name contains illegal characters");
+            return LocalizeValue.localizeTODO("Remote name contains illegal characters");
         }
 
         return ProgressManager.getInstance().runProcessWithProgressSynchronously(
             () -> {
                 GitCommandResult result =
                     myGit.lsRemote(myRepository.getProject(), VirtualFileUtil.virtualToIoFile(myRepository.getRoot()), url);
-                return !result.success() ? "Remote URL test failed: " + result.getErrorOutputAsHtmlString() : null;
+                if (!result.success()) {
+                    LOG.warn(
+                        "Invalid remote. Name: {}, URL: {}, error: {}",
+                        name,
+                        url,
+                        "Remote URL test failed: " + result.getErrorOutputAsHtmlString()
+                    );
+                    return LocalizeValue.localizeTODO("Remote URL test failed: " + result.getErrorOutputAsHtmlValue());
+                }
+                else {
+                    return LocalizeValue.empty();
+                }
             },
             LocalizeValue.localizeTODO("Checking URL..."),
             true,
