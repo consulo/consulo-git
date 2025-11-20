@@ -48,8 +48,11 @@ public record GitRepoInfo(
 
     @Override
     public boolean equals(Object o) {
-        return this == o
-            || o instanceof GitRepoInfo info
+        //noinspection SimplifiableIfStatement
+        if (this == o) {
+            return true;
+        }
+        return o instanceof GitRepoInfo info
             && state == info.state
             && Objects.equals(currentRevision, info.currentRevision)
             && Objects.equals(currentBranch, info.currentBranch)
