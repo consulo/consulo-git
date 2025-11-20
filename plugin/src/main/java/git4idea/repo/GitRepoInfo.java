@@ -77,10 +77,14 @@ public record GitRepoInfo(
 
         @Override
         public boolean equals(@Nonnull Map.Entry<? extends GitBranch, Hash> b1, @Nonnull Map.Entry<? extends GitBranch, Hash> b2) {
-            return b1 == b2
-                || b1.getClass() == b2.getClass()
-                    && b1.getKey().getName().equals(b2.getKey().getName())
-                    && b1.getValue().equals(b2.getValue());
+            //noinspection SimplifiableIfStatement
+            if (b1 == b2) {
+                return true;
+            }
+
+            return b1.getClass() == b2.getClass()
+                && b1.getKey().getName().equals(b2.getKey().getName())
+                && b1.getValue().equals(b2.getValue());
         }
     }
 }
