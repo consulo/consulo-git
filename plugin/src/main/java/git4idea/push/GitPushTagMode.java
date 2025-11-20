@@ -70,8 +70,11 @@ public final class GitPushTagMode implements VcsPushOptionValue {
 
     @Override
     public boolean equals(Object o) {
-        return this == o
-            || o instanceof GitPushTagMode that
+        //noinspection SimplifiableIfStatement
+        if (this == o) {
+            return true;
+        }
+        return o instanceof GitPushTagMode that
             && myArgument.equals(that.myArgument)
             && myTitle.equals(that.myTitle);
     }

@@ -383,7 +383,7 @@ public class GitRebaseEditor extends DialogWrapper implements DataProvider {
         @RequiredUIAccess
         public void actionPerformed(@Nonnull AnActionEvent e) {
             int row = myCommitsTable.getSelectedRow();
-            assert row >= 0 && row < myTableModel.getRowCount();
+            assert 0 <= row && row < myTableModel.getRowCount();
             GitRebaseEntry entry = myTableModel.myEntries.get(row);
             GitUtil.showSubmittedFiles(myProject, entry.getCommit(), myRoot, false, false);
         }

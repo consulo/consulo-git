@@ -35,7 +35,6 @@ import javax.swing.*;
 import java.awt.*;
 
 class GitDefineRemoteDialog extends DialogWrapper {
-
     private static final Logger LOG = Logger.getInstance(GitDefineRemoteDialog.class);
 
     @Nonnull
