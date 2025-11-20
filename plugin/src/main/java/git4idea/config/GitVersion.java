@@ -196,11 +196,15 @@ public final class GitVersion implements Comparable<GitVersion> {
      * Types are considered equal also if one of them is undefined. Otherwise they are compared.
      */
     @Override
+    @SuppressWarnings("SimplifiableIfStatement")
     public boolean equals(Object obj) {
-        return obj == this
-            || obj instanceof GitVersion other
-            && compareTo(other) == 0
-            && (myType == Type.UNDEFINED || other.myType == Type.UNDEFINED || myType == other.myType);
+        if (!(obj instanceof GitVersion that)) {
+            return false;
+        }
+        if (compareTo(that) != 0) {
+            return false;
+        }
+        return myType == Type.UNDEFINED || that.myType == Type.UNDEFINED || myType == that.myType;
     }
 
     /**
