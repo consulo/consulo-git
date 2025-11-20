@@ -79,8 +79,8 @@ public record GitRepoInfo(
         public boolean equals(@Nonnull Map.Entry<? extends GitBranch, Hash> b1, @Nonnull Map.Entry<? extends GitBranch, Hash> b2) {
             return b1 == b2
                 || b1.getClass() == b2.getClass()
-                && b1.getKey().getName().equals(b2.getKey().getName())
-                && b1.getValue().equals(b2.getValue());
+                    && b1.getKey().getName().equals(b2.getKey().getName())
+                    && b1.getValue().equals(b2.getValue());
         }
     }
 }
