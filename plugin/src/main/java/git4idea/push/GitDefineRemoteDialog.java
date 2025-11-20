@@ -16,9 +16,10 @@
 package git4idea.push;
 
 import consulo.application.progress.ProgressManager;
-import consulo.application.util.function.ThrowableComputable;
 import consulo.component.ProcessCanceledException;
+import consulo.localize.LocalizeValue;
 import consulo.logging.Logger;
+import consulo.ui.annotation.RequiredUIAccess;
 import consulo.ui.ex.awt.*;
 import consulo.util.lang.StringUtil;
 import consulo.virtualFileSystem.util.VirtualFileUtil;
@@ -33,104 +34,97 @@ import jakarta.annotation.Nullable;
 import javax.swing.*;
 import java.awt.*;
 
-class GitDefineRemoteDialog extends DialogWrapper
-{
+class GitDefineRemoteDialog extends DialogWrapper {
 
-	private static final Logger LOG = Logger.getInstance(GitDefineRemoteDialog.class);
+    private static final Logger LOG = Logger.getInstance(GitDefineRemoteDialog.class);
 
-	@Nonnull
-	private final GitRepository myRepository;
-	@Nonnull
-	private final Git myGit;
+    @Nonnull
+    private final GitRepository myRepository;
+    @Nonnull
+    private final Git myGit;
 
-	@Nonnull
-	private final JTextField myRemoteName;
-	@Nonnull
-	private final JTextField myRemoteUrl;
+    @Nonnull
+    private final JTextField myRemoteName;
+    @Nonnull
+    private final JTextField myRemoteUrl;
 
-	GitDefineRemoteDialog(@Nonnull GitRepository repository, @Nonnull Git git)
-	{
-		super(repository.getProject());
-		myRepository = repository;
-		myGit = git;
-		myRemoteName = new JTextField(GitRemote.ORIGIN_NAME, 20);
-		myRemoteUrl = new JTextField(20);
-		setTitle("Define Remote");
-		init();
-	}
+    GitDefineRemoteDialog(@Nonnull GitRepository repository, @Nonnull Git git) {
+        super(repository.getProject());
+        myRepository = repository;
+        myGit = git;
+        myRemoteName = new JTextField(GitRemote.ORIGIN_NAME, 20);
+        myRemoteUrl = new JTextField(20);
+        setTitle(LocalizeValue.localizeTODO("Define Remote"));
+        init();
+    }
 
-	@Nullable
-	@Override
-	protected JComponent createCenterPanel()
-	{
-		JPanel defineRemoteComponent = new JPanel(new GridBagLayout());
-		GridBag gb = new GridBag().
-				setDefaultAnchor(GridBagConstraints.LINE_START).
-				setDefaultInsets(UIUtil.DEFAULT_VGAP, UIUtil.DEFAULT_HGAP, 0, 0);
-		defineRemoteComponent.add(new JBLabel("Name:"), gb.nextLine().next().anchor(GridBagConstraints.EAST));
-		defineRemoteComponent.add(myRemoteName, gb.next());
-		defineRemoteComponent.add(new JBLabel("URL: "), gb.nextLine().next().anchor(GridBagConstraints.EAST).insets(0, UIUtil.DEFAULT_HGAP, UIUtil.DEFAULT_VGAP, 0));
-		defineRemoteComponent.add(myRemoteUrl, gb.next());
-		return defineRemoteComponent;
-	}
+    @Nullable
+    @Override
+    protected JComponent createCenterPanel() {
+        JPanel defineRemoteComponent = new JPanel(new GridBagLayout());
+        GridBag gb = new GridBag()
+            .setDefaultAnchor(GridBagConstraints.LINE_START)
+            .setDefaultInsets(UIUtil.DEFAULT_VGAP, UIUtil.DEFAULT_HGAP, 0, 0);
+        defineRemoteComponent.add(new JBLabel("Name:"), gb.nextLine().next().anchor(GridBagConstraints.EAST));
+        defineRemoteComponent.add(myRemoteName, gb.next());
+        defineRemoteComponent.add(
+            new JBLabel("URL: "),
+            gb.nextLine().next().anchor(GridBagConstraints.EAST).insets(0, UIUtil.DEFAULT_HGAP, UIUtil.DEFAULT_VGAP, 0)
+        );
+        defineRemoteComponent.add(myRemoteUrl, gb.next());
+        return defineRemoteComponent;
+    }
 
-	@Nonnull
-	String getRemoteName()
-	{
-		return StringUtil.notNullize(myRemoteName.getText()).trim();
-	}
+    @Nonnull
+    String getRemoteName() {
+        return StringUtil.notNullize(myRemoteName.getText()).trim();
+    }
 
-	@Nonnull
-	String getRemoteUrl()
-	{
-		return StringUtil.notNullize(myRemoteUrl.getText()).trim();
-	}
+    @Nonnull
+    String getRemoteUrl() {
+        return StringUtil.notNullize(myRemoteUrl.getText()).trim();
+    }
 
-	@Nullable
-	@Override
-	public JComponent getPreferredFocusedComponent()
-	{
-		return myRemoteUrl;
-	}
+    @Nullable
+    @Override
+    @RequiredUIAccess
+    public JComponent getPreferredFocusedComponent() {
+        return myRemoteUrl;
+    }
 
-	@Override
-	protected void doOKAction()
-	{
-		String name = getRemoteName();
-		String url = getRemoteUrl();
-		String error = validateRemoteUnderModal(name, url);
-		if(error != null)
-		{
-			LOG.warn(String.format("Invalid remote. Name: [%s], URL: [%s], error: %s", name, url, error));
-			Messages.showErrorDialog(myRepository.getProject(), error, "Invalid Remote");
-		}
-		else
-		{
-			super.doOKAction();
-		}
-	}
+    @Override
+    @RequiredUIAccess
+    protected void doOKAction() {
+        String name = getRemoteName();
+        String url = getRemoteUrl();
+        String error = validateRemoteUnderModal(name, url);
+        if (error != null) {
+            LOG.warn(String.format("Invalid remote. Name: [%s], URL: [%s], error: %s", name, url, error));
+            Messages.showErrorDialog(myRepository.getProject(), error, "Invalid Remote");
+        }
+        else {
+            super.doOKAction();
+        }
+    }
 
-	@Nullable
-	private String validateRemoteUnderModal(@Nonnull String name, @Nonnull final String url) throws ProcessCanceledException
-	{
-		if(url.isEmpty())
-		{
-			return "URL can't be empty";
-		}
-		if(!GitRefNameValidator.getInstance().checkInput(name))
-		{
-			return "Remote name contains illegal characters";
-		}
+    @Nullable
+    private String validateRemoteUnderModal(@Nonnull String name, @Nonnull String url) throws ProcessCanceledException {
+        if (url.isEmpty()) {
+            return "URL can't be empty";
+        }
+        if (!GitRefNameValidator.getInstance().checkInput(name)) {
+            return "Remote name contains illegal characters";
+        }
 
-		return ProgressManager.getInstance().runProcessWithProgressSynchronously(new ThrowableComputable<String, ProcessCanceledException>()
-		{
-			@Override
-			public String compute() throws ProcessCanceledException
-			{
-				final GitCommandResult result = myGit.lsRemote(myRepository.getProject(), VirtualFileUtil.virtualToIoFile(myRepository.getRoot()), url);
-				return !result.success() ? "Remote URL test failed: " + result.getErrorOutputAsHtmlString() : null;
-			}
-		}, "Checking URL...", true, myRepository.getProject());
-	}
-
+        return ProgressManager.getInstance().runProcessWithProgressSynchronously(
+            () -> {
+                GitCommandResult result =
+                    myGit.lsRemote(myRepository.getProject(), VirtualFileUtil.virtualToIoFile(myRepository.getRoot()), url);
+                return !result.success() ? "Remote URL test failed: " + result.getErrorOutputAsHtmlString() : null;
+            },
+            LocalizeValue.localizeTODO("Checking URL..."),
+            true,
+            myRepository.getProject()
+        );
+    }
 }
