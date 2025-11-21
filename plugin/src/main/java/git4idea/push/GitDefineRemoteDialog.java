@@ -126,7 +126,7 @@ class GitDefineRemoteDialog extends DialogWrapper {
                         url,
                         "Remote URL test failed: " + result.getErrorOutputAsHtmlString()
                     );
-                    return LocalizeValue.localizeTODO("Remote URL test failed: " + result.getErrorOutputAsHtmlValue());
+                    return LocalizeValue.join(LocalizeValue.localizeTODO("Remote URL test failed: "), result.getErrorOutputAsHtmlValue());
                 }
                 else {
                     return LocalizeValue.empty();
