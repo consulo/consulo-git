@@ -454,7 +454,8 @@ public abstract class GitHandler {
         }
         catch (Throwable t) {
             if (!myProject.getApplication().isUnitTestMode() || !myProject.isDisposed()) {
-                LOG.error(t); // will surely happen if called during unit test disposal, because the working dir is simply removed then
+                // will surely happen if called during unit test disposal, because the working dir is simply removed then
+                LOG.error("Unexpected error", t);
             }
             cleanupEnv();
             myListeners.getMulticaster().startFailed(t);

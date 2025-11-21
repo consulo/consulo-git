@@ -350,7 +350,7 @@ public class GitCherryPicker extends VcsCherryPicker {
             }
         }
         catch (InterruptedException e) {
-            LOG.error(e);
+            LOG.error("Interrupted", e);
             return null;
         }
 
@@ -402,7 +402,7 @@ public class GitCherryPicker extends VcsCherryPicker {
                     }
                 }
                 catch (Throwable t) {
-                    LOG.error(t);
+                    LOG.error("Error while committing cherry-pick", t);
                     commitSucceeded.set(false);
                     sem.release();
                 }
@@ -415,7 +415,7 @@ public class GitCherryPicker extends VcsCherryPicker {
             sem.acquire();
         }
         catch (InterruptedException e) {
-            LOG.error(e);
+            LOG.error("Interrupted", e);
             return false;
         }
         return commitSucceeded.get();
@@ -447,7 +447,7 @@ public class GitCherryPicker extends VcsCherryPicker {
                     catch (IOException e) {
                         // if CHERRY_PICK_HEAD is not deleted, the partial commit will fail, and the user will be notified anyway.
                         // So here we just log the fact. It is happens relatively often, maybe some additional solution will follow.
-                        LOG.error(e);
+                        LOG.error("Error while removing cherry-pick head", e);
                     }
                 }
             });
@@ -591,7 +591,7 @@ public class GitCherryPicker extends VcsCherryPicker {
             return resultingChangeList.get();
         }
         catch (InterruptedException e) {
-            LOG.error(e);
+            LOG.error("Interrupted", e);
             return null;
         }
         finally {
