@@ -23,7 +23,6 @@ import consulo.application.progress.ProgressIndicator;
 import consulo.application.progress.ProgressManager;
 import consulo.git.localize.GitLocalize;
 import consulo.localize.LocalizeValue;
-import consulo.logging.Logger;
 import consulo.project.Project;
 import consulo.util.lang.StringUtil;
 import consulo.versionControlSystem.FilePath;
@@ -45,6 +44,8 @@ import git4idea.util.StringScanner;
 import jakarta.annotation.Nonnull;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Date;
 import java.util.HashMap;
@@ -60,9 +61,12 @@ import java.util.Map;
 @ServiceAPI(ComponentScope.PROJECT)
 @ServiceImpl
 public class GitAnnotationProvider implements AnnotationProvider, VcsCacheableAnnotationProvider {
+    private static final Logger LOG = LoggerFactory.getLogger(GitAnnotationProvider.class);
+
     /**
      * the context project
      */
+    @Nonnull
     private final Project myProject;
     /**
      * The author key for annotations
@@ -72,7 +76,6 @@ public class GitAnnotationProvider implements AnnotationProvider, VcsCacheableAn
      * The committer time key for annotations
      */
     private static final String COMMITTER_TIME_KEY = "committer-time";
-    private static final Logger LOG = Logger.getInstance(GitAnnotationProvider.class);
 
     /**
      * A constructor
@@ -98,21 +101,21 @@ public class GitAnnotationProvider implements AnnotationProvider, VcsCacheableAn
      */
     @Nonnull
     @Override
-    public FileAnnotation annotate(@Nonnull final VirtualFile file, final VcsFileRevision revision) throws VcsException {
+    public FileAnnotation annotate(@Nonnull VirtualFile file, VcsFileRevision revision) throws VcsException {
         if (file.isDirectory()) {
             throw new VcsException("Cannot annotate a directory");
         }
-        final FileAnnotation[] annotation = new FileAnnotation[1];
-        final Exception[] exception = new Exception[1];
+        FileAnnotation[] annotation = new FileAnnotation[1];
+        Exception[] exception = new Exception[1];
         Runnable command = () -> {
-            final ProgressIndicator progress = ProgressManager.getInstance().getProgressIndicator();
+            ProgressIndicator progress = ProgressManager.getInstance().getProgressIndicator();
             try {
-                final FilePath currentFilePath = VcsUtil.getFilePath(file.getPath());
-                final FilePath realFilePath;
+                FilePath currentFilePath = VcsUtil.getFilePath(file.getPath());
+                FilePath realFilePath;
                 if (progress != null) {
                     progress.setTextValue(GitLocalize.gettingHistory(file.getName()));
                 }
-                final List<VcsFileRevision> revisions = GitHistoryUtils.history(myProject, currentFilePath);
+                List<VcsFileRevision> revisions = GitHistoryUtils.history(myProject, currentFilePath);
                 if (revision == null) {
                     realFilePath = GitHistoryUtils.getLastCommitName(myProject, currentFilePath);
                 }
@@ -122,7 +125,7 @@ public class GitAnnotationProvider implements AnnotationProvider, VcsCacheableAn
                 if (progress != null) {
                     progress.setTextValue(GitLocalize.computingAnnotation(file.getName()));
                 }
-                final GitFileAnnotation result = annotate(realFilePath, revision, revisions, file);
+                GitFileAnnotation result = annotate(realFilePath, revision, revisions, file);
                 annotation[0] = result;
             }
             catch (Exception e) {
@@ -130,14 +133,13 @@ public class GitAnnotationProvider implements AnnotationProvider, VcsCacheableAn
             }
         };
         if (Application.get().isDispatchThread()) {
-            ProgressManager.getInstance()
-                .runProcessWithProgressSynchronously(command, GitLocalize.annotateActionName().get(), false, myProject);
+            ProgressManager.getInstance().runProcessWithProgressSynchronously(command, GitLocalize.annotateActionName(), false, myProject);
         }
         else {
             command.run();
         }
         if (exception[0] != null) {
-            LOG.warn(exception[0]);
+            LOG.warn("Failed to annotate", exception[0]);
             throw new VcsException("Failed to annotate: " + exception[0], exception[0]);
         }
         return annotation[0];
@@ -154,10 +156,10 @@ public class GitAnnotationProvider implements AnnotationProvider, VcsCacheableAn
      * @throws VcsException if there is a problem with running git
      */
     private GitFileAnnotation annotate(
-        final FilePath repositoryFilePath,
-        final VcsFileRevision revision,
-        final List<VcsFileRevision> revisions,
-        final VirtualFile file
+        FilePath repositoryFilePath,
+        VcsFileRevision revision,
+        List<VcsFileRevision> revisions,
+        VirtualFile file
     ) throws VcsException {
         GitSimpleHandler h = new GitSimpleHandler(myProject, GitUtil.getGitRoot(repositoryFilePath), GitCommand.BLAME);
         h.setStdoutSuppressed(true);
@@ -229,9 +231,9 @@ public class GitAnnotationProvider implements AnnotationProvider, VcsCacheableAn
 
     @Override
     public VcsAnnotation createCacheable(FileAnnotation fileAnnotation) {
-        final GitFileAnnotation gitFileAnnotation = (GitFileAnnotation)fileAnnotation;
-        final int size = gitFileAnnotation.getNumLines();
-        final VcsUsualLineAnnotationData basicData = new VcsUsualLineAnnotationData(size);
+        GitFileAnnotation gitFileAnnotation = (GitFileAnnotation)fileAnnotation;
+        int size = gitFileAnnotation.getNumLines();
+        VcsUsualLineAnnotationData basicData = new VcsUsualLineAnnotationData(size);
         for (int i = 0; i < size; i++) {
             basicData.put(i, gitFileAnnotation.getLineRevisionNumber(i));
         }
@@ -246,17 +248,16 @@ public class GitAnnotationProvider implements AnnotationProvider, VcsCacheableAn
         boolean forCurrentRevision,
         VcsRevisionNumber revisionNumber
     ) {
-        final GitFileAnnotation gitFileAnnotation =
+        GitFileAnnotation gitFileAnnotation =
             new GitFileAnnotation(myProject, vcsAnnotation.getFilePath().getVirtualFile(), forCurrentRevision, revisionNumber);
         gitFileAnnotation.addLogEntries(session.getRevisionList());
-        final VcsLineAnnotationData basicAnnotation = vcsAnnotation.getBasicAnnotation();
-        final int size = basicAnnotation.getNumLines();
-        final Map<VcsRevisionNumber, VcsFileRevision> historyAsMap = session.getHistoryAsMap();
-        final List<String> lines =
-            StringUtil.split(StringUtil.convertLineSeparators(annotatedContent), "\n", false, false);
+        VcsLineAnnotationData basicAnnotation = vcsAnnotation.getBasicAnnotation();
+        int size = basicAnnotation.getNumLines();
+        Map<VcsRevisionNumber, VcsFileRevision> historyAsMap = session.getHistoryAsMap();
+        List<String> lines = StringUtil.split(StringUtil.convertLineSeparators(annotatedContent), "\n", false, false);
         for (int i = 0; i < size; i++) {
-            final VcsRevisionNumber revision = basicAnnotation.getRevision(i);
-            final VcsFileRevision vcsFileRevision = historyAsMap.get(revision);
+            VcsRevisionNumber revision = basicAnnotation.getRevision(i);
+            VcsFileRevision vcsFileRevision = historyAsMap.get(revision);
             if (vcsFileRevision == null) {
                 return null;
             }

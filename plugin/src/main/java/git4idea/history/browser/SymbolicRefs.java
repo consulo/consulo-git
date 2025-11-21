@@ -17,105 +17,110 @@ import git4idea.history.wholeTree.AbstractHash;
 import jakarta.annotation.Nullable;
 
 import java.util.Collection;
+import java.util.SortedSet;
 import java.util.TreeSet;
 
 /**
  * @author irengrig
  */
 public class SymbolicRefs implements SymbolicRefsI {
-  private GitBranch myCurrent;
-  private final TreeSet<String> myLocalBranches;
-  private final TreeSet<String> myRemoteBranches;
-  private String myTrackedRemoteName;
-  private String myUsername;
-  private AbstractHash myHeadHash;
+    private GitBranch myCurrent;
+    private final SortedSet<String> myLocalBranches;
+    private final SortedSet<String> myRemoteBranches;
+    private String myTrackedRemoteName;
+    private String myUsername;
+    private AbstractHash myHeadHash;
 
-  public SymbolicRefs() {
-    myLocalBranches = new TreeSet<String>();
-    myRemoteBranches = new TreeSet<String>();
-  }
+    public SymbolicRefs() {
+        myLocalBranches = new TreeSet<>();
+        myRemoteBranches = new TreeSet<>();
+    }
 
-  public void addRemote(final String branch) {
-    myRemoteBranches.add(branch);
-  }
+    public void addRemote(String branch) {
+        myRemoteBranches.add(branch);
+    }
 
-  public void addLocal(final String branch) {
-    myLocalBranches.add(branch);
-  }
+    public void addLocal(String branch) {
+        myLocalBranches.add(branch);
+    }
 
-  public void addLocals(final Collection<String> value) {
-    myLocalBranches.addAll(value);
-  }
+    public void addLocals(Collection<String> value) {
+        myLocalBranches.addAll(value);
+    }
 
-  public void addRemotes(final Collection<String> value) {
-    myRemoteBranches.addAll(value);
-  }
+    public void addRemotes(Collection<String> value) {
+        myRemoteBranches.addAll(value);
+    }
 
-  public TreeSet<String> getLocalBranches() {
-    return myLocalBranches;
-  }
+    public SortedSet<String> getLocalBranches() {
+        return myLocalBranches;
+    }
 
-  public TreeSet<String> getRemoteBranches() {
-    return myRemoteBranches;
-  }
+    public SortedSet<String> getRemoteBranches() {
+        return myRemoteBranches;
+    }
 
-  @Override
-  @Nullable
-  public String getCurrentName() {
-    return myCurrent == null ? null : myCurrent.getName();
-  }
+    @Override
+    @Nullable
+    public String getCurrentName() {
+        return myCurrent == null ? null : myCurrent.getName();
+    }
 
-  @Override
-  public GitBranch getCurrent() {
-    return myCurrent;
-  }
+    @Override
+    public GitBranch getCurrent() {
+        return myCurrent;
+    }
 
-  public void setCurrent(GitBranch current) {
-    myCurrent = current;
-  }
+    public void setCurrent(GitBranch current) {
+        myCurrent = current;
+    }
 
-  @Override
-  public Kind getKind(final String s) {
-    if (myLocalBranches.contains(s)) return Kind.LOCAL;
-    if (myRemoteBranches.contains(s)) return Kind.REMOTE;
-    return Kind.TAG;
-  }
+    @Override
+    public Kind getKind(String s) {
+        if (myLocalBranches.contains(s)) {
+            return Kind.LOCAL;
+        }
+        if (myRemoteBranches.contains(s)) {
+            return Kind.REMOTE;
+        }
+        return Kind.TAG;
+    }
 
-  public void clear() {
-    myLocalBranches.clear();
-    myRemoteBranches.clear();
-  }
+    public void clear() {
+        myLocalBranches.clear();
+        myRemoteBranches.clear();
+    }
 
-  public void setTrackedRemote(String trackedRemoteName) {
-    myTrackedRemoteName = trackedRemoteName;
-  }
+    public void setTrackedRemote(String trackedRemoteName) {
+        myTrackedRemoteName = trackedRemoteName;
+    }
 
-  @Override
-  public String getTrackedRemoteName() {
-    return myTrackedRemoteName;
-  }
+    @Override
+    public String getTrackedRemoteName() {
+        return myTrackedRemoteName;
+    }
 
-  @Override
-  public String getUsername() {
-    return myUsername;
-  }
+    @Override
+    public String getUsername() {
+        return myUsername;
+    }
 
-  public void setUsername(String username) {
-    myUsername = username;
-  }
+    public void setUsername(String username) {
+        myUsername = username;
+    }
 
-  public void setHead(AbstractHash hash) {
-    myHeadHash = hash;
-  }
+    public void setHead(AbstractHash hash) {
+        myHeadHash = hash;
+    }
 
-  @Override
-  public AbstractHash getHeadHash() {
-    return myHeadHash;
-  }
+    @Override
+    public AbstractHash getHeadHash() {
+        return myHeadHash;
+    }
 
-  public static enum Kind {
-    TAG,
-    LOCAL,
-    REMOTE
-  }
+    public static enum Kind {
+        TAG,
+        LOCAL,
+        REMOTE
+    }
 }

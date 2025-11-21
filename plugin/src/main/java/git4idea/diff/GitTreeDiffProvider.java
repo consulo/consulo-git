@@ -15,7 +15,6 @@
  */
 package git4idea.diff;
 
-import consulo.logging.Logger;
 import consulo.project.Project;
 import consulo.versionControlSystem.FilePath;
 import consulo.versionControlSystem.TreeDiffProvider;
@@ -28,6 +27,8 @@ import git4idea.changes.GitChangeUtils;
 import git4idea.commands.GitCommand;
 import git4idea.commands.GitSimpleHandler;
 import git4idea.util.StringScanner;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -35,7 +36,7 @@ import java.util.Collections;
 import java.util.List;
 
 public class GitTreeDiffProvider implements TreeDiffProvider {
-    private final static Logger LOG = Logger.getInstance(GitTreeDiffProvider.class);
+    private final static Logger LOG = LoggerFactory.getLogger(GitTreeDiffProvider.class);
     private final Project myProject;
 
     public GitTreeDiffProvider(Project project) {
@@ -68,7 +69,7 @@ public class GitTreeDiffProvider implements TreeDiffProvider {
             return rc;
         }
         catch (VcsException e) {
-            LOG.info(e);
+            LOG.info("Error while getting remote changes", e);
             return Collections.emptyList();
         }
     }

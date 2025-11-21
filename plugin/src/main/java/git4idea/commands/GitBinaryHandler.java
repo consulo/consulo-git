@@ -109,9 +109,7 @@ public class GitBinaryHandler extends GitHandler {
             setExitCode(exitCode);
         }
         catch (InterruptedException e) {
-            if (LOG.isDebugEnabled()) {
-                LOG.debug("Ignoring process exception: ", e);
-            }
+            LOG.debug("Ignoring process exception: ", e);
             setExitCode(255);
         }
         listeners().processTerminated(getExitCode());

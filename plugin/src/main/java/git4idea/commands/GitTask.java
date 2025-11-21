@@ -22,7 +22,6 @@ import consulo.application.progress.Task;
 import consulo.disposer.Disposable;
 import consulo.disposer.Disposer;
 import consulo.localize.LocalizeValue;
-import consulo.logging.Logger;
 import consulo.project.Project;
 import consulo.ui.annotation.RequiredUIAccess;
 import consulo.util.dataholder.Key;
@@ -31,6 +30,8 @@ import consulo.versionControlSystem.VcsException;
 import git4idea.GitVcs;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Timer;
 import java.util.TimerTask;
@@ -54,7 +55,7 @@ import java.util.concurrent.atomic.AtomicReference;
  * @author Kirill Likhodedov
  */
 public class GitTask {
-    private static final Logger LOG = Logger.getInstance(GitTask.class);
+    private static final Logger LOG = LoggerFactory.getLogger(GitTask.class);
 
     private final Project myProject;
     private final GitHandler myHandler;
@@ -182,7 +183,7 @@ public class GitTask {
                     }
                 }
                 catch (InterruptedException e) {
-                    LOG.info(e);
+                    LOG.info("Interrupted", e);
                 }
             }
         }
@@ -301,7 +302,7 @@ public class GitTask {
 
         @RequiredUIAccess
         public final void runAlone() {
-            Application application = Application.get();
+            Application application = ((Project) getProject()).getApplication();
             if (application.isDispatchThread()) {
                 application.executeOnPooledThread((Runnable) this::justRun);
             }

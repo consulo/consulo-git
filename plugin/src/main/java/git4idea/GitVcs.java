@@ -26,7 +26,6 @@ import consulo.git.icon.GitIconGroup;
 import consulo.git.localize.GitLocalize;
 import consulo.ide.setting.ShowSettingsUtil;
 import consulo.localize.LocalizeValue;
-import consulo.logging.Logger;
 import consulo.platform.Platform;
 import consulo.project.Project;
 import consulo.project.ui.notification.Notification;
@@ -78,6 +77,8 @@ import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.swing.event.HyperlinkEvent;
 import java.io.File;
@@ -97,7 +98,7 @@ public class GitVcs extends AbstractVcs<CommittedChangeList> {
     public static final String NAME = "Git";
     public static final String ID = "git";
 
-    private static final Logger log = Logger.getInstance(GitVcs.class);
+    private static final Logger LOG = LoggerFactory.getLogger(GitVcs.class);
     private static final VcsKey ourKey = createKey(NAME);
     private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("HH:mm:ss.SSS");
 
@@ -272,7 +273,7 @@ public class GitVcs extends AbstractVcs<CommittedChangeList> {
                 return GitRevisionNumber.resolve(myProject, root, revision);
             }
             catch (VcsException e) {
-                log.info("Unexpected problem with resolving the git revision number: ", e);
+                LOG.info("Unexpected problem with resolving the git revision number: ", e);
                 throw e;
             }
         }
@@ -404,7 +405,7 @@ public class GitVcs extends AbstractVcs<CommittedChangeList> {
         try {
             myVersion = GitVersion.identifyVersion(executable);
             if (!myVersion.isSupported()) {
-                log.info("Unsupported Git version: " + myVersion);
+                LOG.info("Unsupported Git version: {}", myVersion);
                 final String SETTINGS_LINK = "settings";
                 final String UPDATE_LINK = "update";
                 String message = String.format(

@@ -67,9 +67,9 @@ public class MergeChangeCollector {
             addAll(updates, FileGroup.MERGED_WITH_CONFLICT_ID, paths);
 
             // collect other changes (ignoring unmerged)
-            TreeSet<String> updated = new TreeSet<>();
-            TreeSet<String> created = new TreeSet<>();
-            TreeSet<String> removed = new TreeSet<>();
+            SortedSet<String> updated = new TreeSet<>();
+            SortedSet<String> created = new TreeSet<>();
+            SortedSet<String> removed = new TreeSet<>();
 
             String revisionsForDiff = getRevisionsForDiff();
             if (revisionsForDiff == null) {

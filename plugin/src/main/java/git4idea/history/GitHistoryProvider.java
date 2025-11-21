@@ -18,8 +18,8 @@ package git4idea.history;
 import consulo.annotation.component.ComponentScope;
 import consulo.annotation.component.ServiceAPI;
 import consulo.annotation.component.ServiceImpl;
-import consulo.logging.Logger;
 import consulo.project.Project;
+import consulo.ui.annotation.RequiredUIAccess;
 import consulo.ui.ex.action.ActionManager;
 import consulo.ui.ex.action.AnAction;
 import consulo.ui.ex.awt.ColumnInfo;
@@ -41,11 +41,12 @@ import git4idea.config.GitExecutableValidator;
 import git4idea.history.browser.SHAHash;
 import git4idea.repo.GitRepository;
 import git4idea.repo.GitRepositoryManager;
-import jakarta.inject.Inject;
-import jakarta.inject.Singleton;
-
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import jakarta.inject.Inject;
+import jakarta.inject.Singleton;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
 import java.util.Collections;
@@ -60,7 +61,7 @@ import java.util.function.Predicate;
 @ServiceImpl
 public class GitHistoryProvider
     implements VcsHistoryProvider, VcsCacheableHistorySessionFactory<Boolean, VcsAbstractHistorySession>, VcsBaseRevisionAdviser {
-    private static final Logger log = Logger.getInstance(GitHistoryProvider.class);
+    private static final Logger LOG = LoggerFactory.getLogger(GitHistoryProvider.class);
 
     @Nonnull
     private final Project myProject;
@@ -72,7 +73,7 @@ public class GitHistoryProvider
 
     @Override
     public VcsDependentHistoryComponents getUICustomization(
-        final VcsHistorySession session,
+        VcsHistorySession session,
         JComponent forShortcutRegistration
     ) {
         return VcsDependentHistoryComponents.createOnlyColumns(new ColumnInfo[0]);
@@ -120,7 +121,7 @@ public class GitHistoryProvider
 
     @Nullable
     @Override
-    public VcsHistorySession createSessionFor(final FilePath filePath) throws VcsException {
+    public VcsHistorySession createSessionFor(FilePath filePath) throws VcsException {
         List<VcsFileRevision> revisions = null;
         try {
             revisions = GitHistoryUtils.history(myProject, filePath);
@@ -144,9 +145,7 @@ public class GitHistoryProvider
                 }
                 catch (VcsException e) {
                     // likely the file is not under VCS anymore.
-                    if (log.isDebugEnabled()) {
-                        log.debug("Unable to retrieve the current revision number", e);
-                    }
+                    LOG.debug("Unable to retrieve the current revision number", e);
                     return null;
                 }
             }
@@ -167,7 +166,7 @@ public class GitHistoryProvider
     public boolean getBaseVersionContent(
         FilePath filePath,
         Predicate<CharSequence> processor,
-        final String beforeVersionId,
+        String beforeVersionId,
         List<String> warnings
     )
         throws VcsException {
@@ -175,14 +174,14 @@ public class GitHistoryProvider
             return false;
         }
         // apply if base revision id matches revision
-        final VirtualFile root = GitUtil.getGitRoot(filePath);
+        VirtualFile root = GitUtil.getGitRoot(filePath);
 
-        final SHAHash shaHash = GitChangeUtils.commitExists(myProject, root, beforeVersionId, null, "HEAD");
+        SHAHash shaHash = GitChangeUtils.commitExists(myProject, root, beforeVersionId, null, "HEAD");
         if (shaHash == null) {
             throw new VcsException("Can not apply patch to " + filePath.getPath() + ".\nCan not find revision '" + beforeVersionId + "'.");
         }
 
-        final ContentRevision content = GitVcs.getInstance(myProject).getDiffProvider()
+        ContentRevision content = GitVcs.getInstance(myProject).getDiffProvider()
             .createFileContent(new GitRevisionNumber(shaHash.getValue()), filePath.getVirtualFile());
         if (content == null) {
             throw new VcsException("Can not load content of '" + filePath.getPath() + "' for revision '" + shaHash.getValue() + "'");
@@ -191,8 +190,9 @@ public class GitHistoryProvider
     }
 
     @Override
-    public void reportAppendableHistory(final FilePath path, final VcsAppendableHistorySessionPartner partner) throws VcsException {
-        final VcsAbstractHistorySession emptySession = createSession(path, Collections.<VcsFileRevision>emptyList(), null);
+    @RequiredUIAccess
+    public void reportAppendableHistory(FilePath path, VcsAppendableHistorySessionPartner partner) throws VcsException {
+        VcsAbstractHistorySession emptySession = createSession(path, Collections.<VcsFileRevision>emptyList(), null);
         partner.reportCreatedEmptySession(emptySession);
 
         VcsConfiguration vcsConfiguration = VcsConfiguration.getInstance(myProject);
@@ -200,7 +200,7 @@ public class GitHistoryProvider
             new String[]{"--max-count=" + vcsConfiguration.MAXIMUM_HISTORY_ROWS} :
             ArrayUtil.EMPTY_STRING_ARRAY;
 
-        final GitExecutableValidator validator = GitVcs.getInstance(myProject).getExecutableValidator();
+        GitExecutableValidator validator = GitVcs.getInstance(myProject).getExecutableValidator();
         GitHistoryUtils.history(
             myProject,
             refreshPath(path),

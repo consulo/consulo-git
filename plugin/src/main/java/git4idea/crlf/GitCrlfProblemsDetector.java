@@ -16,7 +16,6 @@
 package git4idea.crlf;
 
 import consulo.application.progress.ProgressIndicatorProvider;
-import consulo.logging.Logger;
 import consulo.project.Project;
 import consulo.util.io.FileUtil;
 import consulo.virtualFileSystem.VirtualFile;
@@ -29,6 +28,8 @@ import git4idea.config.GitConfigUtil;
 import git4idea.repo.GitRepository;
 import git4idea.repo.GitRepositoryManager;
 import jakarta.annotation.Nonnull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.*;
 
@@ -50,8 +51,7 @@ import java.util.*;
  * @author Kirill Likhodedov
  */
 public class GitCrlfProblemsDetector {
-
-    private static final Logger LOG = Logger.getInstance(GitCrlfProblemsDetector.class);
+    private static final Logger LOG = LoggerFactory.getLogger(GitCrlfProblemsDetector.class);
     private static final String CRLF = "\r\n";
 
     @Nonnull
@@ -101,13 +101,13 @@ public class GitCrlfProblemsDetector {
     private Collection<VirtualFile> findFilesWithoutAttrs(@Nonnull VirtualFile root, @Nonnull Collection<VirtualFile> files) {
         GitRepository repository = GitRepositoryManager.getInstance(myProject).getRepositoryForRoot(root);
         if (repository == null) {
-            LOG.warn("Repository is null for " + root);
+            LOG.warn("Repository is null for {}", root);
             return Collections.emptyList();
         }
         Collection<String> interestingAttributes = Arrays.asList(GitAttribute.TEXT.getName(), GitAttribute.CRLF.getName());
         GitCommandResult result = myGit.checkAttr(repository, interestingAttributes, files);
         if (!result.success()) {
-            LOG.warn(String.format("Couldn't git check-attr. Attributes: %s, files: %s", interestingAttributes, files));
+            LOG.warn("Couldn't git check-attr. Attributes: {}, files: {}", interestingAttributes, files);
             return Collections.emptyList();
         }
         GitCheckAttrParser parser = GitCheckAttrParser.parse(result.getOutput());
@@ -172,7 +172,7 @@ public class GitCrlfProblemsDetector {
     private boolean isAutoCrlfSetRight(@Nonnull VirtualFile root) {
         GitRepository repository = GitRepositoryManager.getInstance(myProject).getRepositoryForRoot(root);
         if (repository == null) {
-            LOG.warn("Repository is null for " + root);
+            LOG.warn("Repository is null for {}", root);
             return true;
         }
         GitCommandResult result = myGit.config(repository, GitConfigUtil.CORE_AUTOCRLF);

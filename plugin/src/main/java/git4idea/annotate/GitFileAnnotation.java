@@ -18,7 +18,6 @@ package git4idea.annotate;
 import consulo.application.util.DateFormatUtil;
 import consulo.git.localize.GitLocalize;
 import consulo.localize.LocalizeValue;
-import consulo.logging.Logger;
 import consulo.project.Project;
 import consulo.versionControlSystem.AbstractVcsHelper;
 import consulo.versionControlSystem.VcsException;
@@ -43,8 +42,6 @@ import java.util.*;
  * Based on the JetBrains SVNAnnotationProvider.
  */
 public class GitFileAnnotation extends FileAnnotation {
-    private final static Logger LOG = Logger.getInstance(GitFileAnnotation.class);
-
     /**
      * annotated content
      */
@@ -71,7 +68,7 @@ public class GitFileAnnotation extends FileAnnotation {
     private final LineAnnotationAspect DATE_ASPECT = new GitAnnotationAspect(GitAnnotationAspect.DATE, true) {
         @Override
         public String doGetValue(LineInfo info) {
-            final Date date = info.getDate();
+            Date date = info.getDate();
             return date == null ? "" : DateFormatUtil.formatPrettyDate(date);
         }
     };
@@ -79,7 +76,7 @@ public class GitFileAnnotation extends FileAnnotation {
     private final LineAnnotationAspect REVISION_ASPECT = new GitAnnotationAspect(GitAnnotationAspect.REVISION, false) {
         @Override
         protected String doGetValue(LineInfo lineInfo) {
-            final GitRevisionNumber revision = lineInfo.getRevision();
+            GitRevisionNumber revision = lineInfo.getRevision();
             return revision == null ? "" : String.valueOf(revision.getShortRev());
         }
     };
@@ -87,7 +84,7 @@ public class GitFileAnnotation extends FileAnnotation {
     private final LineAnnotationAspect AUTHOR_ASPECT = new GitAnnotationAspect(GitAnnotationAspect.AUTHOR, true) {
         @Override
         protected String doGetValue(LineInfo lineInfo) {
-            final String author = lineInfo.getAuthor();
+            String author = lineInfo.getAuthor();
             return author == null ? "" : author;
         }
     };
@@ -102,10 +99,10 @@ public class GitFileAnnotation extends FileAnnotation {
      * @param revision
      */
     public GitFileAnnotation(
-        @Nonnull final Project project,
+        @Nonnull Project project,
         @Nonnull VirtualFile file,
-        final boolean monitorFlag,
-        final VcsRevisionNumber revision
+        boolean monitorFlag,
+        VcsRevisionNumber revision
     ) {
         super(project);
         myProject = project;
@@ -150,7 +147,7 @@ public class GitFileAnnotation extends FileAnnotation {
         if (myLines.size() <= lineNumber || lineNumber < 0) {
             return LocalizeValue.empty();
         }
-        final LineInfo info = myLines.get(lineNumber);
+        LineInfo info = myLines.get(lineNumber);
         if (info == null) {
             return LocalizeValue.empty();
         }
@@ -181,7 +178,7 @@ public class GitFileAnnotation extends FileAnnotation {
      */
     @Override
     public List<VcsFileRevision> getRevisions() {
-        final List<VcsFileRevision> result = new ArrayList<>(myRevisionMap.values());
+        List<VcsFileRevision> result = new ArrayList<>(myRevisionMap.values());
         Collections.sort(result, (o1, o2) -> -1 * o1.getRevisionNumber().compareTo(o2.getRevisionNumber()));
         return result;
     }
@@ -205,11 +202,11 @@ public class GitFileAnnotation extends FileAnnotation {
      * {@inheritDoc}
      */
     @Override
-    public VcsRevisionNumber getLineRevisionNumber(final int lineNumber) {
+    public VcsRevisionNumber getLineRevisionNumber(int lineNumber) {
         if (lineNumberCheck(lineNumber)) {
             return null;
         }
-        final LineInfo lineInfo = myLines.get(lineNumber);
+        LineInfo lineInfo = myLines.get(lineNumber);
         return lineInfo == null ? null : lineInfo.getRevision();
     }
 
@@ -222,7 +219,7 @@ public class GitFileAnnotation extends FileAnnotation {
         if (lineNumberCheck(lineNumber)) {
             return null;
         }
-        final LineInfo lineInfo = myLines.get(lineNumber);
+        LineInfo lineInfo = myLines.get(lineNumber);
         return lineInfo == null ? null : lineInfo.getDate();
     }
 
@@ -245,11 +242,11 @@ public class GitFileAnnotation extends FileAnnotation {
      * @throws VcsException in case when line could not be processed
      */
     public void appendLineInfo(
-        final Date date,
-        final GitRevisionNumber revision,
-        final String author,
-        final String line,
-        final long lineNumber
+        Date date,
+        GitRevisionNumber revision,
+        String author,
+        String line,
+        long lineNumber
     ) throws VcsException {
         int expectedLineNo = myLines.size() + 1;
         if (lineNumber != expectedLineNo) {
@@ -281,7 +278,7 @@ public class GitFileAnnotation extends FileAnnotation {
         @Override
         protected void showAffectedPaths(int lineNum) {
             if (lineNum >= 0 && lineNum < myLines.size()) {
-                final LineInfo info = myLines.get(lineNum);
+                LineInfo info = myLines.get(lineNum);
                 if (info != null) {
                     AbstractVcsHelper.getInstance(myProject).showSubmittedFiles(info.getRevision(), myFile, GitVcs.getKey());
                 }
@@ -313,7 +310,7 @@ public class GitFileAnnotation extends FileAnnotation {
          * @param revision revision number
          * @param author   the author of the change
          */
-        public LineInfo(final Date date, final GitRevisionNumber revision, final String author) {
+        public LineInfo(Date date, GitRevisionNumber revision, String author) {
             myDate = date;
             myRevision = revision;
             myAuthor = author;
@@ -359,7 +356,7 @@ public class GitFileAnnotation extends FileAnnotation {
 
     @Override
     public boolean isBaseRevisionChanged(@Nonnull VcsRevisionNumber number) {
-        final VcsRevisionNumber currentCurrentRevision = myVcs.getDiffProvider().getCurrentRevision(myFile);
+        VcsRevisionNumber currentCurrentRevision = myVcs.getDiffProvider().getCurrentRevision(myFile);
         return myBaseRevision != null && !myBaseRevision.equals(currentCurrentRevision);
     }
 }

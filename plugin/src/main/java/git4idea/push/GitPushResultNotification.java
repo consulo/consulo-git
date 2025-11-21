@@ -16,7 +16,6 @@
 package git4idea.push;
 
 import consulo.localize.LocalizeValue;
-import consulo.logging.Logger;
 import consulo.project.Project;
 import consulo.project.ui.notification.Notification;
 import consulo.project.ui.notification.NotificationGroup;
@@ -35,11 +34,15 @@ import git4idea.repo.GitRepository;
 import git4idea.update.GitUpdateResult;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Map;
 
 class GitPushResultNotification extends Notification {
+    private static final Logger LOG = LoggerFactory.getLogger(GitPushResultNotification.class);
+
     public static final LocalizeValue VIEW_FILES_UPDATED_DURING_THE_PUSH = LocalizeValue.localizeTODO("View files updated during the push");
 
     public static final String UPDATE_WITH_RESOLVED_CONFLICTS =
@@ -50,8 +53,6 @@ class GitPushResultNotification extends Notification {
             "Resolve the conflicts and invoke push again.";
     public static final String UPDATE_WITH_ERRORS = "push was rejected, and update failed with error.";
     public static final String UPDATE_CANCELLED = "push was rejected, and update was cancelled.";
-
-    private static final Logger LOG = Logger.getInstance(GitPushResultNotification.class);
 
     public GitPushResultNotification(
         @Nonnull NotificationGroup groupDisplayId,
@@ -195,7 +196,7 @@ class GitPushResultNotification extends Notification {
                 description = "failed with error: " + result.getError();
                 break;
             default:
-                LOG.error("Unexpected push result: " + result);
+                LOG.error("Unexpected push result: {}", result);
                 description = "";
                 break;
         }

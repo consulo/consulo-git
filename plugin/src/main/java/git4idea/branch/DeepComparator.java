@@ -20,7 +20,6 @@ import consulo.application.progress.Task;
 import consulo.disposer.Disposable;
 import consulo.disposer.Disposer;
 import consulo.localize.LocalizeValue;
-import consulo.logging.Logger;
 import consulo.project.Project;
 import consulo.project.ui.notification.NotificationService;
 import consulo.ui.annotation.RequiredUIAccess;
@@ -39,6 +38,8 @@ import git4idea.repo.GitRepository;
 import git4idea.repo.GitRepositoryManager;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -46,7 +47,7 @@ import java.util.Map;
 import java.util.Set;
 
 public class DeepComparator implements VcsLogDeepComparator, Disposable {
-    private static final Logger LOG = Logger.getInstance(DeepComparator.class);
+    private static final Logger LOG = LoggerFactory.getLogger(DeepComparator.class);
 
     @Nonnull
     private final Project myProject;
@@ -257,7 +258,7 @@ public class DeepComparator implements VcsLogDeepComparator, Disposable {
                 }
             }
             catch (VcsException e) {
-                LOG.warn(e);
+                LOG.warn("Error while collecting non-picked commits", e);
                 myException = e;
             }
         }
@@ -312,7 +313,7 @@ public class DeepComparator implements VcsLogDeepComparator, Disposable {
                             pickedCommits.add(new CommitId(hash, root));
                         }
                         catch (Exception e) {
-                            LOG.error("Couldn't parse line [" + line + "]");
+                            LOG.error("Couldn't parse line [{}]", line);
                         }
                     }
                 }

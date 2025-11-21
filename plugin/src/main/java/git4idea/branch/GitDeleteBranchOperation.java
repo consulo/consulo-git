@@ -19,7 +19,6 @@ import consulo.application.progress.ProgressIndicator;
 import consulo.application.progress.Task;
 import consulo.ide.ServiceManager;
 import consulo.localize.LocalizeValue;
-import consulo.logging.Logger;
 import consulo.project.Project;
 import consulo.project.ui.notification.Notification;
 import consulo.project.ui.notification.NotificationAction;
@@ -39,6 +38,8 @@ import git4idea.repo.GitBranchTrackInfo;
 import git4idea.repo.GitRepository;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.regex.Matcher;
@@ -55,7 +56,7 @@ import static consulo.versionControlSystem.distributed.DvcsUtil.getShortReposito
  * current branch are merged to, and makes force delete, if wanted.
  */
 class GitDeleteBranchOperation extends GitBranchOperation {
-    private static final Logger LOG = Logger.getInstance(GitDeleteBranchOperation.class);
+    private static final Logger LOG = LoggerFactory.getLogger(GitDeleteBranchOperation.class);
 
     static final LocalizeValue RESTORE = LocalizeValue.localizeTODO("Restore");
     static final LocalizeValue VIEW_COMMITS = LocalizeValue.localizeTODO("View Commits");
@@ -217,8 +218,11 @@ class GitDeleteBranchOperation extends GitBranchOperation {
                     GitCommandResult setTrackResult = setUpTracking(repository, myBranchName, trackedBranch);
                     if (!setTrackResult.success()) {
                         LOG.warn(
-                            "Couldn't set " + myBranchName + " to track " + trackedBranch + " in " + repository.getRoot().getName() +
-                                ": " + setTrackResult.getErrorOutputAsJoinedString()
+                            "Couldn't set {} to track {} in {}: {}",
+                            myBranchName,
+                            trackedBranch,
+                            repository.getRoot().getName(),
+                            setTrackResult.getErrorOutputAsJoinedString()
                         );
                     }
                 }
@@ -257,8 +261,8 @@ class GitDeleteBranchOperation extends GitBranchOperation {
     protected LocalizeValue getRollbackProposal() {
         return LocalizeValue.localizeTODO(
             "However branch deletion has succeeded for the following " + repositories() + ":<br/>" +
-            successfulRepositoriesJoined() +
-            "<br/>You may rollback (recreate " + myBranchName + " in these roots) not to let branches diverge."
+                successfulRepositoriesJoined() +
+                "<br/>You may rollback (recreate " + myBranchName + " in these roots) not to let branches diverge."
         );
     }
 
@@ -314,7 +318,7 @@ class GitDeleteBranchOperation extends GitBranchOperation {
             return GitHistoryUtils.history(repository.getProject(), repository.getRoot(), range);
         }
         catch (VcsException e) {
-            LOG.warn("Couldn't get `git log " + range + "` in " + getShortRepositoryName(repository), e);
+            LOG.warn("Couldn't get `git log {}` in {}", range, getShortRepositoryName(repository), e);
         }
         return Collections.emptyList();
     }

@@ -17,7 +17,6 @@ package git4idea.branch;
 
 import consulo.application.AccessToken;
 import consulo.localize.LocalizeValue;
-import consulo.logging.Logger;
 import consulo.project.Project;
 import consulo.project.ui.notification.Notification;
 import consulo.project.ui.notification.NotificationService;
@@ -39,13 +38,15 @@ import git4idea.repo.GitRepository;
 import git4idea.reset.GitResetMode;
 import git4idea.util.GitPreservingProcess;
 import jakarta.annotation.Nonnull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.swing.event.HyperlinkEvent;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 class GitMergeOperation extends GitBranchOperation {
-    private static final Logger LOG = Logger.getInstance(GitMergeOperation.class);
+    private static final Logger LOG = LoggerFactory.getLogger(GitMergeOperation.class);
     public static final String ROLLBACK_PROPOSAL = "You may rollback (reset to the commit before merging) not to let branches diverge.";
 
     @Nonnull
@@ -86,7 +87,7 @@ class GitMergeOperation extends GitBranchOperation {
         try (AccessToken token = DvcsUtil.workingTreeChangeStarted(myProject, getOperationName().get())) {
             while (hasMoreRepositories() && !fatalErrorHappened) {
                 GitRepository repository = next();
-                LOG.info("next repository: " + repository);
+                LOG.info("next repository: {}", repository);
 
                 VirtualFile root = repository.getRoot();
                 GitLocalChangesWouldBeOverwrittenDetector localChangesDetector =
@@ -140,7 +141,7 @@ class GitMergeOperation extends GitBranchOperation {
                     fatalErrorHappened = true;
                 }
                 else {
-                    LOG.info("Unknown error. " + result);
+                    LOG.info("Unknown error. {}", result);
                     fatalError(getCommonErrorTitle(), result.getErrorOutputAsJoinedValue());
                     fatalErrorHappened = true;
                 }
@@ -298,9 +299,12 @@ class GitMergeOperation extends GitBranchOperation {
             }
         }
 
-        LOG.info("for smart rollback: " + DvcsUtil.getShortNames(repositoriesForSmartRollback) +
-            "; for simple rollback: " + DvcsUtil.getShortNames(repositoriesForSimpleRollback) +
-            "; for merge rollback: " + DvcsUtil.getShortNames(repositoriesForMergeRollback));
+        LOG.info(
+            "for smart rollback: {}; for simple rollback: {}; for merge rollback: {}",
+            DvcsUtil.getShortNames(repositoriesForSmartRollback),
+            DvcsUtil.getShortNames(repositoriesForSimpleRollback),
+            DvcsUtil.getShortNames(repositoriesForMergeRollback)
+        );
 
         GitCompoundResult result = smartRollback(repositoriesForSmartRollback);
         for (GitRepository repository : repositoriesForSimpleRollback) {

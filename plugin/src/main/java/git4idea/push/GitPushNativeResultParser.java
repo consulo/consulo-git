@@ -15,9 +15,10 @@
  */
 package git4idea.push;
 
-import consulo.logging.Logger;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -87,12 +88,14 @@ import java.util.regex.Pattern;
  * </pre>
  */
 public class GitPushNativeResultParser {
+    private static final Logger LOG = LoggerFactory.getLogger(GitPushNativeResultParser.class);
 
-    private static final Logger LOG = Logger.getInstance(GitPushNativeResultParser.class);
-    private static final Pattern PATTERN = Pattern.compile("^.*([ +\\-\\*!=])\t" +   // flag
-        "(\\S+):(\\S+)\t" +       // from:to
-        "([^(]+)" +               // summary maybe with a trailing space
-        "(?:\\((.+)\\))?.*$");    // reason
+    private static final Pattern PATTERN = Pattern.compile(
+        "^.*([ +\\-\\*!=])\t" + // flag
+        "(\\S+):(\\S+)\t" +     // from:to
+        "([^(]+)" +             // summary maybe with a trailing space
+        "(?:\\((.+)\\))?.*$"    // reason
+    );
     private static final Pattern RANGE = Pattern.compile("[0-9a-f]+[\\.]{2,3}[0-9a-f]+");
 
     @Nonnull
@@ -117,7 +120,7 @@ public class GitPushNativeResultParser {
 
         GitPushNativeResult.Type type = parseType(flag);
         if (type == null) {
-            LOG.error("Couldn't parse push result type from flag [" + flag + "] in [" + line + "]");
+            LOG.error("Couldn't parse push result type from flag [{}] in [{}]", flag, line);
             return null;
         }
         if (matcher.groupCount() < 4) {

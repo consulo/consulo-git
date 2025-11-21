@@ -21,7 +21,6 @@ import consulo.annotation.component.ServiceImpl;
 import consulo.application.progress.ProgressIndicator;
 import consulo.document.Document;
 import consulo.document.FileDocumentManager;
-import consulo.logging.Logger;
 import consulo.project.Project;
 import consulo.util.io.FileUtil;
 import consulo.versionControlSystem.FilePath;
@@ -44,6 +43,8 @@ import git4idea.repo.GitRepositoryManager;
 import jakarta.annotation.Nonnull;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.*;
 
@@ -54,8 +55,7 @@ import java.util.*;
 @ServiceAPI(ComponentScope.PROJECT)
 @ServiceImpl
 public class GitChangeProvider implements ChangeProvider {
-
-    private static final Logger LOG = Logger.getInstance("#GitStatus");
+    private static final Logger LOG = LoggerFactory.getLogger("#GitStatus");
 
     @Nonnull
     private final Project myProject;
@@ -69,8 +69,10 @@ public class GitChangeProvider implements ChangeProvider {
     private final ProjectLevelVcsManager myVcsManager;
 
     @Inject
-    public GitChangeProvider(@Nonnull Project project, @Nonnull Git git, @Nonnull ChangeListManager changeListManager,
-                             @Nonnull FileDocumentManager fileDocumentManager, @Nonnull ProjectLevelVcsManager vcsManager) {
+    public GitChangeProvider(
+        @Nonnull Project project, @Nonnull Git git, @Nonnull ChangeListManager changeListManager,
+        @Nonnull FileDocumentManager fileDocumentManager, @Nonnull ProjectLevelVcsManager vcsManager
+    ) {
         myProject = project;
         myGit = git;
         myChangeListManager = changeListManager;
@@ -79,11 +81,13 @@ public class GitChangeProvider implements ChangeProvider {
     }
 
     @Override
-    public void getChanges(final VcsDirtyScope dirtyScope,
-                           final ChangelistBuilder builder,
-                           final ProgressIndicator progress,
-                           final ChangeListManagerGate addGate) throws VcsException {
-        final GitVcs vcs = GitVcs.getInstance(myProject);
+    public void getChanges(
+        VcsDirtyScope dirtyScope,
+        ChangelistBuilder builder,
+        ProgressIndicator progress,
+        ChangeListManagerGate addGate
+    ) throws VcsException {
+        GitVcs vcs = GitVcs.getInstance(myProject);
         if (vcs == null) {
             // already disposed or not yet initialized => ignoring
             return;
@@ -91,22 +95,28 @@ public class GitChangeProvider implements ChangeProvider {
 
         appendNestedVcsRootsToDirt(dirtyScope, vcs, myVcsManager);
 
-        final Collection<VirtualFile> affected = dirtyScope.getAffectedContentRoots();
+        Collection<VirtualFile> affected = dirtyScope.getAffectedContentRoots();
         Collection<VirtualFile> roots = GitUtil.gitRootsForPaths(affected);
 
         try {
-            final NonChangedHolder holder = new NonChangedHolder(myProject, addGate,
-                myFileDocumentManager);
+            NonChangedHolder holder = new NonChangedHolder(myProject, addGate, myFileDocumentManager);
             for (VirtualFile root : roots) {
-                debug("checking root: " + root.getPath());
-                GitNewChangesCollector collector = GitNewChangesCollector.collect(myProject, myGit, myChangeListManager, myVcsManager,
-                    vcs, dirtyScope, root);
-                final Collection<Change> changes = collector.getChanges();
+                LOG.debug("checking root: {}", root.getPath());
+                GitNewChangesCollector collector = GitNewChangesCollector.collect(
+                    myProject,
+                    myGit,
+                    myChangeListManager,
+                    myVcsManager,
+                    vcs,
+                    dirtyScope,
+                    root
+                );
+                Collection<Change> changes = collector.getChanges();
                 holder.markHeadRevision(root, collector.getHead());
 
                 for (Change file : changes) {
                     FilePath filePath = ChangesUtil.getFilePath(file);
-                    debug("process change: " + filePath.getPath());
+                    LOG.debug("process change: {}", filePath.getPath());
                     builder.processChange(file, GitVcs.getKey());
 
                     holder.markPathProcessed(filePath);
@@ -120,22 +130,22 @@ public class GitChangeProvider implements ChangeProvider {
             }
         }
         catch (VcsException e) {
-            LOG.info(e);
+            LOG.info("Error while getting changes", e);
             // most probably the error happened because git is not configured
             vcs.getExecutableValidator().showNotificationOrThrow(e);
         }
     }
 
-    public static void appendNestedVcsRootsToDirt(final VcsDirtyScope dirtyScope, GitVcs vcs, final ProjectLevelVcsManager vcsManager) {
-        final Set<FilePath> recursivelyDirtyDirectories = dirtyScope.getRecursivelyDirtyDirectories();
+    public static void appendNestedVcsRootsToDirt(VcsDirtyScope dirtyScope, GitVcs vcs, ProjectLevelVcsManager vcsManager) {
+        Set<FilePath> recursivelyDirtyDirectories = dirtyScope.getRecursivelyDirtyDirectories();
         if (recursivelyDirtyDirectories.isEmpty()) {
             return;
         }
 
-        final LocalFileSystem lfs = LocalFileSystem.getInstance();
-        final Set<VirtualFile> rootsUnderGit = new HashSet<VirtualFile>(Arrays.asList(vcsManager.getRootsUnderVcs(vcs)));
-        final Set<VirtualFile> inputColl = new HashSet<VirtualFile>(rootsUnderGit);
-        final Set<VirtualFile> existingInScope = new HashSet<VirtualFile>();
+        LocalFileSystem lfs = LocalFileSystem.getInstance();
+        Set<VirtualFile> rootsUnderGit = new HashSet<>(Arrays.asList(vcsManager.getRootsUnderVcs(vcs)));
+        Set<VirtualFile> inputColl = new HashSet<>(rootsUnderGit);
+        Set<VirtualFile> existingInScope = new HashSet<>();
         for (FilePath dir : recursivelyDirtyDirectories) {
             VirtualFile vf = dir.getVirtualFile();
             if (vf == null) {
@@ -149,22 +159,17 @@ public class GitChangeProvider implements ChangeProvider {
             }
         }
         inputColl.addAll(existingInScope);
-        FileUtil.removeAncestors(inputColl, o -> o.getPath(), (parent, child) -> {
+        FileUtil.removeAncestors(
+            inputColl,
+            VirtualFile::getPath,
+            (parent, child) -> {
                 if (!existingInScope.contains(child) && existingInScope.contains(parent)) {
-                    debug("adding git root for check: " + child.getPath());
+                    LOG.debug("adding git root for check: {}", child.getPath());
                     ((VcsModifiableDirtyScope) dirtyScope).addDirtyDirRecursively(VcsContextFactory.getInstance().createFilePathOn(child));
                 }
                 return true;
             }
         );
-    }
-
-    /**
-     * Common debug logging method for all Git status related operations.
-     * Primarily used for measuring performance and tracking calls to heavy methods.
-     */
-    public static void debug(String message) {
-        LOG.debug(message);
     }
 
     private static class NonChangedHolder {
@@ -175,9 +180,11 @@ public class GitChangeProvider implements ChangeProvider {
         private final Set<FilePath> myProcessedPaths = new HashSet<>();
         private final Map<VirtualFile, VcsRevisionNumber> myHeadRevisions = new HashMap<>();
 
-        private NonChangedHolder(Project project,
-                                 ChangeListManagerGate addGate,
-                                 FileDocumentManager fileDocumentManager) {
+        private NonChangedHolder(
+            Project project,
+            ChangeListManagerGate addGate,
+            FileDocumentManager fileDocumentManager
+        ) {
             myProject = project;
             myAddGate = addGate;
             myFileDocumentManager = fileDocumentManager;
@@ -191,8 +198,8 @@ public class GitChangeProvider implements ChangeProvider {
             myHeadRevisions.put(root, revision);
         }
 
-        public void feedBuilder(@Nonnull VcsDirtyScope dirtyScope, final ChangelistBuilder builder) throws VcsException {
-            final VcsKey gitKey = GitVcs.getKey();
+        public void feedBuilder(@Nonnull VcsDirtyScope dirtyScope, ChangelistBuilder builder) throws VcsException {
+            VcsKey gitKey = GitVcs.getKey();
 
             for (Document document : myFileDocumentManager.getUnsavedDocuments()) {
                 VirtualFile vf = myFileDocumentManager.getFile(document);
@@ -234,9 +241,10 @@ public class GitChangeProvider implements ChangeProvider {
                 }
 
                 Change change = new Change(GitContentRevision.createRevision(vf, beforeRevisionNumber, myProject),
-                    GitContentRevision.createRevision(vf, null, myProject), FileStatus.MODIFIED);
+                    GitContentRevision.createRevision(vf, null, myProject), FileStatus.MODIFIED
+                );
 
-                LOG.debug("process in-memory change ", change);
+                LOG.debug("process in-memory change {}", change);
                 builder.processChange(change, gitKey);
             }
         }
@@ -248,6 +256,6 @@ public class GitChangeProvider implements ChangeProvider {
     }
 
     @Override
-    public void doCleanup(final List<VirtualFile> files) {
+    public void doCleanup(List<VirtualFile> files) {
     }
 }

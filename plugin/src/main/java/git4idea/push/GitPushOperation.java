@@ -21,7 +21,6 @@ import consulo.application.progress.ProgressIndicator;
 import consulo.application.progress.ProgressManager;
 import consulo.localHistory.Label;
 import consulo.localHistory.LocalHistory;
-import consulo.logging.Logger;
 import consulo.project.Project;
 import consulo.ui.annotation.RequiredUIAccess;
 import consulo.ui.ex.awt.DialogWrapper;
@@ -56,6 +55,8 @@ import git4idea.update.GitUpdateResult;
 import git4idea.update.GitUpdater;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -76,7 +77,7 @@ import static git4idea.push.GitPushRepoResult.Type.REJECTED_NO_FF;
  * </ul>
  */
 public class GitPushOperation {
-    private static final Logger LOG = Logger.getInstance(GitPushOperation.class);
+    private static final Logger LOG = LoggerFactory.getLogger(GitPushOperation.class);
     private static final int MAX_PUSH_ATTEMPTS = 10;
 
     private final Project myProject;
@@ -285,7 +286,7 @@ public class GitPushOperation {
         for (GitRepository repository : repositories) {
             PushSpec<GitPushSource, GitPushTarget> spec = myPushSpecs.get(repository);
             ResultWithOutput resultWithOutput = doPush(repository, spec);
-            LOG.debug("Pushed to " + DvcsUtil.getShortRepositoryName(repository) + ": " + resultWithOutput);
+            LOG.debug("Pushed to {}: {}", DvcsUtil.getShortRepositoryName(repository), resultWithOutput);
 
             GitLocalBranch source = spec.getSource().getBranch();
             GitPushTarget target = spec.getTarget();
@@ -297,7 +298,7 @@ public class GitPushOperation {
                 List<GitPushNativeResult> nativeResults = resultWithOutput.parsedResults;
                 GitPushNativeResult branchResult = getBranchResult(nativeResults);
                 if (branchResult == null) {
-                    LOG.error("No result for branch among: [" + nativeResults + "]\n" + "Full result: " + resultWithOutput);
+                    LOG.error("No result for branch among: [{}]\nFull result: {}", nativeResults, resultWithOutput);
                     continue;
                 }
                 List<GitPushNativeResult> tagResults = filter(
@@ -308,7 +309,7 @@ public class GitPushOperation {
                 repoResult = GitPushRepoResult.convertFromNative(branchResult, tagResults, commits, source, target.remoteBranch());
             }
 
-            LOG.debug("Converted result: " + repoResult);
+            LOG.debug("Converted result: {}", repoResult);
             results.put(repository, repoResult);
         }
 
@@ -333,14 +334,14 @@ public class GitPushOperation {
         }
         String range = result.getRange();
         if (range == null) {
-            LOG.error("Range of pushed commits not reported in " + result);
+            LOG.error("Range of pushed commits not reported in {}", result);
             return -1;
         }
         try {
             return GitHistoryUtils.history(myProject, root, range).size();
         }
         catch (VcsException e) {
-            LOG.error("Couldn't collect commits from range " + range);
+            LOG.error("Couldn't collect commits from range {}", range);
             return -1;
         }
     }
@@ -355,7 +356,7 @@ public class GitPushOperation {
         List<VcsException> exceptions = new ArrayList<>();
         collector.collect(updatedFiles, exceptions);
         for (VcsException exception : exceptions) {
-            LOG.info(exception);
+            LOG.info("Error while collecting updated files", exception);
         }
     }
 

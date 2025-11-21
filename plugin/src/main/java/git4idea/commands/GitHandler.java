@@ -17,9 +17,9 @@ package git4idea.commands;
 
 import consulo.component.ProcessCanceledException;
 import consulo.container.plugin.PluginManager;
+import consulo.git.util.LazyDebug;
 import consulo.http.HttpProxyManager;
 import consulo.ide.ServiceManager;
-import consulo.logging.Logger;
 import consulo.platform.Platform;
 import consulo.process.ExecutionException;
 import consulo.process.cmd.GeneralCommandLine;
@@ -49,6 +49,8 @@ import jakarta.annotation.Nullable;
 import org.jetbrains.git4idea.rt.http.GitAskPassXmlRpcHandler;
 import org.jetbrains.git4idea.rt.ssh.GitSSHHandler;
 import org.jetbrains.git4idea.ssh.GitXmlRpcSshService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -65,9 +67,9 @@ import static java.util.Collections.singletonList;
  * A handler for git commands
  */
 public abstract class GitHandler {
-    protected static final Logger LOG = Logger.getInstance(GitHandler.class);
-    protected static final Logger OUTPUT_LOG = Logger.getInstance("#output." + GitHandler.class.getName());
-    private static final Logger TIME_LOG = Logger.getInstance("#time." + GitHandler.class.getName());
+    protected static final Logger LOG = LoggerFactory.getLogger(GitHandler.class);
+    protected static final Logger OUTPUT_LOG = LoggerFactory.getLogger("#output." + GitHandler.class.getName());
+    private static final Logger TIME_LOG = LoggerFactory.getLogger("#time." + GitHandler.class.getName());
 
     @Nonnull
     protected final Project myProject;
@@ -422,26 +424,21 @@ public abstract class GitHandler {
 
         try {
             myStartTime = System.currentTimeMillis();
-            if (!myProject.isDefault() && !mySilent && (myVcs != null)) {
-                myVcs.showCommandLine("[" + stringifyWorkingDir() + "] " + printableCommandLine());
-                LOG.info("[" + stringifyWorkingDir() + "] " + printableCommandLine());
+            if (!myProject.isDefault() && !mySilent && myVcs != null) {
+                String cmdLine = "[" + stringifyWorkingDir() + "] " + printableCommandLine();
+                myVcs.showCommandLine(cmdLine);
+                LOG.info(cmdLine);
             }
             else {
-                LOG.debug("[" + stringifyWorkingDir() + "] " + printableCommandLine());
+                LOG.debug("[{}] {}", new LazyDebug(this::stringifyWorkingDir), new LazyDebug(this::printableCommandLine));
             }
 
             // setup environment
             if (isRemote()) {
                 switch (myProjectSettings.getAppSettings().getSshExecutableType()) {
-                    case IDEA_SSH:
-                        setupSshAuthenticator();
-                        break;
-                    case NATIVE_SSH:
-                        setupHttpAuthenticator();
-                        break;
-                    case PUTTY:
-                        setupPuttyAuthenticator();
-                        break;
+                    case IDEA_SSH -> setupSshAuthenticator();
+                    case NATIVE_SSH -> setupHttpAuthenticator();
+                    case PUTTY -> setupPuttyAuthenticator();
                 }
             }
             setUpLocale();
@@ -481,7 +478,7 @@ public abstract class GitHandler {
         myEnv.put(GitAskPassXmlRpcHandler.GIT_ASK_PASS_HANDLER_ENV, myHttpHandler.toString());
         int port = service.getXmlRcpPort();
         myEnv.put(GitAskPassXmlRpcHandler.GIT_ASK_PASS_PORT_ENV, Integer.toString(port));
-        LOG.debug(String.format("handler=%s, port=%s", myHttpHandler, port));
+        LOG.debug("handler={}, port={}", myHttpHandler, port);
         addAuthListener(httpAuthenticator);
     }
 
@@ -512,7 +509,7 @@ public abstract class GitHandler {
         myEnv.put(GitSSHHandler.SSH_HANDLER_ENV, mySshHandler.toString());
         int port = ssh.getXmlRcpPort();
         myEnv.put(GitSSHHandler.SSH_PORT_ENV, Integer.toString(port));
-        LOG.debug(String.format("handler=%s, port=%s", mySshHandler, port));
+        LOG.debug("handler={}, port={}", mySshHandler, port);
 
         HttpProxyManager httpProxyManager = HttpProxyManager.getInstance();
         boolean useHttpProxy =
@@ -544,14 +541,18 @@ public abstract class GitHandler {
                 public void onLineAvailable(String line, Key outputType) {
                     String lowerCaseLine = line.toLowerCase();
                     if (lowerCaseLine.contains("authentication failed") || lowerCaseLine.contains("403 forbidden")) {
-                        LOG.debug("auth listener: auth failure detected: " + line);
+                        LOG.debug("auth listener: auth failure detected: {}", line);
                         myHttpAuthFailed = true;
                     }
                 }
 
                 @Override
                 public void processTerminated(int exitCode) {
-                    LOG.debug("auth listener: process terminated. auth failed=" + myHttpAuthFailed + ", cancelled=" + authenticator.wasCancelled());
+                    LOG.debug(
+                        "auth listener: process terminated. auth failed={}, cancelled={}",
+                        myHttpAuthFailed,
+                        authenticator.wasCancelled()
+                    );
                     if (authenticator.wasCancelled()) {
                         myHttpAuthFailed = false;
                     }
@@ -618,7 +619,7 @@ public abstract class GitHandler {
             myExitCode = exitCode;
         }
         else {
-            LOG.info("Not setting exit code " + exitCode + ", because it was already set to " + myExitCode);
+            LOG.info("Not setting exit code {}, because it was already set to {}", exitCode, myExitCode);
         }
     }
 
@@ -794,19 +795,14 @@ public abstract class GitHandler {
         if (myStartTime > 0) {
             long time = System.currentTimeMillis() - myStartTime;
             if (!TIME_LOG.isDebugEnabled() && time > LONG_TIME) {
-                LOG.info(String.format(
-                    "git %s took %s ms. Command parameters: %n%s",
-                    myCommand,
-                    time,
-                    myCommandLine.getCommandLineString()
-                ));
+                LOG.info("git {} took {} ms. Command parameters:\n{}", myCommand, time, myCommandLine.getCommandLineString());
             }
             else {
-                TIME_LOG.debug(String.format("git %s took %s ms", myCommand, time));
+                TIME_LOG.debug("git {} took {} ms", myCommand, time);
             }
         }
         else {
-            LOG.debug(String.format("git %s finished.", myCommand));
+            LOG.debug("git {} finished.", myCommand);
         }
     }
 

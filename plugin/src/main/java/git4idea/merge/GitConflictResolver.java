@@ -17,7 +17,6 @@ package git4idea.merge;
 
 import consulo.application.Application;
 import consulo.localize.LocalizeValue;
-import consulo.logging.Logger;
 import consulo.project.Project;
 import consulo.project.ui.notification.Notification;
 import consulo.project.ui.notification.NotificationService;
@@ -39,6 +38,8 @@ import git4idea.repo.GitRepository;
 import git4idea.repo.GitRepositoryManager;
 import git4idea.util.StringScanner;
 import jakarta.annotation.Nonnull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.swing.event.HyperlinkEvent;
 import java.io.File;
@@ -52,7 +53,7 @@ import static consulo.versionControlSystem.distributed.DvcsUtil.sortVirtualFiles
  * The class is highly customizable, since the procedure of resolving conflicts is very common in Git operations.
  */
 public class GitConflictResolver {
-    private static final Logger LOG = Logger.getInstance(GitConflictResolver.class);
+    private static final Logger LOG = LoggerFactory.getLogger(GitConflictResolver.class);
 
     @Nonnull
     private final Collection<VirtualFile> myRoots;
@@ -227,7 +228,7 @@ public class GitConflictResolver {
                     return mergeDialogInvokedFromNotification || proceedAfterAllMerged();
                 }
                 else {
-                    LOG.info("mergeFiles unmerged files remain: " + unmergedFilesAfterResolve);
+                    LOG.info("mergeFiles unmerged files remain: {}", unmergedFilesAfterResolve);
                     if (mergeDialogInvokedFromNotification) {
                         notifyUnresolvedRemainAfterNotification();
                     }
@@ -258,7 +259,7 @@ public class GitConflictResolver {
     }
 
     private void notifyException(VcsException e) {
-        LOG.info("mergeFiles ", e);
+        LOG.info("mergeFiles", e);
         myNotificationService.newError(VcsNotifier.IMPORTANT_ERROR_NOTIFICATION)
             .title(myParams.myErrorNotificationTitle)
             .content(LocalizeValue.localizeTODO(
@@ -315,7 +316,7 @@ public class GitConflictResolver {
     private List<VirtualFile> unmergedFiles(VirtualFile root) throws VcsException {
         GitRepository repository = myRepositoryManager.getRepositoryForRoot(root);
         if (repository == null) {
-            LOG.error("Repository not found for root " + root);
+            LOG.error("Repository not found for root {}", root);
             return Collections.emptyList();
         }
 

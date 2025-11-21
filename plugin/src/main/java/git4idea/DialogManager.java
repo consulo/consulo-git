@@ -5,13 +5,13 @@ import consulo.annotation.component.ServiceAPI;
 import consulo.annotation.component.ServiceImpl;
 import consulo.ide.ServiceManager;
 import consulo.project.Project;
+import consulo.ui.annotation.RequiredUIAccess;
 import consulo.ui.ex.awt.DialogWrapper;
 import consulo.ui.ex.awt.Messages;
 import consulo.ui.image.Image;
-import jakarta.inject.Singleton;
-
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import jakarta.inject.Singleton;
 
 /**
  * Use {@link DialogManager#show(DialogWrapper) DialogManager.show(DialogWrapper)} instead of {@link DialogWrapper#show()}
@@ -25,71 +25,92 @@ import jakarta.annotation.Nullable;
 @ServiceAPI(ComponentScope.APPLICATION)
 @ServiceImpl
 public class DialogManager {
-  public static void show(@Nonnull DialogWrapper dialog) {
-    dialogManager().showDialog(dialog);
-  }
+    @RequiredUIAccess
+    public static void show(@Nonnull DialogWrapper dialog) {
+        dialogManager().showDialog(dialog);
+    }
 
-  public static int showMessage(@Nonnull final String description,
-                                @Nonnull final String title,
-                                @Nonnull final String[] options,
-                                final int defaultButtonIndex,
-                                final int focusedButtonIndex,
-                                @Nullable final Image icon,
-                                @Nullable final DialogWrapper.DoNotAskOption dontAskOption) {
-    return dialogManager().showMessageDialog(description, title, options, defaultButtonIndex, focusedButtonIndex, icon, dontAskOption);
-  }
+    @RequiredUIAccess
+    public static int showMessage(
+        @Nonnull String description,
+        @Nonnull String title,
+        @Nonnull String[] options,
+        int defaultButtonIndex,
+        int focusedButtonIndex,
+        @Nullable Image icon,
+        @Nullable DialogWrapper.DoNotAskOption dontAskOption
+    ) {
+        return dialogManager().showMessageDialog(description, title, options, defaultButtonIndex, focusedButtonIndex, icon, dontAskOption);
+    }
 
-  public static int showOkCancelDialog(@Nonnull Project project,
-                                       @Nonnull String message,
-                                       @Nonnull String title,
-                                       @Nonnull String okButtonText,
-                                       @Nonnull String cancelButtonText,
-                                       @Nullable Image icon) {
-    return dialogManager().showMessageDialog(project, message, title, new String[]{
-      okButtonText,
-      cancelButtonText
-    }, 0, icon);
-  }
+    public static int showOkCancelDialog(
+        @Nonnull Project project,
+        @Nonnull String message,
+        @Nonnull String title,
+        @Nonnull String okButtonText,
+        @Nonnull String cancelButtonText,
+        @Nullable Image icon
+    ) {
+        return dialogManager().showMessageDialog(project, message, title, new String[]{
+            okButtonText,
+            cancelButtonText
+        }, 0, icon);
+    }
 
-  public static int showYesNoCancelDialog(@Nonnull Project project,
-                                          @Nonnull String message,
-                                          @Nonnull String title,
-                                          @Nonnull String yesButtonText,
-                                          @Nonnull String noButtonText,
-                                          @Nonnull String cancelButtonText,
-                                          @Nullable Image icon) {
-    return dialogManager().showMessageDialog(project, message, title, new String[]{
-      yesButtonText,
-      noButtonText,
-      cancelButtonText
-    }, 0, icon);
-  }
+    public static int showYesNoCancelDialog(
+        @Nonnull Project project,
+        @Nonnull String message,
+        @Nonnull String title,
+        @Nonnull String yesButtonText,
+        @Nonnull String noButtonText,
+        @Nonnull String cancelButtonText,
+        @Nullable Image icon
+    ) {
+        return dialogManager().showMessageDialog(
+            project,
+            message,
+            title,
+            new String[]{
+                yesButtonText,
+                noButtonText,
+                cancelButtonText
+            },
+            0,
+            icon
+        );
+    }
 
-  protected void showDialog(@Nonnull DialogWrapper dialog) {
-    dialog.show();
-  }
+    @RequiredUIAccess
+    protected void showDialog(@Nonnull DialogWrapper dialog) {
+        dialog.show();
+    }
 
-  protected int showMessageDialog(@Nonnull Project project,
-                                  @Nonnull String message,
-                                  @Nonnull String title,
-                                  @Nonnull String[] options,
-                                  int defaultButtonIndex,
-                                  @Nullable Image icon) {
-    return Messages.showDialog(project, message, title, options, defaultButtonIndex, icon);
-  }
+    protected int showMessageDialog(
+        @Nonnull Project project,
+        @Nonnull String message,
+        @Nonnull String title,
+        @Nonnull String[] options,
+        int defaultButtonIndex,
+        @Nullable Image icon
+    ) {
+        return Messages.showDialog(project, message, title, options, defaultButtonIndex, icon);
+    }
 
-  protected int showMessageDialog(@Nonnull String description,
-                                  @Nonnull String title,
-                                  @Nonnull String[] options,
-                                  int defaultButtonIndex,
-                                  int focusedButtonIndex,
-                                  @Nullable Image icon,
-                                  @Nullable DialogWrapper.DoNotAskOption dontAskOption) {
-    return Messages.showDialog(description, title, options, defaultButtonIndex, focusedButtonIndex, icon, dontAskOption);
-  }
+    @RequiredUIAccess
+    protected int showMessageDialog(
+        @Nonnull String description,
+        @Nonnull String title,
+        @Nonnull String[] options,
+        int defaultButtonIndex,
+        int focusedButtonIndex,
+        @Nullable Image icon,
+        @Nullable DialogWrapper.DoNotAskOption dontAskOption
+    ) {
+        return Messages.showDialog(description, title, options, defaultButtonIndex, focusedButtonIndex, icon, dontAskOption);
+    }
 
-  @Nonnull
-  private static DialogManager dialogManager() {
-    return ServiceManager.getService(DialogManager.class);
-  }
+    @Nonnull
+    private static DialogManager dialogManager() {
+        return ServiceManager.getService(DialogManager.class);
+    }
 }

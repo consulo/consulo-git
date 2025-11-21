@@ -17,7 +17,6 @@ package git4idea.history.browser;
 
 import git4idea.GitBranch;
 import git4idea.history.wholeTree.AbstractHash;
-
 import jakarta.annotation.Nullable;
 
 /**
@@ -25,9 +24,9 @@ import jakarta.annotation.Nullable;
  * @since 2011-12-01
  */
 public interface SymbolicRefsI {
-    /*TreeSet<String> getLocalBranches();
+    /*SortedSet<String> getLocalBranches();
 
-    TreeSet<String> getRemoteBranches();*/
+    SortedSet<String> getRemoteBranches();*/
 
     @Nullable
     String getCurrentName();

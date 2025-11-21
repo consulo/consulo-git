@@ -15,7 +15,6 @@
  */
 package git4idea.config;
 
-import consulo.logging.Logger;
 import consulo.platform.Platform;
 import consulo.process.ExecutionException;
 import consulo.process.cmd.GeneralCommandLine;
@@ -26,6 +25,8 @@ import consulo.util.io.FileUtil;
 import consulo.util.lang.StringUtil;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.util.*;
@@ -39,7 +40,7 @@ import java.util.regex.Pattern;
  * @author Kirill Likhodedov
  */
 public class GitExecutableDetector {
-    private static final Logger LOG = Logger.getInstance(GitExecutableDetector.class);
+    private static final Logger LOG = LoggerFactory.getLogger(GitExecutableDetector.class);
     private static final String[] UNIX_PATHS = {
         "/usr/local/bin",
         "/usr/bin",
@@ -127,7 +128,7 @@ public class GitExecutableDetector {
 
     @Nullable
     private static String checkProgramFiles() {
-        final String[] PROGRAM_FILES = {
+        String[] PROGRAM_FILES = {
             "Program Files",
             "Program Files (x86)"
         };
@@ -157,7 +158,7 @@ public class GitExecutableDetector {
 
     @Nullable
     private static String checkCygwin() {
-        final String[] OTHER_WINDOWS_PATHS = {FileUtil.toSystemDependentName("cygwin/bin/git.exe")};
+        String[] OTHER_WINDOWS_PATHS = {FileUtil.toSystemDependentName("cygwin/bin/git.exe")};
         for (String otherPath : OTHER_WINDOWS_PATHS) {
             File file = new File(WIN_ROOT, otherPath);
             if (file.exists()) {
@@ -181,7 +182,7 @@ public class GitExecutableDetector {
             return null;
         }
 
-        final String[] binDirs = {
+        String[] binDirs = {
             "cmd",
             "bin"
         };
@@ -249,7 +250,7 @@ public class GitExecutableDetector {
                 return -1;
             }
 
-            final Pattern GIT_WITH_VERSION = Pattern.compile("^git[ _]*([\\d\\.]*).*$");
+            Pattern GIT_WITH_VERSION = Pattern.compile("^git[ _]*([\\d\\.]*).*$");
             Matcher m1 = GIT_WITH_VERSION.matcher(name1);
             Matcher m2 = GIT_WITH_VERSION.matcher(name2);
             if (m1.matches() && m2.matches()) {
@@ -284,7 +285,7 @@ public class GitExecutableDetector {
             if (name == null) {
                 return null;
             }
-            final Pattern VERSION = Pattern.compile("(\\d+)(?:\\.(\\d+))?(?:\\.(\\d+))?(?:\\.(\\d+))?.*");
+            Pattern VERSION = Pattern.compile("(\\d+)(?:\\.(\\d+))?(?:\\.(\\d+))?(?:\\.(\\d+))?.*");
             Matcher m = VERSION.matcher(name);
             if (!m.matches()) {
                 return null;
@@ -294,7 +295,7 @@ public class GitExecutableDetector {
                 return new GitVersion(major, parseOrNull(m.group(2)), parseOrNull(m.group(3)), parseOrNull(m.group(4)));
             }
             catch (NumberFormatException e) {
-                LOG.info("Unexpected NFE when parsing [" + name + "]", e);
+                LOG.info("Unexpected NFE when parsing [{}]", name, e);
                 return null;
             }
         }

@@ -19,7 +19,6 @@ import consulo.application.progress.ProgressIndicator;
 import consulo.application.progress.ProgressManager;
 import consulo.component.ProcessCanceledException;
 import consulo.execution.ExecutableValidator;
-import consulo.logging.Logger;
 import consulo.platform.Platform;
 import consulo.process.ExecutionException;
 import consulo.process.cmd.GeneralCommandLine;
@@ -30,6 +29,8 @@ import consulo.util.io.CharsetToolkit;
 import consulo.util.lang.StringUtil;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.text.ParseException;
 import java.util.Objects;
@@ -78,7 +79,7 @@ public final class GitVersion implements Comparable<GitVersion> {
     private static final Pattern FORMAT =
         Pattern.compile("git version (\\d+)\\.(\\d+)(?:\\.(\\d+))?(?:\\.(\\d+))?(.*)", Pattern.CASE_INSENSITIVE);
 
-    private static final Logger LOG = Logger.getInstance(GitVersion.class);
+    private static final Logger LOG = LoggerFactory.getLogger(GitVersion.class);
 
     private final int myMajor;
     private final int myMinor;
@@ -165,11 +166,11 @@ public final class GitVersion implements Comparable<GitVersion> {
             throw new TimeoutException("Couldn't identify the version of Git - stopped by timeout.");
         }
         else if (result.isCancelled()) {
-            LOG.info("Cancelled by user. exitCode=" + result.getExitCode());
+            LOG.info("Cancelled by user. exitCode={}", result.getExitCode());
             throw new ProcessCanceledException();
         }
         else if (result.getExitCode() != 0 || !result.getStderr().isEmpty()) {
-            LOG.info("getVersion exitCode=" + result.getExitCode() + " errors: " + result.getStderr());
+            LOG.info("getVersion exitCode={} errors: {}", result.getExitCode(), result.getStderr());
             // anyway trying to parse
             try {
                 parse(result.getStdout());

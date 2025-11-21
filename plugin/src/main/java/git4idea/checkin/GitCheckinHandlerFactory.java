@@ -21,7 +21,7 @@ import consulo.application.progress.ProgressManager;
 import consulo.application.progress.Task;
 import consulo.git.localize.GitLocalize;
 import consulo.ide.ServiceManager;
-import consulo.logging.Logger;
+import consulo.localize.LocalizeValue;
 import consulo.project.Project;
 import consulo.ui.annotation.RequiredUIAccess;
 import consulo.ui.ex.awt.Messages;
@@ -52,6 +52,8 @@ import git4idea.repo.GitRepository;
 import git4idea.repo.GitRepositoryManager;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
@@ -65,7 +67,7 @@ import java.util.function.BiConsumer;
  */
 @ExtensionImpl
 public class GitCheckinHandlerFactory extends VcsCheckinHandlerFactory {
-    private static final Logger LOG = Logger.getInstance(GitCheckinHandlerFactory.class);
+    private static final Logger LOG = LoggerFactory.getLogger(GitCheckinHandlerFactory.class);
 
     public GitCheckinHandlerFactory() {
         super(GitVcs.getKey());
@@ -167,7 +169,7 @@ public class GitCheckinHandlerFactory extends VcsCheckinHandlerFactory {
             }
             catch (VcsException e) {
                 // it is not critical: the user just will get the dialog again next time
-                LOG.warn("Couldn't globally set core.autocrlf in " + aRoot, e);
+                LOG.warn("Couldn't globally set core.autocrlf in {}", aRoot, e);
             }
         }
 
@@ -197,7 +199,7 @@ public class GitCheckinHandlerFactory extends VcsCheckinHandlerFactory {
                     }
                 }
                 catch (VcsException e) {
-                    LOG.error("Couldn't get user.name and user.email for root " + root, e);
+                    LOG.error("Couldn't get user.name and user.email for root {}", root, e);
                     // doing nothing - let commit with possibly empty user.name/email
                 }
             }
@@ -232,7 +234,7 @@ public class GitCheckinHandlerFactory extends VcsCheckinHandlerFactory {
                         }
                     }
                     catch (VcsException e) {
-                        LOG.error("Couldn't get user.name and user.email for root " + root, e);
+                        LOG.error("Couldn't get user.name and user.email for root {}", root, e);
                         // doing nothing - not critical not to find the values for other roots not affected by commit
                     }
                 }
@@ -266,9 +268,8 @@ public class GitCheckinHandlerFactory extends VcsCheckinHandlerFactory {
                     }
                 }
                 catch (VcsException e) {
-                    String message = "Couldn't set user.name and user.email";
-                    LOG.error(message, e);
-                    Messages.showErrorDialog(myPanel.getComponent(), message);
+                    LOG.error("Couldn't set user.name and user.email", e);
+                    Messages.showErrorDialog(myPanel.getComponent(), LocalizeValue.localizeTODO("Couldn't set user.name and user.email").get());
                     return ReturnResult.CANCEL;
                 }
                 return ReturnResult.COMMIT;

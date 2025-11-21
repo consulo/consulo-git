@@ -73,7 +73,7 @@ public class GitSimpleHandler extends GitTextHandler {
      * @param command   a command to execute
      */
     @SuppressWarnings({"WeakerAccess"})
-    public GitSimpleHandler(@Nonnull final Project project, @Nonnull final VirtualFile directory, @Nonnull final GitCommand command) {
+    public GitSimpleHandler(@Nonnull Project project, @Nonnull VirtualFile directory, @Nonnull GitCommand command) {
         super(project, directory, command);
     }
 
@@ -81,7 +81,7 @@ public class GitSimpleHandler extends GitTextHandler {
      * {@inheritDoc}
      */
     @Override
-    protected void processTerminated(final int exitCode) {
+    protected void processTerminated(int exitCode) {
         if (myVcs == null) {
             return;
         }
@@ -123,10 +123,10 @@ public class GitSimpleHandler extends GitTextHandler {
      * {@inheritDoc}
      */
     @Override
-    protected void onTextAvailable(final String text, final Key outputType) {
-        final StringBuilder entire;
-        final StringBuilder lineRest;
-        final boolean suppressed;
+    protected void onTextAvailable(String text, Key outputType) {
+        StringBuilder entire;
+        StringBuilder lineRest;
+        boolean suppressed;
         if (ProcessOutputTypes.STDOUT == outputType) {
             entire = myStdout;
             lineRest = myStdoutLine;
@@ -217,7 +217,7 @@ public class GitSimpleHandler extends GitTextHandler {
         final String[] result = new String[1];
         addListener(new GitHandlerListener() {
             @Override
-            public void processTerminated(final int exitCode) {
+            public void processTerminated(int exitCode) {
                 try {
                     if (exitCode == 0 || isIgnoredErrorCode(exitCode)) {
                         result[0] = getStdout();
@@ -239,7 +239,7 @@ public class GitSimpleHandler extends GitTextHandler {
             }
 
             @Override
-            public void startFailed(final Throwable exception) {
+            public void startFailed(Throwable exception) {
                 ex[0] = new VcsException(
                     "Process failed to start (" + myCommandLine.getCommandLineString() + "): " + exception.toString(),
                     exception

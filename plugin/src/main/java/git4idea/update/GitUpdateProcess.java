@@ -19,7 +19,6 @@ import consulo.application.AccessToken;
 import consulo.application.progress.EmptyProgressIndicator;
 import consulo.application.progress.ProgressIndicator;
 import consulo.localize.LocalizeValue;
-import consulo.logging.Logger;
 import consulo.project.Project;
 import consulo.ui.annotation.RequiredUIAccess;
 import consulo.util.collection.ContainerUtil;
@@ -50,6 +49,8 @@ import git4idea.repo.GitRepository;
 import git4idea.util.GitPreservingProcess;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.*;
 
@@ -64,7 +65,7 @@ import static git4idea.util.GitUIUtil.*;
  * @author Kirill Likhodedov
  */
 public class GitUpdateProcess {
-    private static final Logger LOG = Logger.getInstance(GitUpdateProcess.class);
+    private static final Logger LOG = LoggerFactory.getLogger(GitUpdateProcess.class);
 
     @Nonnull
     private final Project myProject;
@@ -122,7 +123,7 @@ public class GitUpdateProcess {
     @Nonnull
     @RequiredUIAccess
     public GitUpdateResult update(UpdateMethod updateMethod) {
-        LOG.info("update started|" + updateMethod);
+        LOG.info("update started|{}", updateMethod);
         LocalizeValue oldText = myProgressIndicator.getTextValue();
         myProgressIndicator.setTextValue(LocalizeValue.localizeTODO("Updating..."));
 
@@ -162,7 +163,7 @@ public class GitUpdateProcess {
             updaters = defineUpdaters(updateMethod, trackedBranches);
         }
         catch (VcsException e) {
-            LOG.info(e);
+            LOG.info("Error while defining updaters", e);
             notifyError(myProject, LocalizeValue.localizeTODO("Git update failed"), LocalizeValue.ofNullable(e.getMessage()), true, e);
             return GitUpdateResult.ERROR;
         }
@@ -187,7 +188,7 @@ public class GitUpdateProcess {
                         VirtualFile root = repo.getRoot();
                         GitBranchPair branchAndTracked = trackedBranches.get(root);
                         if (branchAndTracked == null) {
-                            LOG.error("No tracked branch information for root " + root);
+                            LOG.error("No tracked branch information for root {}", root);
                             continue;
                         }
                         updaters.put(
@@ -210,7 +211,7 @@ public class GitUpdateProcess {
             GitUpdater updater = entry.getValue();
             if (updater.isSaveNeeded()) {
                 myRootsToSave.add(repo.getRoot());
-                LOG.info("update| root " + repo + " needs save");
+                LOG.info("update| root {} needs save", repo);
             }
         }
 
@@ -237,7 +238,7 @@ public class GitUpdateProcess {
                         }
                         currentlyUpdatedRoot = repo;
                         GitUpdateResult res = updater.update();
-                        LOG.info("updating root " + currentlyUpdatedRoot + " finished: " + res);
+                        LOG.info("updating root {} finished: {}", currentlyUpdatedRoot, res);
                         if (res == GitUpdateResult.INCOMPLETE) {
                             incomplete.set(true);
                         }
@@ -246,7 +247,7 @@ public class GitUpdateProcess {
                 }
                 catch (VcsException e) {
                     String rootName = (currentlyUpdatedRoot == null) ? "" : getShortRepositoryName(currentlyUpdatedRoot);
-                    LOG.info("Error updating changes for root " + currentlyUpdatedRoot, e);
+                    LOG.info("Error updating changes for root {}", currentlyUpdatedRoot, e);
                     notifyImportantError(
                         myProject,
                         LocalizeValue.localizeTODO("Error updating " + rootName),
@@ -291,7 +292,7 @@ public class GitUpdateProcess {
                 continue;
             }
             Collection<Change> changes = changesUnderRoots.get(repository.getRoot());
-            LOG.debug("Changes under root '" + getShortRepositoryName(repository) + "': " + changes);
+            LOG.debug("Changes under root '{}': {}", getShortRepositoryName(repository), changes);
             // check only if there are local changes, otherwise stash won't happen anyway and there would be no optimization
             if (updater instanceof GitRebaseUpdater rebaseUpdater
                 && changes != null && !changes.isEmpty()
@@ -321,7 +322,7 @@ public class GitUpdateProcess {
             if (updater.isUpdateNeeded()) {
                 updaters.put(repository, updater);
             }
-            LOG.info("update| root=" + root + " ,updater=" + updater);
+            LOG.info("update| root={}, updater={}", root, updater);
         }
         return updaters;
     }
@@ -353,7 +354,7 @@ public class GitUpdateProcess {
             VirtualFile root = repository.getRoot();
             GitLocalBranch branch = repository.getCurrentBranch();
             if (branch == null) {
-                LOG.info("checkTrackedBranchesConfigured: current branch is null in " + repository);
+                LOG.info("checkTrackedBranchesConfigured: current branch is null in {}", repository);
                 notifyImportantError(
                     myProject,
                     LocalizeValue.localizeTODO("Can't update: no current branch"),
@@ -366,7 +367,7 @@ public class GitUpdateProcess {
             }
             GitBranchTrackInfo trackInfo = GitBranchUtil.getTrackInfoForBranch(repository, branch);
             if (trackInfo == null) {
-                LOG.info(String.format("checkTrackedBranchesConfigured: no track info for current branch %s in %s", branch, repository));
+                LOG.info("checkTrackedBranchesConfigured: no track info for current branch {} in {}", branch, repository);
                 if (myCheckForTrackedBranchExistence) {
                     notifyImportantError(
                         repository.getProject(),
@@ -414,7 +415,7 @@ public class GitUpdateProcess {
         if (mergingRoots.isEmpty()) {
             return false;
         }
-        LOG.info("isMergeInProgress: roots with unfinished merge: " + mergingRoots);
+        LOG.info("isMergeInProgress: roots with unfinished merge: {}", mergingRoots);
         GitConflictResolver.Params params = new GitConflictResolver.Params()
             .setErrorNotificationTitle(LocalizeValue.localizeTODO("Can't update"))
             .setMergeDescription(LocalizeValue.localizeTODO("You have unfinished merge. These conflicts must be resolved before update."));
@@ -455,7 +456,7 @@ public class GitUpdateProcess {
         if (rebasingRoots.isEmpty()) {
             return false;
         }
-        LOG.info("checkRebaseInProgress: roots with unfinished rebase: " + rebasingRoots);
+        LOG.info("checkRebaseInProgress: roots with unfinished rebase: {}", rebasingRoots);
 
         GitConflictResolver.Params params = new GitConflictResolver.Params()
             .setErrorNotificationTitle(LocalizeValue.localizeTODO("Can't update"))

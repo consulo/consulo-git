@@ -20,7 +20,6 @@ import consulo.application.progress.ProgressManager;
 import consulo.application.progress.Task;
 import consulo.git.localize.GitLocalize;
 import consulo.localize.LocalizeValue;
-import consulo.logging.Logger;
 import consulo.util.dataholder.Key;
 import consulo.util.lang.StringUtil;
 import consulo.versionControlSystem.VcsException;
@@ -36,11 +35,6 @@ import java.util.Collection;
  * Handler utilities that allow running handlers with progress indicators
  */
 public class GitHandlerUtil {
-    /**
-     * The logger instance
-     */
-    private static final Logger LOG = Logger.getInstance(GitHandlerUtil.class);
-
     /**
      * a private constructor for utility class
      */

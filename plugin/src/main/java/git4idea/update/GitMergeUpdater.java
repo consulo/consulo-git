@@ -18,8 +18,8 @@ package git4idea.update;
 import consulo.application.Application;
 import consulo.application.progress.ProgressIndicator;
 import consulo.component.ProcessCanceledException;
+import consulo.git.util.LazyDebug;
 import consulo.localize.LocalizeValue;
-import consulo.logging.Logger;
 import consulo.project.Project;
 import consulo.ui.annotation.RequiredUIAccess;
 import consulo.ui.ex.awt.UIUtil;
@@ -47,6 +47,8 @@ import git4idea.repo.GitRepository;
 import git4idea.util.GitUIUtil;
 import git4idea.util.GitUntrackedFilesHelper;
 import jakarta.annotation.Nonnull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.util.*;
@@ -58,7 +60,7 @@ import static java.util.Arrays.asList;
  * Handles {@code git pull} via merge.
  */
 public class GitMergeUpdater extends GitUpdater {
-    private static final Logger LOG = Logger.getInstance(GitMergeUpdater.class);
+    private static final Logger LOG = LoggerFactory.getLogger(GitMergeUpdater.class);
 
     @Nonnull
     private final ChangeListManager myChangeListManager;
@@ -79,7 +81,7 @@ public class GitMergeUpdater extends GitUpdater {
     @Override
     @RequiredUIAccess
     protected GitUpdateResult doUpdate() {
-        LOG.info("doUpdate ");
+        LOG.info("doUpdate");
         GitMerger merger = new GitMerger(myProject);
 
         MergeLineListener mergeLineListener = new MergeLineListener();
@@ -117,7 +119,7 @@ public class GitMergeUpdater extends GitUpdater {
         @Nonnull LocalizeValue errorMessage
     ) {
         MergeError error = mergeLineListener.getMergeError();
-        LOG.info("merge error: " + error);
+        LOG.info("merge error: {}", error);
         if (error == MergeError.CONFLICT) {
             LOG.info("Conflict detected");
             boolean allMerged = new MyConflictResolver(myProject, myGit, merger, myRoot).merge();
@@ -151,7 +153,7 @@ public class GitMergeUpdater extends GitUpdater {
             return GitUpdateResult.ERROR;
         }
         else {
-            LOG.info("Unknown error: " + errorMessage);
+            LOG.info("Unknown error: {}", errorMessage);
             GitUIUtil.notifyImportantError(myProject, LocalizeValue.localizeTODO("Error merging"), errorMessage);
             return GitUpdateResult.ERROR;
         }
@@ -175,7 +177,7 @@ public class GitMergeUpdater extends GitUpdater {
         try {
             GitRepository repository = GitUtil.getRepositoryManager(myProject).getRepositoryForRoot(myRoot);
             if (repository == null) {
-                LOG.error("Repository is null for root " + myRoot);
+                LOG.error("Repository is null for root {}", myRoot);
                 return true; // fail safe
             }
             Collection<String> remotelyChanged =
@@ -193,7 +195,7 @@ public class GitMergeUpdater extends GitUpdater {
             return false;
         }
         catch (VcsException e) {
-            LOG.info("failed to get remotely changed files for " + currentBranch + ".." + remoteBranch, e);
+            LOG.info("failed to get remotely changed files for {}..{}", currentBranch, remoteBranch, e);
             return true; // fail safe
         }
     }
@@ -203,7 +205,7 @@ public class GitMergeUpdater extends GitUpdater {
         h.addParameters("--merge");
         GitCommandResult result = Git.getInstance().runCommand(h);
         if (!result.success()) {
-            LOG.info("cancel git reset --merge: " + result.getErrorOutputAsJoinedString());
+            LOG.info("cancel git reset --merge: {}", new LazyDebug(result::getErrorOutputAsJoinedString));
             GitUIUtil.notifyImportantError(
                 myProject,
                 LocalizeValue.localizeTODO("Couldn't reset merge"),

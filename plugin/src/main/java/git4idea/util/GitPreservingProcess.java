@@ -18,7 +18,6 @@ package git4idea.util;
 import consulo.application.progress.ProgressIndicator;
 import consulo.application.util.DateFormatUtil;
 import consulo.localize.LocalizeValue;
-import consulo.logging.Logger;
 import consulo.project.Project;
 import consulo.project.ui.notification.NotificationService;
 import consulo.util.lang.Clock;
@@ -32,9 +31,10 @@ import git4idea.commands.Git;
 import git4idea.config.GitVcsSettings;
 import git4idea.merge.GitConflictResolver;
 import git4idea.stash.GitChangesSaver;
-
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Collection;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -45,7 +45,7 @@ import java.util.function.Supplier;
  * I.e. stashes changes, executes the operation and then unstashes it.
  */
 public class GitPreservingProcess {
-    private static final Logger LOG = Logger.getInstance(GitPreservingProcess.class);
+    private static final Logger LOG = LoggerFactory.getLogger(GitPreservingProcess.class);
 
     @Nonnull
     private final Project myProject;
@@ -102,7 +102,7 @@ public class GitPreservingProcess {
         Runnable operation = () -> {
             LOG.debug("starting");
             boolean savedSuccessfully = save();
-            LOG.debug("save result: " + savedSuccessfully);
+            LOG.debug("save result: {}", savedSuccessfully);
             if (savedSuccessfully) {
                 try {
                     LOG.debug("running operation");

@@ -183,36 +183,40 @@ public class GitLogProvider implements VcsLogProvider {
         StopWatch sw = StopWatch.start("validating data in " + root.getName());
         final Set<Hash> refs = ContainerUtil.map2Set(allRefs.getValues(), VcsRef::getCommitHash);
 
-        PermanentGraph.newInstance(sortedCommits, new GraphColorManager<>() {
-            @Override
-            public int getColorOfBranch(@Nonnull Hash headCommit) {
-                return 0;
-            }
-
-            @Override
-            public int getColorOfFragment(@Nonnull Hash headCommit, int magicIndex) {
-                return 0;
-            }
-
-            @Override
-            public int compareHeads(@Nonnull Hash head1, @Nonnull Hash head2) {
-                if (!refs.contains(head1) || !refs.contains(head2)) {
-                    LOG.error(
-                        "GitLogProvider returned inconsistent data",
-                        AttachmentFactory.get().create("error-details.txt", printErrorDetails(
-                            root,
-                            allRefs,
-                            sortedCommits,
-                            firstBlockSyncData,
-                            manuallyReadBranches,
-                            currentTagNames,
-                            commitsFromTags
-                        ))
-                    );
+        PermanentGraph.newInstance(
+            sortedCommits,
+            new GraphColorManager<>() {
+                @Override
+                public int getColorOfBranch(@Nonnull Hash headCommit) {
+                    return 0;
                 }
-                return 0;
-            }
-        }, refs);
+
+                @Override
+                public int getColorOfFragment(@Nonnull Hash headCommit, int magicIndex) {
+                    return 0;
+                }
+
+                @Override
+                public int compareHeads(@Nonnull Hash head1, @Nonnull Hash head2) {
+                    if (!refs.contains(head1) || !refs.contains(head2)) {
+                        LOG.error(
+                            "GitLogProvider returned inconsistent data",
+                            AttachmentFactory.get().create("error-details.txt", printErrorDetails(
+                                root,
+                                allRefs,
+                                sortedCommits,
+                                firstBlockSyncData,
+                                manuallyReadBranches,
+                                currentTagNames,
+                                commitsFromTags
+                            ))
+                        );
+                    }
+                    return 0;
+                }
+            },
+            refs
+        );
         sw.report();
     }
 

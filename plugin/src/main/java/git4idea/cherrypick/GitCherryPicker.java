@@ -19,7 +19,6 @@ import consulo.annotation.component.ExtensionImpl;
 import consulo.application.AccessToken;
 import consulo.application.Application;
 import consulo.localize.LocalizeValue;
-import consulo.logging.Logger;
 import consulo.project.Project;
 import consulo.project.ui.notification.Notification;
 import consulo.project.ui.notification.NotificationService;
@@ -60,6 +59,8 @@ import git4idea.util.GitUntrackedFilesHelper;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import jakarta.inject.Inject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.swing.event.HyperlinkEvent;
 import java.io.File;
@@ -78,7 +79,7 @@ import static git4idea.commands.GitSimpleEventDetector.Event.LOCAL_CHANGES_OVERW
 
 @ExtensionImpl
 public class GitCherryPicker extends VcsCherryPicker {
-    private static final Logger LOG = Logger.getInstance(GitCherryPicker.class);
+    private static final Logger LOG = LoggerFactory.getLogger(GitCherryPicker.class);
 
     @Nonnull
     private final Project myProject;
@@ -104,7 +105,7 @@ public class GitCherryPicker extends VcsCherryPicker {
     @RequiredUIAccess
     public void cherryPick(@Nonnull List<VcsFullCommitDetails> commits) {
         Map<GitRepository, List<VcsFullCommitDetails>> commitsInRoots = DvcsUtil.groupCommitsByRoots(myRepositoryManager, commits);
-        LOG.info("Cherry-picking commits: " + toString(commitsInRoots));
+        LOG.info("Cherry-picking commits: {}", new CommitsInRootsDebug(commitsInRoots));
         List<GitCommitWrapper> successfulCommits = new ArrayList<>();
         List<GitCommitWrapper> alreadyPicked = new ArrayList<>();
         try (AccessToken token = DvcsUtil.workingTreeChangeStarted(myProject, getActionTitle())) {
@@ -120,20 +121,22 @@ public class GitCherryPicker extends VcsCherryPicker {
         }
     }
 
-    @Nonnull
-    private static String toString(@Nonnull Map<GitRepository, List<VcsFullCommitDetails>> commitsInRoots) {
-        return StringUtil.join(
-            commitsInRoots.keySet(),
-            repository -> {
-                String commits = StringUtil.join(
-                    commitsInRoots.get(repository),
-                    details -> details.getId().asString(),
-                    ", "
-                );
-                return getShortRepositoryName(repository) + ": [" + commits + "]";
-            },
-            "; "
-        );
+    private static record CommitsInRootsDebug(@Nonnull Map<GitRepository, List<VcsFullCommitDetails>> commitsInRoots) {
+        @Override
+        public String toString() {
+            return StringUtil.join(
+                commitsInRoots.keySet(),
+                repository -> {
+                    String commits = StringUtil.join(
+                        commitsInRoots.get(repository),
+                        details -> details.getId().asString(),
+                        ", "
+                    );
+                    return getShortRepositoryName(repository) + ": [" + commits + "]";
+                },
+                "; "
+            );
+        }
     }
 
     // return true to continue with other roots, false to break execution

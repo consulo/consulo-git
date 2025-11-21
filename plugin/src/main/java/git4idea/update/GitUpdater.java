@@ -15,26 +15,13 @@
  */
 package git4idea.update;
 
-import static git4idea.GitUtil.HEAD;
-import static git4idea.config.UpdateMethod.MERGE;
-import static git4idea.config.UpdateMethod.REBASE;
-
-import java.util.ArrayList;
-import java.util.List;
-
-import jakarta.annotation.Nonnull;
-import consulo.logging.Logger;
 import consulo.application.progress.ProgressIndicator;
 import consulo.project.Project;
-import consulo.versionControlSystem.VcsException;
-import consulo.virtualFileSystem.VirtualFile;
 import consulo.versionControlSystem.AbstractVcsHelper;
+import consulo.versionControlSystem.VcsException;
 import consulo.versionControlSystem.update.UpdatedFiles;
-import git4idea.GitBranch;
-import git4idea.GitLocalBranch;
-import git4idea.GitRevisionNumber;
-import git4idea.GitUtil;
-import git4idea.GitVcs;
+import consulo.virtualFileSystem.VirtualFile;
+import git4idea.*;
 import git4idea.branch.GitBranchPair;
 import git4idea.commands.Git;
 import git4idea.commands.GitCommand;
@@ -45,6 +32,16 @@ import git4idea.config.UpdateMethod;
 import git4idea.merge.MergeChangeCollector;
 import git4idea.repo.GitRepository;
 import git4idea.repo.GitRepositoryManager;
+import jakarta.annotation.Nonnull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import static git4idea.GitUtil.HEAD;
+import static git4idea.config.UpdateMethod.MERGE;
+import static git4idea.config.UpdateMethod.REBASE;
 
 /**
  * Updates a single repository via merge or rebase.
@@ -53,7 +50,7 @@ import git4idea.repo.GitRepositoryManager;
  * @see GitMergeUpdater
  */
 public abstract class GitUpdater {
-    private static final Logger LOG = Logger.getInstance(GitUpdater.class);
+    private static final Logger LOG = LoggerFactory.getLogger(GitUpdater.class);
 
     @Nonnull
     protected final Project myProject;
@@ -136,11 +133,11 @@ public abstract class GitUpdater {
                         // explicit override of a more generic pull.rebase config value
                         return MERGE;
                     }
-                    LOG.warn("Unknown value for branch." + branchName + ".rebase: " + rebaseValue);
+                    LOG.warn("Unknown value for branch.{}.rebase: {}", branchName, rebaseValue);
                 }
             }
             catch (VcsException e) {
-                LOG.warn("Couldn't get git config branch." + branchName + ".rebase");
+                LOG.warn("Couldn't get git config branch.{}.rebase", branchName);
             }
         }
 

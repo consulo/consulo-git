@@ -25,20 +25,18 @@ import javax.swing.*;
 /**
  * Common {@link ListCellRenderer} do be used in {@link JComboBox} displaying {@link GitRepository GitRepositories}.
  * We don't want to use {@link GitRepository#toString()} since it is not the best way to display the repository in the UI.
- * 
+ *
  * @author Kirill Likhodedov
  */
 public class GitRepositoryComboboxListCellRenderer extends ListCellRendererWrapper<GitRepository> {
+    private static final DefaultListCellRenderer DEFAULT_RENDERER = new DefaultListCellRenderer();
 
-  private static final DefaultListCellRenderer DEFAULT_RENDERER = new DefaultListCellRenderer();
+    public GitRepositoryComboboxListCellRenderer(JComboBox comboBox) {
+        super();
+    }
 
-  public GitRepositoryComboboxListCellRenderer(final JComboBox comboBox) {
-    super();
-  }
-
-  @Override
-  public void customize(JList list, GitRepository value, int index, boolean selected, boolean hasFocus) {
-    setText(DvcsUtil.getShortRepositoryName(value));
-  }
-
+    @Override
+    public void customize(JList list, GitRepository value, int index, boolean selected, boolean hasFocus) {
+        setText(DvcsUtil.getShortRepositoryName(value));
+    }
 }

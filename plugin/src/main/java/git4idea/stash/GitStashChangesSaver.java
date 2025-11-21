@@ -16,8 +16,8 @@
 package git4idea.stash;
 
 import consulo.application.progress.ProgressIndicator;
+import consulo.git.util.LazyDebug;
 import consulo.localize.LocalizeValue;
-import consulo.logging.Logger;
 import consulo.project.Project;
 import consulo.project.ui.notification.NotificationService;
 import consulo.ui.annotation.RequiredUIAccess;
@@ -40,6 +40,8 @@ import git4idea.ui.GitUnstashDialog;
 import git4idea.util.GitUIUtil;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.swing.event.HyperlinkEvent;
 import java.util.ArrayList;
@@ -48,7 +50,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 public class GitStashChangesSaver extends GitChangesSaver {
-    private static final Logger LOG = Logger.getInstance(GitStashChangesSaver.class);
+    private static final Logger LOG = LoggerFactory.getLogger(GitStashChangesSaver.class);
     private static final String NO_LOCAL_CHANGES_TO_SAVE = "No local changes to save";
 
     @Nonnull
@@ -68,7 +70,7 @@ public class GitStashChangesSaver extends GitChangesSaver {
 
     @Override
     protected void save(@Nonnull Collection<VirtualFile> rootsToSave) throws VcsException {
-        LOG.info("saving " + rootsToSave);
+        LOG.info("saving {}", rootsToSave);
 
         for (VirtualFile root : rootsToSave) {
             String message = GitHandlerUtil.formatOperationName("Stashing changes from", root);
@@ -111,7 +113,7 @@ public class GitStashChangesSaver extends GitChangesSaver {
         }
 
         boolean conflictsResolved = new UnstashConflictResolver(myProject, myGit, myStashedRoots, myParams).merge();
-        LOG.info("load: conflicts resolved status is " + conflictsResolved + " in roots " + myStashedRoots);
+        LOG.info("load: conflicts resolved status is {} in roots {}", conflictsResolved, myStashedRoots);
     }
 
     @Override
@@ -141,12 +143,12 @@ public class GitStashChangesSaver extends GitChangesSaver {
      * False is returned in all other cases: in the case of success and in case of some other error.
      */
     private boolean loadRoot(VirtualFile root) {
-        LOG.info("loadRoot " + root);
+        LOG.info("loadRoot {}", root);
         myProgressIndicator.setText(GitHandlerUtil.formatOperationName("Unstashing changes to", root));
 
         GitRepository repository = myRepositoryManager.getRepositoryForRoot(root);
         if (repository == null) {
-            LOG.error("Repository is null for root " + root);
+            LOG.error("Repository is null for root {}", root);
             return false;
         }
 
@@ -160,7 +162,7 @@ public class GitStashChangesSaver extends GitChangesSaver {
             return true;
         }
         else {
-            LOG.info("unstash failed " + result.getErrorOutputAsJoinedString());
+            LOG.info("unstash failed {}", new LazyDebug(result::getErrorOutputAsJoinedString));
             GitUIUtil.notifyImportantError(
                 myProject,
                 LocalizeValue.localizeTODO("Couldn't unstash"),

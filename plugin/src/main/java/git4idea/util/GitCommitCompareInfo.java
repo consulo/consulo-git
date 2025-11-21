@@ -15,12 +15,13 @@
  */
 package git4idea.util;
 
-import consulo.logging.Logger;
 import consulo.util.lang.Couple;
 import consulo.versionControlSystem.change.Change;
 import git4idea.GitCommit;
 import git4idea.repo.GitRepository;
 import jakarta.annotation.Nonnull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.*;
 
@@ -28,7 +29,8 @@ import java.util.*;
  * @author Kirill Likhodedov
  */
 public class GitCommitCompareInfo {
-    private static final Logger LOG = Logger.getInstance(GitCommitCompareInfo.class);
+    private static final Logger LOG = LoggerFactory.getLogger(GitCommitCompareInfo.class);
+
     private final Map<GitRepository, Couple<List<GitCommit>>> myInfo = new HashMap<>();
     private final Map<GitRepository, Collection<Change>> myTotalDiff = new HashMap<>();
     private final InfoType myInfoType;
@@ -63,7 +65,7 @@ public class GitCommitCompareInfo {
     private Couple<List<GitCommit>> getCompareInfo(@Nonnull GitRepository repo) {
         Couple<List<GitCommit>> pair = myInfo.get(repo);
         if (pair == null) {
-            LOG.error("Compare info not found for repository " + repo);
+            LOG.error("Compare info not found for repository {}", repo);
             return Couple.of(Collections.<GitCommit>emptyList(), Collections.<GitCommit>emptyList());
         }
         return pair;

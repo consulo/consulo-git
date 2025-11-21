@@ -29,7 +29,6 @@ import consulo.virtualFileSystem.VirtualFile;
 import consulo.virtualFileSystem.status.FileStatus;
 import git4idea.GitUtil;
 import git4idea.GitVcs;
-import git4idea.actions.GitAction;
 import git4idea.repo.GitRepository;
 import jakarta.annotation.Nonnull;
 

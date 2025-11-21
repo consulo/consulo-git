@@ -21,7 +21,7 @@ import consulo.credentialStorage.AuthenticationData;
 import consulo.credentialStorage.PasswordSafe;
 import consulo.credentialStorage.ui.AuthDialog;
 import consulo.credentialStorage.ui.PasswordSafePromptDialog;
-import consulo.logging.Logger;
+import consulo.git.util.LazyDebug;
 import consulo.project.Project;
 import consulo.ui.annotation.RequiredUIAccess;
 import consulo.util.collection.ContainerUtil;
@@ -36,6 +36,8 @@ import git4idea.remote.GitHttpAuthDataProvider;
 import git4idea.remote.GitRememberedInputs;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -53,7 +55,7 @@ import java.util.List;
  * @author Kirill Likhodedov
  */
 class GitHttpGuiAuthenticator implements GitHttpAuthenticator {
-    private static final Logger LOG = Logger.getInstance(GitHttpGuiAuthenticator.class);
+    private static final Logger LOG = LoggerFactory.getLogger(GitHttpGuiAuthenticator.class);
     private static final Class<GitHttpAuthenticator> PASS_REQUESTER = GitHttpAuthenticator.class;
 
     @Nonnull
@@ -85,7 +87,7 @@ class GitHttpGuiAuthenticator implements GitHttpAuthenticator {
     @Override
     @Nonnull
     public String askPassword(@Nonnull String url) {
-        LOG.debug("askPassword. url=" + url + ", passwordKnown=" + (myPassword != null) + ", wasCancelled=" + myWasCancelled);
+        LOG.debug("askPassword. url={}, passwordKnown={}, wasCancelled={}", url, (myPassword != null), myWasCancelled);
         if (myPassword != null) {  // already asked in askUsername
             return myPassword;
         }
@@ -99,10 +101,11 @@ class GitHttpGuiAuthenticator implements GitHttpAuthenticator {
             myDataProvider = authData.first;
             myPassword = password;
             LOG.debug(
-                "askPassword. dataProvider=" + getCurrentDataProviderName() +
-                    ", unifiedUrl= " + getUnifiedUrl(url) +
-                    ", login=" + authData.second.getLogin() +
-                    ", passwordKnown=" + (password != null)
+                "askPassword. dataProvider={}, unifiedUrl={}, login={}, passwordKnown={}",
+                getCurrentDataProviderName(),
+                new LazyDebug(() -> getUnifiedUrl(url)),
+                authData.second.getLogin(),
+                (password != null)
             );
             return password;
         }
@@ -117,7 +120,10 @@ class GitHttpGuiAuthenticator implements GitHttpAuthenticator {
             false,
             null
         );
-        LOG.debug("askPassword. Password was asked and returned: " + (password == null ? "NULL" : password.isEmpty() ? "EMPTY" : "NOT EMPTY"));
+        LOG.debug(
+            "askPassword. Password was asked and returned: {}",
+            password == null ? "NULL" : password.isEmpty() ? "EMPTY" : "NOT EMPTY"
+        );
         if (password == null) {
             myWasCancelled = true;
             return "";
@@ -143,15 +149,20 @@ class GitHttpGuiAuthenticator implements GitHttpAuthenticator {
             password = authData.second.getPassword();
             myDataProvider = authData.first;
         }
-        LOG.debug("askUsername. dataProvider=" + getCurrentDataProviderName() + ", unifiedUrl= " + getUnifiedUrl(url) +
-            ", login=" + login + ", passwordKnown=" + (password != null));
+        LOG.debug(
+            "askUsername. dataProvider={}, unifiedUrl={}, login={}, passwordKnown={}",
+            getCurrentDataProviderName(),
+            new LazyDebug(() -> getUnifiedUrl(url)),
+            login,
+            (password != null)
+        );
         if (login != null && password != null) {
             myPassword = password;
             return login;
         }
 
         AuthenticationData data = showAuthDialog(getDisplayableUrl(url), login);
-        LOG.debug("askUsername. Showed dialog:" + (data == null ? "OK" : "Cancel"));
+        LOG.debug("askUsername. Showed dialog: {}", data == null ? "OK" : "Cancel");
         if (data == null) {
             myWasCancelled = true;
             return "";
@@ -198,7 +209,7 @@ class GitHttpGuiAuthenticator implements GitHttpAuthenticator {
 
     @Override
     public void forgetPassword() {
-        LOG.debug("forgetPassword. dataProvider=" + getCurrentDataProviderName() + ", unifiedUrl=" + myUnifiedUrl);
+        LOG.debug("forgetPassword. dataProvider={}, unifiedUrl={}", getCurrentDataProviderName(), myUnifiedUrl);
         if (myDataProvider != null && myUnifiedUrl != null) {
             myDataProvider.forgetPassword(myUnifiedUrl);
         }

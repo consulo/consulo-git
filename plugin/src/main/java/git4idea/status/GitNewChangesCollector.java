@@ -15,7 +15,6 @@
  */
 package git4idea.status;
 
-import consulo.logging.Logger;
 import consulo.project.Project;
 import consulo.util.lang.StringUtil;
 import consulo.versionControlSystem.AbstractVcs;
@@ -40,7 +39,6 @@ import git4idea.commands.GitSimpleHandler;
 import git4idea.repo.GitRepository;
 import git4idea.repo.GitUntrackedFilesHolder;
 import jakarta.annotation.Nonnull;
-import org.jetbrains.annotations.NotNull;
 
 import java.util.Collection;
 import java.util.HashSet;
@@ -59,11 +57,9 @@ import java.util.Set;
  * @author Kirill Likhodedov
  */
 public class GitNewChangesCollector extends GitChangesCollector {
-
-    private static final Logger LOG = Logger.getInstance(GitNewChangesCollector.class);
     private final GitRepository myRepository;
-    private final Collection<Change> myChanges = new HashSet<Change>();
-    private final Set<VirtualFile> myUnversionedFiles = new HashSet<VirtualFile>();
+    private final Collection<Change> myChanges = new HashSet<>();
+    private final Set<VirtualFile> myUnversionedFiles = new HashSet<>();
     @Nonnull
     private final Git myGit;
     private final VcsRevisionNumber myHead;
@@ -131,7 +127,7 @@ public class GitNewChangesCollector extends GitChangesCollector {
 
     private GitSimpleHandler statusHandler(Collection<FilePath> dirtyPaths) {
         GitSimpleHandler handler = new GitSimpleHandler(myProject, myVcsRoot, GitCommand.STATUS);
-        final String[] params = {"--porcelain", "-z", "--untracked-files=no"};   // untracked files are stored separately
+        String[] params = {"--porcelain", "-z", "--untracked-files=no"};   // untracked files are stored separately
         handler.addParameters(params);
         handler.setSilent(true);
         handler.setStdoutSuppressed(true);
@@ -156,7 +152,7 @@ public class GitNewChangesCollector extends GitChangesCollector {
     private void parseOutput(@Nonnull String output, @Nonnull GitHandler handler) throws VcsException {
         VcsRevisionNumber head = getHead();
 
-        final String[] split = output.split("\u0000");
+        String[] split = output.split("\u0000");
 
         for (int pos = 0; pos < split.length; pos++) {
             String line = split[pos];
@@ -168,10 +164,10 @@ public class GitNewChangesCollector extends GitChangesCollector {
             if (line.length() < 4) { // X, Y, space and at least one symbol for the file
                 throwGFE("Line is too short.", handler, output, line, '0', '0');
             }
-            final String xyStatus = line.substring(0, 2);
-            final String filepath = line.substring(3); // skipping the space
-            final char xStatus = xyStatus.charAt(0);
-            final char yStatus = xyStatus.charAt(1);
+            String xyStatus = line.substring(0, 2);
+            String filepath = line.substring(3); // skipping the space
+            char xStatus = xyStatus.charAt(0);
+            char yStatus = xyStatus.charAt(1);
 
             switch (xStatus) {
                 case ' ':
@@ -293,12 +289,12 @@ public class GitNewChangesCollector extends GitChangesCollector {
         }
     }
 
-    @NotNull
-    static VcsRevisionNumber getHead(@NotNull GitRepository repository) {
+    @Nonnull
+    static VcsRevisionNumber getHead(@Nonnull GitRepository repository) {
         // we force update the GitRepository, because update is asynchronous, and thus the GitChangeProvider may be asked for changes
         // before the GitRepositoryUpdater has captures the current revision change and has updated the GitRepository.
         repository.update();
-        final String rev = repository.getCurrentRevision();
+        String rev = repository.getCurrentRevision();
         return rev != null ? new GitRevisionNumber(rev) : VcsRevisionNumber.NULL;
     }
 

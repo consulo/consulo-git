@@ -24,7 +24,6 @@ import consulo.application.progress.Task;
 import consulo.git.localize.GitLocalize;
 import consulo.ide.ServiceManager;
 import consulo.localize.LocalizeValue;
-import consulo.logging.Logger;
 import consulo.platform.base.localize.CommonLocalize;
 import consulo.process.cmd.GeneralCommandLine;
 import consulo.project.Project;
@@ -52,6 +51,8 @@ import git4idea.stash.GitStashUtils;
 import git4idea.util.GitUIUtil;
 import git4idea.validators.GitBranchNameValidator;
 import jakarta.annotation.Nonnull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
 import javax.swing.event.DocumentEvent;
@@ -67,6 +68,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * The unstash dialog
  */
 public class GitUnstashDialog extends DialogWrapper {
+    private static final Logger LOG = LoggerFactory.getLogger(GitUnstashDialog.class);
+
     /**
      * Git root selector
      */
@@ -115,7 +118,6 @@ public class GitUnstashDialog extends DialogWrapper {
     @Nonnull
     private final Project myProject;
     private GitVcs myVcs;
-    private static final Logger LOG = Logger.getInstance(GitUnstashDialog.class);
 
     /**
      * A constructor
@@ -305,7 +307,7 @@ public class GitUnstashDialog extends DialogWrapper {
             myBranches.addAll(GitBranchUtil.convertBranchesToNames(repository.getBranches().getLocalBranches()));
         }
         else {
-            LOG.error("Repository is null for root " + root);
+            LOG.error("Repository is null for root {}", root);
         }
         myStashList.setSelectedIndex(0);
     }
@@ -396,7 +398,7 @@ public class GitUnstashDialog extends DialogWrapper {
 
         if (conflict.get()) {
             boolean conflictsResolved = new UnstashConflictResolver(myProject, root, getSelectedStash()).merge();
-            LOG.info("loadRoot " + root + ", conflictsResolved: " + conflictsResolved);
+            LOG.info("loadRoot {}, conflictsResolved: {}", root, conflictsResolved);
         }
         else if (rc != 0) {
             GitUIUtil.showOperationErrors(myProject, h.errors(), LocalizeValue.of(h.printableCommandLine()));
