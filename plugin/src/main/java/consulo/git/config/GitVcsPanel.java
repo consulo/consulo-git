@@ -89,7 +89,7 @@ public class GitVcsPanel {
 
         mySSHExecutableComboBox = ComboBox.create(GitVcsApplicationSettings.SshExecutable.values());
         mySSHExecutableComboBox.setValue(GitVcsApplicationSettings.SshExecutable.IDEA_SSH);
-        mySSHExecutableComboBox.setTextRender(sshExecutable -> switch (sshExecutable) {
+        mySSHExecutableComboBox.setTextRenderer(sshExecutable -> switch (sshExecutable) {
             case IDEA_SSH -> GitLocalize.gitVcsConfigSshModeIdea();
             case NATIVE_SSH -> GitLocalize.gitVcsConfigSshModeNative();
             case PUTTY -> GitLocalize.gitVcsConfigSshModePutty();
@@ -127,9 +127,11 @@ public class GitVcsPanel {
         updateMethodLabeled.addBorder(BorderPosition.LEFT, BorderStyle.EMPTY, 18);
         myRootPanel.add(updateMethodLabeled);
         myRootPanel.add(myAutoUpdateIfPushRejected);
-        myRootPanel.add(DockLayout.create()
-            .left(myEnableForcePush)
-            .right(HorizontalLayout.create(5).add(myProtectedBranchesLabel).add(myProtectedBranchesButton)));
+        myRootPanel.add(
+            DockLayout.create()
+                .left(myEnableForcePush)
+                .right(HorizontalLayout.create(5).add(myProtectedBranchesLabel).add(myProtectedBranchesButton))
+        );
     }
 
     /**
@@ -224,7 +226,7 @@ public class GitVcsPanel {
             || settings.isForcePushAllowed() != myEnableForcePush.getValueOrError()
             || settings.getUpdateType() != myUpdateMethodComboBox.getValueOrError()
             || !ContainerUtil.sorted(sharedSettings.getForcePushProhibitedPatterns())
-                .equals(ContainerUtil.sorted(getProtectedBranchesPatterns()));
+            .equals(ContainerUtil.sorted(getProtectedBranchesPatterns()));
     }
 
     /**
@@ -236,9 +238,11 @@ public class GitVcsPanel {
     public void save(@Nonnull GitVcsSettings settings, GitSharedSettings sharedSettings) {
         settings.getAppSettings().setPathToGit(getCurrentExecutablePath());
         // run check later
-        myProject.getUIAccess().give(() -> Task.Backgroundable.queue(myProject, "Checking Git Version...", progressIndicator -> {
-            myVcs.checkVersion();
-        }));
+        myProject.getUIAccess().give(() -> Task.Backgroundable.queue(
+            myProject,
+            "Checking Git Version...",
+            progressIndicator -> myVcs.checkVersion()
+        ));
         settings.getAppSettings().setIdeaSsh(mySSHExecutableComboBox.getValueOrError());
         settings.setAutoUpdateIfPushRejected(myAutoUpdateIfPushRejected.getValueOrError());
 
