@@ -46,7 +46,6 @@ public class GitXmlRpcSshService extends GitXmlRpcHandlerService<GitSSHGUIHandle
   @Override
   protected void customizeScriptGenerator(@Nonnull ScriptGenerator generator) {
     generator.addClasses(KnownHosts.class);
-    //generator.addResource(SSHMainBundle.class, "/org/jetbrains/git4idea/ssh/SSHMainBundle.properties");
   }
 
   @Nonnull
