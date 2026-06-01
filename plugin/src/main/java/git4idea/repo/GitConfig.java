@@ -137,7 +137,6 @@ public class GitConfig {
             return emptyConfig;
         }
 
-
         Pair<Collection<Remote>, Collection<Url>> remotesAndUrls = parseRemotes(ini, GitConfig.class.getClassLoader());
         Collection<BranchConfig> trackedInfos = parseTrackedInfos(ini, GitConfig.class.getClassLoader());
 
