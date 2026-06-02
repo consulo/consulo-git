@@ -1,0 +1,37 @@
+{
+  "lockVersion" : 1,
+  "server" : "https://i.verbaria.org/",
+  "project" : "consulo-git",
+  "projectVersion" : "master",
+  "generatedAt" : "2026-06-02T21:07:09.368031499Z",
+  "documents" : {
+    "consulo.git.GitBranchesLocalize" : {
+      "source" : {
+        "revision" : 1,
+        "sig" : "743c5b835ed44e27be3c534154a5cd19"
+      },
+      "translations" : {
+        "en-US" : {
+          "sig" : "501834d39a5fee602aee377b1c738b14",
+          "state" : "Approved",
+          "total" : 28,
+          "translators" : [ "Valery Semenchuk <vistall.valeriy@gmail.com>" ]
+        }
+      }
+    },
+    "consulo.git.GitLocalize" : {
+      "source" : {
+        "revision" : 1,
+        "sig" : "f338ec78199638de5f5242469d097f7e"
+      },
+      "translations" : {
+        "en-US" : {
+          "sig" : "ce3cf8cc84fd8cffbdb8f0d7e3c7fc0c",
+          "state" : "Approved",
+          "total" : 571,
+          "translators" : [ "Valery Semenchuk <vistall.valeriy@gmail.com>" ]
+        }
+      }
+    }
+  }
+}
