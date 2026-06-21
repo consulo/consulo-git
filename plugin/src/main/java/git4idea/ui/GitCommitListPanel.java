@@ -17,7 +17,7 @@ package git4idea.ui;
 
 import consulo.application.util.DateFormatUtil;
 import consulo.dataContext.DataSink;
-import consulo.dataContext.TypeSafeDataProvider;
+import consulo.dataContext.UiDataProvider;
 import consulo.ui.ex.action.AnAction;
 import consulo.ui.ex.action.CommonShortcuts;
 import consulo.ui.ex.awt.ColumnInfo;
@@ -49,191 +49,191 @@ import java.util.function.Consumer;
  *
  * @author Kirill Likhodedov
  */
-public class GitCommitListPanel extends JPanel implements TypeSafeDataProvider {
+public class GitCommitListPanel extends JPanel implements UiDataProvider {
 
-  private final List<GitCommit> myCommits;
-  private final TableView<GitCommit> myTable;
+    private final List<GitCommit> myCommits;
+    private final TableView<GitCommit> myTable;
 
-  public GitCommitListPanel(@Nonnull List<GitCommit> commits, @Nullable String emptyText) {
-    myCommits = commits;
+    public GitCommitListPanel(@Nonnull List<GitCommit> commits, @Nullable String emptyText) {
+        myCommits = commits;
 
-    myTable = new TableView<GitCommit>();
-    updateModel();
-    myTable.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
-    myTable.setStriped(true);
-    if (emptyText != null) {
-      myTable.getEmptyText().setText(emptyText);
+        myTable = new TableView<GitCommit>();
+        updateModel();
+        myTable.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
+        myTable.setStriped(true);
+        if (emptyText != null) {
+            myTable.getEmptyText().setText(emptyText);
+        }
+
+        setLayout(new BorderLayout());
+        add(ScrollPaneFactory.createScrollPane(myTable));
     }
 
-    setLayout(new BorderLayout());
-    add(ScrollPaneFactory.createScrollPane(myTable));
-  }
-
-  /**
-   * Adds a listener that would be called once user selects a commit in the table.
-   */
-  public void addListSelectionListener(final @Nonnull Consumer<GitCommit> listener) {
-    myTable.getSelectionModel().addListSelectionListener(new ListSelectionListener() {
-      public void valueChanged(final ListSelectionEvent e) {
-        ListSelectionModel lsm = (ListSelectionModel)e.getSource();
-        int i = lsm.getMaxSelectionIndex();
-        int j = lsm.getMinSelectionIndex();
-        if (i >= 0 && i == j) {
-          listener.accept(myCommits.get(i));
-        }
-      }
-    });
-  }
-
-  public void addListMultipleSelectionListener(final @Nonnull Consumer<List<Change>> listener) {
-    myTable.getSelectionModel().addListSelectionListener(new ListSelectionListener() {
-      public void valueChanged(final ListSelectionEvent e) {
-        List<GitCommit> commits = myTable.getSelectedObjects();
-
-        final List<Change> changes = new ArrayList<Change>();
-        // We need changes in asc order for zipChanges, and they are in desc order in Table
-        ListIterator<GitCommit> iterator = commits.listIterator(commits.size());
-        while (iterator.hasPrevious()) {
-          changes.addAll(iterator.previous().getChanges());
-        }
-
-        listener.accept(ChangesBrowserUtil.zipChanges(changes));
-      }
-    });
-  }
-
-  /**
-   * Registers the diff action which will be called when the diff shortcut is pressed in the table.
-   */
-  public void registerDiffAction(@Nonnull AnAction diffAction) {
-    diffAction.registerCustomShortcutSet(CommonShortcuts.getDiff(), myTable);
-  }
-
-  // Make changes available for diff action
-  @Override
-  public void calcData(Key<?> key, DataSink sink) {
-    if (VcsDataKeys.CHANGES == key) {
-      int[] rows = myTable.getSelectedRows();
-      if (rows.length != 1) {
-        return;
-      }
-      int row = rows[0];
-
-      GitCommit gitCommit = myCommits.get(row);
-      // suppressing: inherited API
-      //noinspection unchecked
-      sink.put(VcsDataKeys.CHANGES, ArrayUtil.toObjectArray(gitCommit.getChanges(), Change.class));
-    }
-  }
-
-  @Nonnull
-  public JComponent getPreferredFocusComponent() {
-    return myTable;
-  }
-
-  public void clearSelection() {
-    myTable.clearSelection();
-  }
-
-  public void setCommits(@Nonnull List<GitCommit> commits) {
-    myCommits.clear();
-    myCommits.addAll(commits);
-    updateModel();
-    myTable.repaint();
-  }
-
-  private void updateModel() {
-    myTable.setModelAndUpdateColumns(new ListTableModel<GitCommit>(generateColumnsInfo(myCommits), myCommits, 0));
-  }
-
-  @Nonnull
-  private ColumnInfo[] generateColumnsInfo(@Nonnull List<GitCommit> commits) {
-    ItemAndWidth hash = new ItemAndWidth("", 0);
-    ItemAndWidth author = new ItemAndWidth("", 0);
-    ItemAndWidth time = new ItemAndWidth("", 0);
-    for (GitCommit commit : commits) {
-      hash = getMax(hash, getHash(commit));
-      author = getMax(author, getAuthor(commit));
-      time = getMax(time, getTime(commit));
+    /**
+     * Adds a listener that would be called once user selects a commit in the table.
+     */
+    public void addListSelectionListener(final @Nonnull Consumer<GitCommit> listener) {
+        myTable.getSelectionModel().addListSelectionListener(new ListSelectionListener() {
+            public void valueChanged(final ListSelectionEvent e) {
+                ListSelectionModel lsm = (ListSelectionModel) e.getSource();
+                int i = lsm.getMaxSelectionIndex();
+                int j = lsm.getMinSelectionIndex();
+                if (i >= 0 && i == j) {
+                    listener.accept(myCommits.get(i));
+                }
+            }
+        });
     }
 
-    return new ColumnInfo[]{
-      new GitCommitColumnInfo("Hash", hash.myItem) {
-        @Override
-        public String valueOf(GitCommit commit) {
-          return getHash(commit);
-        }
-      },
-      new ColumnInfo<GitCommit, String>("Subject") {
-        @Override
-        public String valueOf(GitCommit commit) {
-          return commit.getSubject();
-        }
-      },
-      new GitCommitColumnInfo("Author", author.myItem) {
-        @Override
-        public String valueOf(GitCommit commit) {
-          return getAuthor(commit);
-        }
-      },
-      new GitCommitColumnInfo("Author time", time.myItem) {
-        @Override
-        public String valueOf(GitCommit commit) {
-          return getTime(commit);
-        }
-      }
-    };
-  }
+    public void addListMultipleSelectionListener(final @Nonnull Consumer<List<Change>> listener) {
+        myTable.getSelectionModel().addListSelectionListener(new ListSelectionListener() {
+            public void valueChanged(final ListSelectionEvent e) {
+                List<GitCommit> commits = myTable.getSelectedObjects();
 
-  private ItemAndWidth getMax(ItemAndWidth current, String candidate) {
-    int width = myTable.getFontMetrics(myTable.getFont()).stringWidth(candidate);
-    if (width > current.myWidth) {
-      return new ItemAndWidth(candidate, width);
+                final List<Change> changes = new ArrayList<Change>();
+                // We need changes in asc order for zipChanges, and they are in desc order in Table
+                ListIterator<GitCommit> iterator = commits.listIterator(commits.size());
+                while (iterator.hasPrevious()) {
+                    changes.addAll(iterator.previous().getChanges());
+                }
+
+                listener.accept(ChangesBrowserUtil.zipChanges(changes));
+            }
+        });
     }
-    return current;
-  }
 
-  private static class ItemAndWidth {
-    private final String myItem;
-    private final int myWidth;
-
-    private ItemAndWidth(String item, int width) {
-      myItem = item;
-      myWidth = width;
+    /**
+     * Registers the diff action which will be called when the diff shortcut is pressed in the table.
+     */
+    public void registerDiffAction(@Nonnull AnAction diffAction) {
+        diffAction.registerCustomShortcutSet(CommonShortcuts.getDiff(), myTable);
     }
-  }
 
-  private static String getHash(GitCommit commit) {
-    return DvcsUtil.getShortHash(commit.getId().toString());
-  }
+    // Make changes available for diff action
 
-  private static String getAuthor(GitCommit commit) {
-    return commit.getAuthor().getName();
-  }
+    @Override
+    public void uiDataSnapshot(DataSink sink) {
+        sink.lazy(VcsDataKeys.CHANGES, () -> {
+            int[] rows = myTable.getSelectedRows();
+            if (rows.length != 1) {
+                return null;
+            }
+            int row = rows[0];
 
-  private static String getTime(GitCommit commit) {
-    return DateFormatUtil.formatPrettyDateTime(commit.getAuthorTime());
-  }
+            GitCommit gitCommit = myCommits.get(row);
+            return gitCommit.getChanges().toArray(Change[]::new);
+        });
+    }
 
-  private abstract static class GitCommitColumnInfo extends ColumnInfo<GitCommit, String> {
 
     @Nonnull
-    private final String myMaxString;
-
-    public GitCommitColumnInfo(@Nonnull String name, @Nonnull String maxString) {
-      super(name);
-      myMaxString = maxString;
+    public JComponent getPreferredFocusComponent() {
+        return myTable;
     }
 
-    @Override
-    public String getMaxStringValue() {
-      return myMaxString;
+    public void clearSelection() {
+        myTable.clearSelection();
     }
 
-    @Override
-    public int getAdditionalWidth() {
-      return UIUtil.DEFAULT_HGAP;
+    public void setCommits(@Nonnull List<GitCommit> commits) {
+        myCommits.clear();
+        myCommits.addAll(commits);
+        updateModel();
+        myTable.repaint();
     }
-  }
+
+    private void updateModel() {
+        myTable.setModelAndUpdateColumns(new ListTableModel<GitCommit>(generateColumnsInfo(myCommits), myCommits, 0));
+    }
+
+    @Nonnull
+    private ColumnInfo[] generateColumnsInfo(@Nonnull List<GitCommit> commits) {
+        ItemAndWidth hash = new ItemAndWidth("", 0);
+        ItemAndWidth author = new ItemAndWidth("", 0);
+        ItemAndWidth time = new ItemAndWidth("", 0);
+        for (GitCommit commit : commits) {
+            hash = getMax(hash, getHash(commit));
+            author = getMax(author, getAuthor(commit));
+            time = getMax(time, getTime(commit));
+        }
+
+        return new ColumnInfo[]{
+            new GitCommitColumnInfo("Hash", hash.myItem) {
+                @Override
+                public String valueOf(GitCommit commit) {
+                    return getHash(commit);
+                }
+            },
+            new ColumnInfo<GitCommit, String>("Subject") {
+                @Override
+                public String valueOf(GitCommit commit) {
+                    return commit.getSubject();
+                }
+            },
+            new GitCommitColumnInfo("Author", author.myItem) {
+                @Override
+                public String valueOf(GitCommit commit) {
+                    return getAuthor(commit);
+                }
+            },
+            new GitCommitColumnInfo("Author time", time.myItem) {
+                @Override
+                public String valueOf(GitCommit commit) {
+                    return getTime(commit);
+                }
+            }
+        };
+    }
+
+    private ItemAndWidth getMax(ItemAndWidth current, String candidate) {
+        int width = myTable.getFontMetrics(myTable.getFont()).stringWidth(candidate);
+        if (width > current.myWidth) {
+            return new ItemAndWidth(candidate, width);
+        }
+        return current;
+    }
+
+    private static class ItemAndWidth {
+        private final String myItem;
+        private final int myWidth;
+
+        private ItemAndWidth(String item, int width) {
+            myItem = item;
+            myWidth = width;
+        }
+    }
+
+    private static String getHash(GitCommit commit) {
+        return DvcsUtil.getShortHash(commit.getId().toString());
+    }
+
+    private static String getAuthor(GitCommit commit) {
+        return commit.getAuthor().getName();
+    }
+
+    private static String getTime(GitCommit commit) {
+        return DateFormatUtil.formatPrettyDateTime(commit.getAuthorTime());
+    }
+
+    private abstract static class GitCommitColumnInfo extends ColumnInfo<GitCommit, String> {
+
+        @Nonnull
+        private final String myMaxString;
+
+        public GitCommitColumnInfo(@Nonnull String name, @Nonnull String maxString) {
+            super(name);
+            myMaxString = maxString;
+        }
+
+        @Override
+        public String getMaxStringValue() {
+            return myMaxString;
+        }
+
+        @Override
+        public int getAdditionalWidth() {
+            return UIUtil.DEFAULT_HGAP;
+        }
+    }
 
 }
