@@ -22,6 +22,7 @@ import consulo.platform.base.icon.PlatformIconGroup;
 import consulo.project.Project;
 import consulo.ui.annotation.RequiredUIAccess;
 import consulo.ui.ex.action.AnActionEvent;
+import consulo.ui.ex.action.AnActionWithSyncUpdate;
 import consulo.ui.ex.action.DumbAwareAction;
 import consulo.virtualFileSystem.VirtualFile;
 import git4idea.branch.GitBranchUtil;
@@ -32,7 +33,7 @@ import jakarta.annotation.Nonnull;
  * Invokes a {@link GitBranchPopup} to checkout and control Git branches.
  */
 @ActionImpl(id = "Git.Branches")
-public class GitBranchesAction extends DumbAwareAction {
+public class GitBranchesAction extends DumbAwareAction implements AnActionWithSyncUpdate {
     public GitBranchesAction() {
         super(GitLocalize.actionBranchesText(), LocalizeValue.empty(), PlatformIconGroup.vcsBranch());
     }
@@ -51,7 +52,6 @@ public class GitBranchesAction extends DumbAwareAction {
     }
 
     @Override
-    @RequiredUIAccess
     public void update(@Nonnull AnActionEvent e) {
         Project project = e.getData(Project.KEY);
         e.getPresentation().setEnabledAndVisible(project != null && !project.isDisposed());

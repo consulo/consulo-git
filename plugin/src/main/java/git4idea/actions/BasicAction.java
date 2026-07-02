@@ -22,10 +22,7 @@ import consulo.document.FileDocumentManager;
 import consulo.localize.LocalizeValue;
 import consulo.project.Project;
 import consulo.ui.annotation.RequiredUIAccess;
-import consulo.ui.ex.action.ActionPlaces;
-import consulo.ui.ex.action.AnActionEvent;
-import consulo.ui.ex.action.DumbAwareAction;
-import consulo.ui.ex.action.Presentation;
+import consulo.ui.ex.action.*;
 import consulo.ui.ex.awt.UIUtil;
 import consulo.versionControlSystem.ProjectLevelVcsManager;
 import consulo.versionControlSystem.VcsException;
@@ -47,7 +44,7 @@ import static consulo.virtualFileSystem.util.VirtualFileVisitor.SKIP_ROOT;
 /**
  * Basic abstract action handler for all Git actions to extend.
  */
-public abstract class BasicAction extends DumbAwareAction {
+public abstract class BasicAction extends DumbAwareAction implements AnActionWithSyncUpdate {
     /**
      * {@inheritDoc}
      */
@@ -176,7 +173,6 @@ public abstract class BasicAction extends DumbAwareAction {
      */
     @Override
     public void update(@Nonnull AnActionEvent e) {
-        super.update(e);
         Presentation presentation = e.getPresentation();
         Project project = e.getData(Project.KEY);
         if (project == null) {

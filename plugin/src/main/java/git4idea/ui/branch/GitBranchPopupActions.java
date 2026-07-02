@@ -19,10 +19,7 @@ import consulo.git.localize.GitBranchesLocalize;
 import consulo.localize.LocalizeValue;
 import consulo.project.Project;
 import consulo.ui.annotation.RequiredUIAccess;
-import consulo.ui.ex.action.ActionGroup;
-import consulo.ui.ex.action.AnAction;
-import consulo.ui.ex.action.AnActionEvent;
-import consulo.ui.ex.action.DumbAwareAction;
+import consulo.ui.ex.action.*;
 import consulo.ui.ex.awt.Messages;
 import consulo.util.collection.ContainerUtil;
 import consulo.versionControlSystem.distributed.DvcsUtil;
@@ -139,7 +136,7 @@ class GitBranchPopupActions {
     /**
      * Checkout manually entered tag or revision number.
      */
-    public static class CheckoutRevisionActions extends DumbAwareAction {
+    public static class CheckoutRevisionActions extends DumbAwareAction implements AnActionWithSyncUpdate {
         private final Project myProject;
         private final List<GitRepository> myRepositories;
 
@@ -168,7 +165,6 @@ class GitBranchPopupActions {
         }
 
         @Override
-        @RequiredUIAccess
         public void update(@Nonnull AnActionEvent e) {
             boolean isFresh = ContainerUtil.and(myRepositories, Repository::isFresh);
             if (isFresh) {

@@ -8,6 +8,7 @@ import consulo.git.action.FileActionsGroup;
 import consulo.git.localize.GitLocalize;
 import consulo.ui.annotation.RequiredUIAccess;
 import consulo.ui.ex.action.AnActionEvent;
+import consulo.ui.ex.action.AnActionWithSyncUpdate;
 import consulo.ui.ex.action.DefaultActionGroup;
 import consulo.ui.ex.action.Presentation;
 import consulo.util.collection.JBIterable;
@@ -22,13 +23,12 @@ import java.util.List;
     id = "Git.MainMenu.FileActions",
     children = @ActionRef(type = FileActionsGroup.class)
 )
-public class GitFileActionGroup extends DefaultActionGroup implements DumbAware {
+public class GitFileActionGroup extends DefaultActionGroup implements DumbAware, AnActionWithSyncUpdate {
     public GitFileActionGroup() {
         super(GitLocalize.groupMainMenuCurrentFileText(), true);
     }
 
     @Override
-    @RequiredUIAccess
     public void update(@Nonnull AnActionEvent e) {
         Presentation presentation = e.getPresentation();
 

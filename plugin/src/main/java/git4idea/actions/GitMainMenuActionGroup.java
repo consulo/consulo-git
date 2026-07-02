@@ -57,9 +57,8 @@ import java.util.Objects;
         relatedToAction = @ActionRef(id = "Vcs.MainMenu")
     )
 )
-public class GitMainMenuActionGroup extends DefaultActionGroup implements DumbAware {
+public class GitMainMenuActionGroup extends DefaultActionGroup implements DumbAware, AnActionWithSyncUpdate {
     @Override
-    @RequiredUIAccess
     public void update(@Nonnull AnActionEvent e) {
         Presentation presentation = e.getPresentation();
 

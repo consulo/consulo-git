@@ -22,6 +22,7 @@ import consulo.project.Project;
 import consulo.ui.annotation.RequiredUIAccess;
 import consulo.ui.ex.action.ActionPlaces;
 import consulo.ui.ex.action.AnActionEvent;
+import consulo.ui.ex.action.AnActionWithSyncUpdate;
 import consulo.ui.ex.action.DumbAwareAction;
 import consulo.ui.ex.awt.Messages;
 import consulo.ui.image.Image;
@@ -51,7 +52,7 @@ import java.util.Set;
  * Base class for actions that affect the entire git repository.
  * The action is available if there is at least one git root.
  */
-public abstract class GitRepositoryAction extends DumbAwareAction {
+public abstract class GitRepositoryAction extends DumbAwareAction implements AnActionWithSyncUpdate {
     /**
      * The task delayed until end of the primary action. These tasks happen after repository refresh.
      */
@@ -223,9 +224,7 @@ public abstract class GitRepositoryAction extends DumbAwareAction {
     ) throws VcsException;
 
     @Override
-    @RequiredUIAccess
     public void update(@Nonnull AnActionEvent e) {
-        super.update(e);
         boolean enabled = isEnabled(e);
         e.getPresentation().setEnabled(enabled);
         e.getPresentation().setVisible(!ActionPlaces.isPopupPlace(e.getPlace()) || enabled);

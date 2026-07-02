@@ -22,6 +22,7 @@ import consulo.localize.LocalizeValue;
 import consulo.project.Project;
 import consulo.ui.annotation.RequiredUIAccess;
 import consulo.ui.ex.action.AnActionEvent;
+import consulo.ui.ex.action.AnActionWithSyncUpdate;
 import consulo.ui.ex.action.DumbAwareAction;
 import consulo.util.collection.ContainerUtil;
 import consulo.virtualFileSystem.VirtualFile;
@@ -38,15 +39,13 @@ import java.util.List;
 import static consulo.util.lang.ObjectUtil.assertNotNull;
 import static git4idea.GitUtil.*;
 
-public abstract class GitAbstractRebaseAction extends DumbAwareAction {
+public abstract class GitAbstractRebaseAction extends DumbAwareAction implements AnActionWithSyncUpdate {
     protected GitAbstractRebaseAction(@Nonnull LocalizeValue text) {
         super(text);
     }
 
     @Override
-    @RequiredUIAccess
     public void update(@Nonnull AnActionEvent e) {
-        super.update(e);
         Project project = e.getData(Project.KEY);
         e.getPresentation().setEnabledAndVisible(project != null && hasGitRepositories(project) && hasRebaseInProgress(project));
     }

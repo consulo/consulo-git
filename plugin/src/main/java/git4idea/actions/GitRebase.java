@@ -23,6 +23,7 @@ import consulo.git.localize.GitLocalize;
 import consulo.project.Project;
 import consulo.ui.annotation.RequiredUIAccess;
 import consulo.ui.ex.action.AnActionEvent;
+import consulo.ui.ex.action.AnActionWithSyncUpdate;
 import consulo.ui.ex.action.DumbAwareAction;
 import consulo.versionControlSystem.distributed.DvcsUtil;
 import consulo.virtualFileSystem.VirtualFile;
@@ -39,15 +40,13 @@ import static git4idea.GitUtil.*;
 import static git4idea.rebase.GitRebaseUtils.getRebasingRepositories;
 
 @ActionImpl(id = "Git.Rebase")
-public class GitRebase extends DumbAwareAction {
+public class GitRebase extends DumbAwareAction implements AnActionWithSyncUpdate {
     public GitRebase() {
         super(GitLocalize.actionRebaseText());
     }
 
     @Override
-    @RequiredUIAccess
     public void update(@Nonnull AnActionEvent e) {
-        super.update(e);
         Project project = e.getData(Project.KEY);
         if (project == null || !hasGitRepositories(project)) {
             e.getPresentation().setEnabledAndVisible(false);

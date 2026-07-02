@@ -5,6 +5,7 @@ import consulo.localize.LocalizeValue;
 import consulo.project.Project;
 import consulo.ui.annotation.RequiredUIAccess;
 import consulo.ui.ex.action.AnActionEvent;
+import consulo.ui.ex.action.AnActionWithSyncUpdate;
 import consulo.ui.ex.action.DefaultActionGroup;
 import consulo.ui.ex.action.Presentation;
 import consulo.versionControlSystem.distributed.repository.Repository;
@@ -13,7 +14,7 @@ import git4idea.GitUtil;
 import jakarta.annotation.Nonnull;
 
 // from kotlin
-public class GitRepositoryStateActionGroup extends DefaultActionGroup implements DumbAware {
+public class GitRepositoryStateActionGroup extends DefaultActionGroup implements DumbAware, AnActionWithSyncUpdate {
     public static class Merge extends GitRepositoryStateActionGroup {
         public Merge() {
             super(Repository.State.MERGING);
@@ -36,7 +37,6 @@ public class GitRepositoryStateActionGroup extends DefaultActionGroup implements
     }
 
     @Override
-    @RequiredUIAccess
     public void update(@Nonnull AnActionEvent e) {
         Presentation presentation = e.getPresentation();
         presentation.setEnabledAndVisible(false);

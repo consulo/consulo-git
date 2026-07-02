@@ -19,6 +19,7 @@ import consulo.localize.LocalizeValue;
 import consulo.project.Project;
 import consulo.ui.annotation.RequiredUIAccess;
 import consulo.ui.ex.action.AnActionEvent;
+import consulo.ui.ex.action.AnActionWithSyncUpdate;
 import consulo.ui.ex.action.DumbAwareAction;
 import consulo.ui.ex.action.Presentation;
 import jakarta.annotation.Nonnull;
@@ -28,13 +29,12 @@ import jakarta.annotation.Nonnull;
  *
  * @author Kirill Likhodedov
  */
-public abstract class GitAction extends DumbAwareAction {
+public abstract class GitAction extends DumbAwareAction implements AnActionWithSyncUpdate {
     protected GitAction(@Nonnull LocalizeValue text) {
         super(text);
     }
 
     @Override
-    @RequiredUIAccess
     public void update(@Nonnull AnActionEvent e) {
         Presentation presentation = e.getPresentation();
         Project project = e.getData(Project.KEY);
