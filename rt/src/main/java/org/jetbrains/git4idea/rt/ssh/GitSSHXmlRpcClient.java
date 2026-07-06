@@ -15,12 +15,12 @@
  */
 package org.jetbrains.git4idea.rt.ssh;
 
+import jakarta.annotation.Nullable;
 import org.apache.xmlrpc.XmlRpcException;
 import org.apache.xmlrpc.client.XmlRpcClient;
 import org.apache.xmlrpc.client.XmlRpcClientConfigImpl;
 import org.apache.xmlrpc.client.XmlRpcHttpClientConfig;
 
-import jakarta.annotation.Nullable;
 import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
@@ -46,7 +46,7 @@ public class GitSSHXmlRpcClient implements GitSSHHandler
 	 * @param batchMode if true, the client is run in the batch mode, so nothing should be prompted
 	 * @throws IOException if there is IO problem
 	 */
-	GitSSHXmlRpcClient(final int port, final boolean batchMode) throws IOException
+	GitSSHXmlRpcClient(int port, boolean batchMode) throws IOException
 	{
 		//noinspection HardCodedStringLiteral
 		if(batchMode)
@@ -67,9 +67,16 @@ public class GitSSHXmlRpcClient implements GitSSHHandler
 	/**
 	 * {@inheritDoc}
 	 */
+    @Override
 	@SuppressWarnings("unchecked")
-	public boolean verifyServerHostKey(String token, final String hostname, final int port, final String serverHostKeyAlgorithm, final String serverHostKey, final boolean isNew)
-	{
+    public boolean verifyServerHostKey(
+        String token,
+        String hostname,
+        int port,
+        String serverHostKeyAlgorithm,
+        String serverHostKey,
+        boolean isNew
+    ) {
 		if(myClient == null)
 		{
 			return false;
@@ -83,7 +90,7 @@ public class GitSSHXmlRpcClient implements GitSSHHandler
 		parameters.add(isNew);
 		try
 		{
-			return ((Boolean) myClient.execute(methodName("verifyServerHostKey"), parameters)).booleanValue();
+			return (Boolean) myClient.execute(methodName("verifyServerHostKey"), parameters);
 		}
 		catch(XmlRpcException e)
 		{
@@ -97,7 +104,7 @@ public class GitSSHXmlRpcClient implements GitSSHHandler
 	 * @param method short name of the method
 	 * @return full method name
 	 */
-	private static String methodName(final String method)
+	private static String methodName(String method)
 	{
 		return GitSSHHandler.HANDLER_NAME + "." + method;
 	}
@@ -106,8 +113,9 @@ public class GitSSHXmlRpcClient implements GitSSHHandler
 	 * {@inheritDoc}
 	 */
 	@Nullable
+    @Override
 	@SuppressWarnings("unchecked")
-	public String askPassphrase(String token, final String username, final String keyPath, final boolean resetPassword, final String lastError)
+	public String askPassphrase(String token, String username, String keyPath, boolean resetPassword, String lastError)
 	{
 		if(myClient == null)
 		{
@@ -133,16 +141,18 @@ public class GitSSHXmlRpcClient implements GitSSHHandler
 	 * {@inheritDoc}
 	 */
 	@Nullable
+    @Override
 	@SuppressWarnings("unchecked")
-	public List<String> replyToChallenge(String token,
-										   final String username,
-										   final String name,
-										   final String instruction,
-										   final int numPrompts,
-										   final Vector<String> prompt,
-										   final Vector<Boolean> echo,
-										   final String lastError)
-	{
+    public List<String> replyToChallenge(
+        String token,
+        String username,
+        String name,
+        String instruction,
+        int numPrompts,
+        Vector<String> prompt,
+        Vector<Boolean> echo,
+        String lastError
+    ) {
 		if(myClient == null)
 		{
 			return null;
@@ -170,8 +180,9 @@ public class GitSSHXmlRpcClient implements GitSSHHandler
 	 * {@inheritDoc}
 	 */
 	@Nullable
+    @Override
 	@SuppressWarnings("unchecked")
-	public String askPassword(String token, final String username, final boolean resetPassword, final String lastError)
+	public String askPassword(String token, String username, boolean resetPassword, String lastError)
 	{
 		if(myClient == null)
 		{
@@ -249,7 +260,7 @@ public class GitSSHXmlRpcClient implements GitSSHHandler
 	 * @return adjusted value.
 	 */
 	@Nullable
-	private static String adjustNull(final String s)
+	private static String adjustNull(String s)
 	{
 		return s.charAt(0) == '-' ? null : s.substring(1);
 	}
@@ -262,7 +273,7 @@ public class GitSSHXmlRpcClient implements GitSSHHandler
 	 * @return adjusted value.
 	 */
 	@Nullable
-	private static <T> List<T> adjustNull(final List<T> s)
+	private static <T> List<T> adjustNull(List<T> s)
 	{
 		return s.size() == 0 ? null : s;
 	}

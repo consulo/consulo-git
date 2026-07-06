@@ -15,6 +15,7 @@
  */
 package git4idea.validators;
 
+import consulo.ui.annotation.RequiredUIAccess;
 import consulo.ui.ex.InputValidator;
 
 import java.util.regex.Pattern;
@@ -33,8 +34,8 @@ public class GitBranchNameValidator implements InputValidator {
 
   static {
     // based on the git-check-ref-format command description
-    final String goodChar = "[!-~&&[^\\^~:\\[\\]\\?\\*\\./<>\\|'`]]";
-    final String component = "(?:" + goodChar + "+\\.?)+";
+    String goodChar = "[!-~&&[^\\^~:\\[\\]\\?\\*\\./<>\\|'`]]";
+    String component = "(?:" + goodChar + "+\\.?)+";
     REF_FORMAT_PATTERN = Pattern.compile("^" + component + "+(?:/*" + component + ")*$");
   }
 
@@ -46,6 +47,8 @@ public class GitBranchNameValidator implements InputValidator {
   /**
    * {@inheritDoc}
    */
+  @Override
+  @RequiredUIAccess
   public boolean checkInput(String inputString) {
     return REF_FORMAT_PATTERN.matcher(inputString).matches();
   }
@@ -53,6 +56,8 @@ public class GitBranchNameValidator implements InputValidator {
   /**
    * {@inheritDoc}
    */
+  @Override
+  @RequiredUIAccess
   public boolean canClose(String inputString) {
     return checkInput(inputString);
   }

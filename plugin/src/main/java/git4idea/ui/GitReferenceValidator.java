@@ -16,8 +16,8 @@
 package git4idea.ui;
 
 import consulo.project.Project;
-import consulo.versionControlSystem.VcsException;
 import consulo.ui.ex.awt.event.DocumentAdapter;
+import consulo.versionControlSystem.VcsException;
 import consulo.virtualFileSystem.VirtualFile;
 import git4idea.GitRevisionNumber;
 import git4idea.GitUtil;
@@ -25,8 +25,6 @@ import git4idea.util.GitUIUtil;
 
 import javax.swing.*;
 import javax.swing.event.DocumentEvent;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 
 /**
  * The class setups validation for references in the text fields.
@@ -66,43 +64,42 @@ public class GitReferenceValidator {
    * @param button        the button that initiates validation action
    * @param statusChanged the action that is invoked when validation status changed
    */
-  public GitReferenceValidator(final Project project,
-                               final JComboBox gitRoot,
-                               final JTextField textField,
-                               final JButton button,
-                               final Runnable statusChanged) {
+  public GitReferenceValidator(
+    Project project,
+    JComboBox gitRoot,
+    JTextField textField,
+    JButton button,
+    Runnable statusChanged
+  ) {
     myProject = project;
     myGitRoot = gitRoot;
     myTextField = textField;
     myButton = button;
-    myGitRoot.addActionListener(new ActionListener() {
-      public void actionPerformed(final ActionEvent e) {
-        myLastResult = false;
-        myLastResultText = null;
-      }
+    myGitRoot.addActionListener(e -> {
+      myLastResult = false;
+      myLastResultText = null;
     });
     myTextField.getDocument().addDocumentListener(new DocumentAdapter() {
-      protected void textChanged(final DocumentEvent e) {
+      @Override
+      protected void textChanged(DocumentEvent e) {
         // note that checkOkButton is called in other listener
         myButton.setEnabled(myTextField.getText().trim().length() != 0);
       }
     });
-    myButton.addActionListener(new ActionListener() {
-      public void actionPerformed(final ActionEvent e) {
-        final String revisionExpression = myTextField.getText();
-        myLastResultText = revisionExpression;
-        myLastResult = false;
-        try {
-          GitRevisionNumber revision = GitRevisionNumber.resolve(myProject, gitRoot(), revisionExpression);
-          GitUtil.showSubmittedFiles(myProject, revision.asString(), gitRoot(), false, false);
-          myLastResult = true;
-        }
-        catch (VcsException ex) {
-          GitUIUtil.showOperationError(myProject, ex, "Validating revision: " + revisionExpression);
-        }
-        if (statusChanged != null) {
-          statusChanged.run();
-        }
+    myButton.addActionListener(e -> {
+      String revisionExpression = myTextField.getText();
+      myLastResultText = revisionExpression;
+      myLastResult = false;
+      try {
+        GitRevisionNumber revision = GitRevisionNumber.resolve(myProject, gitRoot(), revisionExpression);
+        GitUtil.showSubmittedFiles(myProject, revision.asString(), gitRoot(), false, false);
+        myLastResult = true;
+      }
+      catch (VcsException ex) {
+        GitUIUtil.showOperationError(myProject, ex, "Validating revision: " + revisionExpression);
+      }
+      if (statusChanged != null) {
+        statusChanged.run();
       }
     });
     myButton.setEnabled(myTextField.getText().length() != 0);
@@ -112,7 +109,7 @@ public class GitReferenceValidator {
    * @return true if the reference is known to be invalid
    */
   public boolean isInvalid() {
-    final String revisionExpression = myTextField.getText();
+    String revisionExpression = myTextField.getText();
     return revisionExpression.equals(myLastResultText) && !myLastResult;
   }
 

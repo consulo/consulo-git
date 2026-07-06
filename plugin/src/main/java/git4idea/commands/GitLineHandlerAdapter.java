@@ -24,21 +24,24 @@ public class GitLineHandlerAdapter implements GitLineHandlerListener {
   /**
    * {@inheritDoc}
    */
-  public void onLineAvailable(final String line, final Key outputType) {
+  @Override
+  public void onLineAvailable(String line, Key outputType) {
     // do nothing
   }
 
   /**
    * {@inheritDoc}
    */
-  public void processTerminated(final int exitCode) {
+  @Override
+  public void processTerminated(int exitCode) {
     // do nothing
   }
 
   /**
    * {@inheritDoc}
    */
-  public void startFailed(final Throwable exception) {
+  @Override
+  public void startFailed(Throwable exception) {
     // do nothing
   }
 }
