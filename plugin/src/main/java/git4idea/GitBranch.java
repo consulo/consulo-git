@@ -16,13 +16,11 @@
 package git4idea;
 
 import consulo.versionControlSystem.log.Hash;
-import jakarta.annotation.Nonnull;
-import org.jetbrains.annotations.NonNls;
-
 import git4idea.branch.GitBranchUtil;
 import git4idea.repo.GitRepository;
-
+import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import org.jetbrains.annotations.NonNls;
 
 /**
  * <p>Represents a Git branch, local or remote.</p>
@@ -42,7 +40,6 @@ import jakarta.annotation.Nullable;
  */
 public abstract class GitBranch extends GitReference
 {
-
 	@NonNls
 	public static final String REFS_HEADS_PREFIX = "refs/heads/"; // Prefix for local branches ({@value})
 	@NonNls
@@ -66,6 +63,7 @@ public abstract class GitBranch extends GitReference
 	public abstract boolean isRemote();
 
 	@Nonnull
+    @Override
 	public String getFullName()
 	{
 		return (isRemote() ? REFS_REMOTES_PREFIX : REFS_HEADS_PREFIX) + myName;

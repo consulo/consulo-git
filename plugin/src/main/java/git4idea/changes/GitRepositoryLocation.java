@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package git4idea.changes;
 
 import consulo.versionControlSystem.RepositoryLocation;
@@ -30,6 +29,7 @@ public class GitRepositoryLocation implements RepositoryLocation {
     myRoot = root;
   }
 
+  @Override
   public String toPresentableString() {
     return myUrl;
   }
@@ -39,6 +39,7 @@ public class GitRepositoryLocation implements RepositoryLocation {
     return toPresentableString();
   }
 
+  @Override
   public String getKey() {
     return myUrl;
   }

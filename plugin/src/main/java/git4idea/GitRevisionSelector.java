@@ -15,8 +15,8 @@
  */
 package git4idea;
 
-import consulo.versionControlSystem.history.VcsRevisionNumber;
 import consulo.versionControlSystem.diff.RevisionSelector;
+import consulo.versionControlSystem.history.VcsRevisionNumber;
 import consulo.virtualFileSystem.VirtualFile;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
@@ -29,6 +29,7 @@ public class GitRevisionSelector implements RevisionSelector {
    * {@inheritDoc}
    */
   @Nullable
+  @Override
   public VcsRevisionNumber selectNumber(@Nonnull VirtualFile file) {
     //GitVirtualFile gitFile = (GitVirtualFile) file;
     //TODO: implement selectNumber()

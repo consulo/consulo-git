@@ -30,6 +30,7 @@ public interface GitLineHandlerListener extends LineProcessEventListener
    * @param line       a line of the text
    * @param outputType a type of output (one of constants from {@link ProcessOutputTypes})
    */
+  @Override
   @SuppressWarnings({"UnusedParameters", "UnnecessaryFullyQualifiedName"})
   void onLineAvailable(String line, Key outputType);
 }
