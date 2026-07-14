@@ -25,6 +25,7 @@ import consulo.git.localize.GitLocalize;
 import consulo.localize.LocalizeValue;
 import consulo.logging.Logger;
 import consulo.project.Project;
+import consulo.util.lang.ControlFlowException;
 import consulo.util.lang.StringUtil;
 import consulo.versionControlSystem.FilePath;
 import consulo.versionControlSystem.VcsException;
@@ -136,9 +137,15 @@ public class GitAnnotationProvider implements AnnotationProvider, VcsCacheableAn
         else {
             command.run();
         }
-        if (exception[0] != null) {
-            LOG.warn(exception[0]);
-            throw new VcsException("Failed to annotate: " + exception[0], exception[0]);
+
+        Exception ex = exception[0];
+        if (ex instanceof ControlFlowException) {
+            throw ControlFlowException.rethrow(ex);
+        }
+        
+        if (ex != null) {
+            LOG.warn(ex);
+            throw new VcsException("Failed to annotate: " + ex, ex);
         }
         return annotation[0];
     }
