@@ -15,7 +15,7 @@
  */
 package git4idea;
 
-import consulo.application.util.SystemInfo;
+import consulo.platform.Platform;
 import consulo.util.collection.HashingStrategy;
 import consulo.util.lang.StringUtil;
 import consulo.virtualFileSystem.util.FilePathHashingStrategy;
@@ -72,7 +72,8 @@ public abstract class GitReference implements Comparable<GitReference> {
     return BRANCH_NAME_HASHING_STRATEGY.hashCode(myName);
   }
 
+  @Override
   public int compareTo(GitReference o) {
-    return o == null ? 1 : StringUtil.compare(getFullName(), o.getFullName(), SystemInfo.isFileSystemCaseSensitive);
+    return o == null ? 1 : StringUtil.compare(getFullName(), o.getFullName(), Platform.current().fs().isCaseSensitive());
   }
 }

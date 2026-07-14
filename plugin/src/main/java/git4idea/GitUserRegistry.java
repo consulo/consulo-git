@@ -18,14 +18,12 @@ package git4idea;
 import consulo.annotation.component.ComponentScope;
 import consulo.annotation.component.ServiceAPI;
 import consulo.annotation.component.ServiceImpl;
-import consulo.application.ApplicationManager;
-import consulo.disposer.Disposable;
 import consulo.application.Application;
+import consulo.disposer.Disposable;
 import consulo.logging.Logger;
 import consulo.project.Project;
 import consulo.util.collection.ContainerUtil;
 import consulo.util.lang.StringUtil;
-import consulo.util.lang.function.Condition;
 import consulo.versionControlSystem.ProjectLevelVcsManager;
 import consulo.versionControlSystem.VcsException;
 import consulo.versionControlSystem.VcsListener;
@@ -33,11 +31,11 @@ import consulo.versionControlSystem.log.VcsLogObjectsFactory;
 import consulo.versionControlSystem.log.VcsUser;
 import consulo.virtualFileSystem.VirtualFile;
 import git4idea.config.GitConfigUtil;
+import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.util.Collection;
 import java.util.Map;
 
@@ -113,22 +111,14 @@ public class GitUserRegistry implements Disposable, VcsListener {
     if (vcs == null) {
       return;
     }
-    final VirtualFile[] roots = myVcsManager.getRootsUnderVcs(vcs);
-    final Collection<VirtualFile> rootsToCheck = ContainerUtil.filter(roots, new Condition<VirtualFile>() {
-      @Override
-      public boolean value(VirtualFile root) {
-        return getUser(root) == null;
-      }
-    });
+    VirtualFile[] roots = myVcsManager.getRootsUnderVcs(vcs);
+    Collection<VirtualFile> rootsToCheck = ContainerUtil.filter(roots, root -> getUser(root) == null);
     if (!rootsToCheck.isEmpty()) {
-      ApplicationManager.getApplication().executeOnPooledThread(new Runnable() {
-        public void run() {
-          for (VirtualFile root : rootsToCheck) {
-            getOrReadUser(root);
-          }
+      Application.get().executeOnPooledThread((Runnable) () -> {
+        for (VirtualFile root : rootsToCheck) {
+          getOrReadUser(root);
         }
       });
     }
   }
-
 }

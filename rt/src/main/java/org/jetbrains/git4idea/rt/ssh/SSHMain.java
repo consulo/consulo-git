@@ -180,7 +180,7 @@ public class SSHMain implements GitExternalApp
 
 			c.connect(new HostKeyVerifier());
 			authenticate(c);
-			final Session s = c.openSession();
+			Session s = c.openSession();
 			try
 			{
 				s.execCommand(myCommand);
@@ -199,7 +199,7 @@ public class SSHMain implements GitExternalApp
 					// broken exit status
 					exitStatus = 1;
 				}
-				System.exit(exitStatus.intValue() == 0 ? myExitCode : exitStatus.intValue());
+				System.exit(exitStatus == 0 ? myExitCode : exitStatus);
 			}
 			finally
 			{
@@ -219,7 +219,7 @@ public class SSHMain implements GitExternalApp
 	 * @param c the connection to use for authentication
 	 * @throws IOException in case of IO error or authentication failure
 	 */
-	private void authenticate(final Connection c) throws IOException
+	private void authenticate(Connection c) throws IOException
 	{
 		LinkedList<String> methods = new LinkedList<>(myHost.getPreferredMethods());
 		log("authenticating... " + this);
@@ -362,11 +362,11 @@ public class SSHMain implements GitExternalApp
 	 * @param keyPath a path to key
 	 * @return true if authentication is successful
 	 */
-	private boolean tryPublicKey(final Connection c, final String keyPath)
+	private boolean tryPublicKey(Connection c, String keyPath)
 	{
 		try
 		{
-			final File file = new File(keyPath);
+			File file = new File(keyPath);
 			if(file.exists())
 			{
 				// if encrypted ask user for passphrase
@@ -478,56 +478,53 @@ public class SSHMain implements GitExternalApp
 	 * @param in               the input stream
 	 * @param releaseSemaphore if true the semaphore will be released
 	 */
-	private void forward(final String name, final OutputStream out, final InputStream in, final boolean releaseSemaphore)
+	private void forward(String name, OutputStream out, InputStream in, boolean releaseSemaphore)
 	{
-		final Runnable action = new Runnable()
-		{
-			public void run()
-			{
-				byte[] buffer = new byte[BUFFER_SIZE];
-				int rc;
-				try
-				{
-					try
-					{
-						try
-						{
-							while((rc = in.read(buffer)) != -1)
-							{
-								out.write(buffer, 0, rc);
-							}
-						}
-						finally
-						{
-							out.close();
-						}
-					}
-					finally
-					{
-						in.close();
-					}
-				}
-				catch(IOException e)
-				{
-					System.err.println(SSHMainBundle.message("sshmain.forwarding.failed", name, e.getMessage()));
-					e.printStackTrace();
-					myExitCode = 1;
-					if(releaseSemaphore)
-					{
-						// in the case of error, release semaphore, so that application could exit
-						myForwardCompleted.release(1);
-					}
-				}
-				finally
-				{
-					if(releaseSemaphore)
-					{
-						myForwardCompleted.release(1);
-					}
-				}
-			}
-		};
-		@SuppressWarnings({"HardCodedStringLiteral"}) final Thread t = new Thread(action, "Forwarding " + name);
+		Runnable action = () -> {
+            byte[] buffer = new byte[BUFFER_SIZE];
+            int rc;
+            try
+            {
+                try
+                {
+                    try
+                    {
+                        while((rc = in.read(buffer)) != -1)
+                        {
+                            out.write(buffer, 0, rc);
+                        }
+                    }
+                    finally
+                    {
+                        out.close();
+                    }
+                }
+                finally
+                {
+                    in.close();
+                }
+            }
+            catch(IOException e)
+            {
+                System.err.println(SSHMainBundle.message("sshmain.forwarding.failed", name, e.getMessage()));
+                e.printStackTrace();
+                myExitCode = 1;
+                if(releaseSemaphore)
+                {
+                    // in the case of error, release semaphore, so that application could exit
+                    myForwardCompleted.release(1);
+                }
+            }
+            finally
+            {
+                if(releaseSemaphore)
+                {
+                    myForwardCompleted.release(1);
+                }
+            }
+        };
+		@SuppressWarnings("HardCodedStringLiteral")
+        Thread t = new Thread(action, "Forwarding " + name);
 		t.setDaemon(true);
 		t.start();
 	}
@@ -546,7 +543,7 @@ public class SSHMain implements GitExternalApp
 		{
 			database.addHostkeys(knownHostFile);
 		}
-		final List<String> algorithms = myHost.getHostKeyAlgorithms();
+		List<String> algorithms = myHost.getHostKeyAlgorithms();
 		c.setServerHostKeyAlgorithms(algorithms.toArray(String[]::new));
 	}
 
@@ -606,9 +603,10 @@ public class SSHMain implements GitExternalApp
 		/**
 		 * {@inheritDoc}
 		 */
-		@SuppressWarnings({"UseOfObsoleteCollectionType"})
+		@Override
+        @SuppressWarnings({"UseOfObsoleteCollectionType"})
 		@Nullable
-		public String[] replyToChallenge(final String name, final String instruction, final int numPrompts, final String[] prompt, final boolean[] echo) throws Exception
+		public String[] replyToChallenge(String name, String instruction, int numPrompts, String[] prompt, boolean[] echo) throws Exception
 		{
 			if(numPrompts == 0)
 			{
@@ -622,7 +620,7 @@ public class SSHMain implements GitExternalApp
 			{
 				vEcho.add(e);
 			}
-			final List<String> result = myXmlRpcClient.replyToChallenge(myHandlerNo, getUserHostString(), name, instruction, numPrompts, vPrompts, vEcho, myLastError);
+			List<String> result = myXmlRpcClient.replyToChallenge(myHandlerNo, getUserHostString(), name, instruction, numPrompts, vPrompts, vEcho, myLastError);
 			if(result == null)
 			{
 				myCancelled = true;
@@ -645,7 +643,8 @@ public class SSHMain implements GitExternalApp
 		/**
 		 * {@inheritDoc}
 		 */
-		public boolean verifyServerHostKey(String hostname, int port, String serverHostKeyAlgorithm, byte[] serverHostKey) throws Exception
+		@Override
+        public boolean verifyServerHostKey(String hostname, int port, String serverHostKeyAlgorithm, byte[] serverHostKey) throws Exception
 		{
 			try
 			{
@@ -661,8 +660,8 @@ public class SSHMain implements GitExternalApp
 			}
 			try
 			{
-				final int result = database.verifyHostkey(hostname, serverHostKeyAlgorithm, serverHostKey);
-				final boolean isNew;
+				int result = database.verifyHostkey(hostname, serverHostKeyAlgorithm, serverHostKey);
+				boolean isNew;
 				switch(result)
 				{
 					case KnownHosts.HOSTKEY_IS_OK:

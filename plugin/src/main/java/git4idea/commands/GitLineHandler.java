@@ -22,8 +22,8 @@ import consulo.util.dataholder.Key;
 import consulo.util.lang.StringUtil;
 import consulo.versionControlSystem.util.LineHandlerHelper;
 import consulo.virtualFileSystem.VirtualFile;
-
 import jakarta.annotation.Nonnull;
+
 import java.io.File;
 import java.util.Iterator;
 
@@ -63,14 +63,15 @@ public class GitLineHandler extends GitTextHandler {
    * @param vcsRoot a process directory
    * @param command a command to execute
    */
-  public GitLineHandler(@Nonnull final Project project, @Nonnull final VirtualFile vcsRoot, @Nonnull final GitCommand command) {
+  public GitLineHandler(@Nonnull Project project, @Nonnull VirtualFile vcsRoot, @Nonnull GitCommand command) {
     super(project, vcsRoot, command);
   }
 
   /**
    * {@inheritDoc}
    */
-  protected void processTerminated(final int exitCode) {
+  @Override
+  protected void processTerminated(int exitCode) {
     // force newline
     if (myStdoutLine.length() != 0) {
       onTextAvailable("\n\r", ProcessOutputTypes.STDOUT);
@@ -94,7 +95,8 @@ public class GitLineHandler extends GitTextHandler {
   /**
    * {@inheritDoc}
    */
-  protected void onTextAvailable(final String text, final Key outputType) {
+  @Override
+  protected void onTextAvailable(String text, Key outputType) {
     Iterator<String> lines = LineHandlerHelper.splitText(text).iterator();
     if (ProcessOutputTypes.STDOUT == outputType) {
       notifyLines(outputType, lines, myStdoutLine);
@@ -111,13 +113,13 @@ public class GitLineHandler extends GitTextHandler {
    * @param lines       line iterator
    * @param lineBuilder a line builder
    */
-  private void notifyLines(final Key outputType, final Iterator<String> lines, final StringBuilder lineBuilder) {
+  private void notifyLines(Key outputType, Iterator<String> lines, StringBuilder lineBuilder) {
     if (!lines.hasNext()) return;
     if (lineBuilder.length() > 0) {
       lineBuilder.append(lines.next());
       if (lines.hasNext()) {
         // line is complete
-        final String line = lineBuilder.toString();
+        String line = lineBuilder.toString();
         notifyLine(line, outputType);
         lineBuilder.setLength(0);
       }
@@ -146,7 +148,7 @@ public class GitLineHandler extends GitTextHandler {
    * @param line       a line to notify
    * @param outputType output type
    */
-  private void notifyLine(final String line, final Key outputType) {
+  private void notifyLine(String line, Key outputType) {
     String trimmed = LineHandlerHelper.trimLineSeparator(line);
     // if line ends with return, then it is a progress line, ignore it
     if (myVcs != null && !"\r".equals(line.substring(trimmed.length()))) {

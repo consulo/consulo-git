@@ -25,8 +25,6 @@ import consulo.ui.ex.awt.ScrollPaneFactory;
 import consulo.ui.ex.awt.UIUtil;
 import consulo.ui.ex.awt.table.ListTableModel;
 import consulo.ui.ex.awt.table.TableView;
-import consulo.util.collection.ArrayUtil;
-import consulo.util.dataholder.Key;
 import consulo.versionControlSystem.VcsDataKeys;
 import consulo.versionControlSystem.change.Change;
 import consulo.versionControlSystem.change.ChangesBrowserUtil;
@@ -36,8 +34,6 @@ import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 
 import javax.swing.*;
-import javax.swing.event.ListSelectionEvent;
-import javax.swing.event.ListSelectionListener;
 import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -50,14 +46,13 @@ import java.util.function.Consumer;
  * @author Kirill Likhodedov
  */
 public class GitCommitListPanel extends JPanel implements UiDataProvider {
-
     private final List<GitCommit> myCommits;
     private final TableView<GitCommit> myTable;
 
     public GitCommitListPanel(@Nonnull List<GitCommit> commits, @Nullable String emptyText) {
         myCommits = commits;
 
-        myTable = new TableView<GitCommit>();
+        myTable = new TableView<>();
         updateModel();
         myTable.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
         myTable.setStriped(true);
@@ -72,33 +67,29 @@ public class GitCommitListPanel extends JPanel implements UiDataProvider {
     /**
      * Adds a listener that would be called once user selects a commit in the table.
      */
-    public void addListSelectionListener(final @Nonnull Consumer<GitCommit> listener) {
-        myTable.getSelectionModel().addListSelectionListener(new ListSelectionListener() {
-            public void valueChanged(final ListSelectionEvent e) {
-                ListSelectionModel lsm = (ListSelectionModel) e.getSource();
-                int i = lsm.getMaxSelectionIndex();
-                int j = lsm.getMinSelectionIndex();
-                if (i >= 0 && i == j) {
-                    listener.accept(myCommits.get(i));
-                }
+    public void addListSelectionListener(@Nonnull Consumer<GitCommit> listener) {
+        myTable.getSelectionModel().addListSelectionListener(e -> {
+            ListSelectionModel lsm = (ListSelectionModel) e.getSource();
+            int i = lsm.getMaxSelectionIndex();
+            int j = lsm.getMinSelectionIndex();
+            if (i >= 0 && i == j) {
+                listener.accept(myCommits.get(i));
             }
         });
     }
 
-    public void addListMultipleSelectionListener(final @Nonnull Consumer<List<Change>> listener) {
-        myTable.getSelectionModel().addListSelectionListener(new ListSelectionListener() {
-            public void valueChanged(final ListSelectionEvent e) {
-                List<GitCommit> commits = myTable.getSelectedObjects();
+    public void addListMultipleSelectionListener(@Nonnull Consumer<List<Change>> listener) {
+        myTable.getSelectionModel().addListSelectionListener(e -> {
+            List<GitCommit> commits = myTable.getSelectedObjects();
 
-                final List<Change> changes = new ArrayList<Change>();
-                // We need changes in asc order for zipChanges, and they are in desc order in Table
-                ListIterator<GitCommit> iterator = commits.listIterator(commits.size());
-                while (iterator.hasPrevious()) {
-                    changes.addAll(iterator.previous().getChanges());
-                }
-
-                listener.accept(ChangesBrowserUtil.zipChanges(changes));
+            List<Change> changes = new ArrayList<>();
+            // We need changes in asc order for zipChanges, and they are in desc order in Table
+            ListIterator<GitCommit> iterator = commits.listIterator(commits.size());
+            while (iterator.hasPrevious()) {
+                changes.addAll(iterator.previous().getChanges());
             }
+
+            listener.accept(ChangesBrowserUtil.zipChanges(changes));
         });
     }
 
@@ -125,7 +116,6 @@ public class GitCommitListPanel extends JPanel implements UiDataProvider {
         });
     }
 
-
     @Nonnull
     public JComponent getPreferredFocusComponent() {
         return myTable;
@@ -143,7 +133,7 @@ public class GitCommitListPanel extends JPanel implements UiDataProvider {
     }
 
     private void updateModel() {
-        myTable.setModelAndUpdateColumns(new ListTableModel<GitCommit>(generateColumnsInfo(myCommits), myCommits, 0));
+        myTable.setModelAndUpdateColumns(new ListTableModel<>(generateColumnsInfo(myCommits), myCommits, 0));
     }
 
     @Nonnull
@@ -216,7 +206,6 @@ public class GitCommitListPanel extends JPanel implements UiDataProvider {
     }
 
     private abstract static class GitCommitColumnInfo extends ColumnInfo<GitCommit, String> {
-
         @Nonnull
         private final String myMaxString;
 
@@ -235,5 +224,4 @@ public class GitCommitListPanel extends JPanel implements UiDataProvider {
             return UIUtil.DEFAULT_HGAP;
         }
     }
-
 }
