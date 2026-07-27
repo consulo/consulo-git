@@ -98,7 +98,7 @@ public class GitRefManager implements VcsLogRefManager {
             VirtualFile root = entry.getKey();
             List<VcsRef> refsInRoot = ContainerUtil.sorted(entry.getValue(), myLabelsComparator);
 
-            GitRepository repository = myRepositoryManager.getRepositoryForRoot(root);
+            GitRepository repository = myRepositoryManager.getRepositoryForRootQuick(root);
             if (repository == null) {
                 LOG.warn("No repository for root: {}", root);
                 continue;
@@ -253,7 +253,7 @@ public class GitRefManager implements VcsLogRefManager {
         }
 
         VcsRef ref = ObjectUtil.assertNotNull(ContainerUtil.getFirstItem(references));
-        GitRepository repository = myRepositoryManager.getRepositoryForRoot(ref.getRoot());
+        GitRepository repository = myRepositoryManager.getRepositoryForRootQuick(ref.getRoot());
         if (repository == null) {
             LOG.warn("No repository for root: {}", ref.getRoot());
         }
@@ -510,7 +510,7 @@ public class GitRefManager implements VcsLogRefManager {
         }
 
         private boolean isTracked(@Nonnull VcsRef ref, boolean remoteBranch) {
-            GitRepository repo = myRepositoryManager.getRepositoryForRoot(ref.getRoot());
+            GitRepository repo = myRepositoryManager.getRepositoryForRootQuick(ref.getRoot());
             if (repo == null) {
                 LOG.error("Undefined root {}", ref.getRoot());
                 return false;
