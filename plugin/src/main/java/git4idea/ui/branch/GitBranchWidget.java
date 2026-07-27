@@ -20,7 +20,9 @@ import consulo.project.ui.wm.StatusBarWidget;
 import consulo.project.ui.wm.StatusBarWidgetFactory;
 import consulo.ui.ex.popup.ListPopup;
 import consulo.util.lang.ObjectUtil;
+import consulo.versionControlSystem.distributed.DvcsUtil;
 import consulo.versionControlSystem.distributed.ui.DvcsStatusWidget;
+import consulo.virtualFileSystem.VirtualFile;
 import git4idea.GitUtil;
 import git4idea.GitVcs;
 import git4idea.branch.GitBranchUtil;
@@ -30,6 +32,8 @@ import git4idea.repo.GitRepositoryChangeListener;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+
+import java.util.Objects;
 
 /**
  * Status bar widget which displays the current branch for the file currently open in the editor.
@@ -45,13 +49,12 @@ public class GitBranchWidget extends DvcsStatusWidget<GitRepository> {
 
     @Override
     public StatusBarWidget copy() {
-        return new GitBranchWidget(ObjectUtil.assertNotNull(getProject()), myFactory);
+        return new GitBranchWidget(Objects.requireNonNull(getProject()), myFactory);
     }
 
-    @Nullable
     @Override
-    protected GitRepository guessCurrentRepository(@Nonnull Project project) {
-        return GitBranchUtil.getCurrentRepository(project);
+    protected GitRepository guessCurrentRepository(@Nonnull Project project, @Nullable VirtualFile selectedFile) {
+        return DvcsUtil.guessWidgetRepository(project, GitUtil.getRepositoryManager(project), mySettings.getRecentRootPath(), selectedFile);
     }
 
     @Nonnull
