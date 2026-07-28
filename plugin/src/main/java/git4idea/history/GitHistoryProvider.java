@@ -240,7 +240,7 @@ public class GitHistoryProvider
     @Override
     public boolean canShowHistoryFor(@Nonnull VirtualFile file) {
         GitRepositoryManager manager = GitUtil.getRepositoryManager(myProject);
-        GitRepository repository = manager.getRepositoryForFile(file);
+        GitRepository repository = manager.getRepositoryForFileQuick(file);
         return repository != null && !repository.isFresh();
     }
 }

@@ -156,7 +156,7 @@ public class GitCheckinEnvironment implements CheckinEnvironment {
         Set<String> messages = new LinkedHashSet<>();
         GitRepositoryManager manager = getRepositoryManager(myProject);
         for (VirtualFile root : GitUtil.gitRoots(asList(filesToCheckin))) {
-            GitRepository repository = manager.getRepositoryForRoot(root);
+            GitRepository repository = manager.getRepositoryForRootQuick(root);
             if (repository == null) { // unregistered nested submodule found by GitUtil.getGitRoot
                 LOG.warn("Unregistered repository: {}", root);
                 continue;
