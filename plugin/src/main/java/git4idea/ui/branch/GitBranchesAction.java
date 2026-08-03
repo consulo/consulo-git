@@ -21,12 +21,16 @@ import consulo.localize.LocalizeValue;
 import consulo.platform.base.icon.PlatformIconGroup;
 import consulo.project.Project;
 import consulo.ui.annotation.RequiredUIAccess;
+import consulo.ui.ex.action.ActionManager;
 import consulo.ui.ex.action.AnActionEvent;
 import consulo.ui.ex.action.AnActionWithSyncUpdate;
 import consulo.ui.ex.action.DumbAwareAction;
+import consulo.versionControlSystem.distributed.ui.branch.popup.DvcsBranchesTreePopup;
+import consulo.versionControlSystem.distributed.ui.branch.popup.DvcsBranchesTreePopupFactory;
 import consulo.virtualFileSystem.VirtualFile;
 import git4idea.branch.GitBranchUtil;
 import git4idea.repo.GitRepository;
+import git4idea.ui.branch.popup.GitBranchesTreePopupModel;
 import jakarta.annotation.Nonnull;
 
 /**
@@ -46,9 +50,13 @@ public class GitBranchesAction extends DumbAwareAction implements AnActionWithSy
         GitRepository repository = file == null
             ? GitBranchUtil.getCurrentRepository(project)
             : GitBranchUtil.getRepositoryOrGuess(project, file);
-        if (repository != null) {
-            GitBranchPopup.getInstance(project, repository).asListPopup().showCenteredInCurrentWindow(project);
+        if (repository == null) {
+            return;
         }
+
+        DvcsBranchesTreePopupFactory.getInstance(project)
+            .createTreePopup(new GitBranchesTreePopupModel(ActionManager.getInstance(), repository, project))
+            .showCenteredInCurrentWindow(project);
     }
 
     @Override
