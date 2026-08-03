@@ -19,6 +19,6 @@ public abstract class GitOneCommitPerRepoLogAction extends VcsLogOneCommitPerRep
     @Nullable
     @Override
     protected GitRepository getRepositoryForRoot(@Nonnull Project project, @Nonnull VirtualFile root) {
-        return getRepositoryManager(project).getRepositoryForRoot(root);
+        return getRepositoryManager(project).getRepositoryForRootQuick(root);
     }
 }

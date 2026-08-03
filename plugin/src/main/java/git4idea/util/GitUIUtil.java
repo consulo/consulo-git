@@ -206,7 +206,7 @@ public class GitUIUtil {
             ActionListener listener = e -> {
                 VirtualFile root = (VirtualFile) gitRootChooser.getSelectedItem();
                 assert root != null : "The root must not be null";
-                GitRepository repo = GitUtil.getRepositoryManager(project).getRepositoryForRoot(root);
+                GitRepository repo = GitUtil.getRepositoryManager(project).getRepositoryForRootQuick(root);
                 assert repo != null : "The repository must not be null";
                 GitBranch current = repo.getCurrentBranch();
                 if (current == null) {

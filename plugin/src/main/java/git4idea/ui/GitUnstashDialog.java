@@ -300,7 +300,7 @@ public class GitUnstashDialog extends DialogWrapper {
         VirtualFile root = getGitRoot();
         GitStashUtils.loadStashStack(myProject, root, listModel::addElement);
         myBranches.clear();
-        GitRepository repository = GitUtil.getRepositoryManager(myProject).getRepositoryForRoot(root);
+        GitRepository repository = GitUtil.getRepositoryManager(myProject).getRepositoryForRootQuick(root);
         if (repository != null) {
             myBranches.addAll(GitBranchUtil.convertBranchesToNames(repository.getBranches().getLocalBranches()));
         }

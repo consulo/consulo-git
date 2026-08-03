@@ -21,8 +21,10 @@ import consulo.project.ui.wm.StatusBarWidgetFactory;
 import consulo.ui.ex.action.ActionManager;
 import consulo.ui.ex.popup.ListPopup;
 import consulo.util.lang.ObjectUtil;
+import consulo.versionControlSystem.distributed.DvcsUtil;
 import consulo.versionControlSystem.distributed.ui.DvcsStatusWidget;
 import consulo.versionControlSystem.distributed.ui.branch.popup.DvcsBranchesTreePopupFactory;
+import consulo.virtualFileSystem.VirtualFile;
 import consulo.virtualFileSystem.VirtualFile;
 import git4idea.GitUtil;
 import git4idea.GitVcs;
@@ -55,8 +57,8 @@ public class GitBranchWidget extends DvcsStatusWidget<GitRepository> {
 
     @Nullable
     @Override
-    protected GitRepository guessCurrentRepository(@Nonnull Project project, @Nullable VirtualFile selected) {
-        return GitBranchUtil.getCurrentRepository(project);
+    protected GitRepository guessCurrentRepository(@Nonnull Project project, @Nullable VirtualFile selectedFile) {
+        return DvcsUtil.guessWidgetRepository(project, GitUtil.getRepositoryManager(project), mySettings.getRecentRootPath(), selectedFile);
     }
 
     @Nonnull

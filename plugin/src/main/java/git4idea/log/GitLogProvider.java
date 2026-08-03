@@ -601,7 +601,7 @@ public class GitLogProvider implements VcsLogProvider {
     @Nullable
     @Override
     public String getCurrentBranch(@Nonnull VirtualFile root) {
-        GitRepository repository = myRepositoryManager.getRepositoryForRoot(root);
+        GitRepository repository = myRepositoryManager.getRepositoryForRootQuick(root);
         if (repository == null) {
             return null;
         }
