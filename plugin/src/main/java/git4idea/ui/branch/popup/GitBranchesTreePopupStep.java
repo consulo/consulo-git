@@ -109,10 +109,7 @@ public class GitBranchesTreePopupStep extends DvcsBranchesTreePopupStepBase {
         }
 
         if (selectedValue instanceof AnAction action) {
-            myFinalRunnable = () -> {
-                DataContext dataContext = SimpleDataContext.getProjectContext(myProject);
-                /// TODO !ActionImplUtil.invokeAction(action, dataContext, ActionPlaces.UNKNOWN, null, null);
-            };
+            myFinalRunnable = () -> invokeAction(action);
             return FINAL_CHOICE;
         }
         return FINAL_CHOICE;
