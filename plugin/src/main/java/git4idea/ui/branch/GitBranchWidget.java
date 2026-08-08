@@ -18,10 +18,11 @@ package git4idea.ui.branch;
 import consulo.project.Project;
 import consulo.project.ui.wm.StatusBarWidget;
 import consulo.project.ui.wm.StatusBarWidgetFactory;
+import consulo.ui.ex.action.ActionManager;
 import consulo.ui.ex.popup.ListPopup;
-import consulo.util.lang.ObjectUtil;
 import consulo.versionControlSystem.distributed.DvcsUtil;
 import consulo.versionControlSystem.distributed.ui.DvcsStatusWidget;
+import consulo.versionControlSystem.distributed.ui.branch.popup.DvcsBranchesTreePopupFactory;
 import consulo.virtualFileSystem.VirtualFile;
 import git4idea.GitUtil;
 import git4idea.GitVcs;
@@ -29,7 +30,7 @@ import git4idea.branch.GitBranchUtil;
 import git4idea.config.GitVcsSettings;
 import git4idea.repo.GitRepository;
 import git4idea.repo.GitRepositoryChangeListener;
-
+import git4idea.ui.branch.popup.GitBranchesTreePopupModel;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 
@@ -52,6 +53,7 @@ public class GitBranchWidget extends DvcsStatusWidget<GitRepository> {
         return new GitBranchWidget(Objects.requireNonNull(getProject()), myFactory);
     }
 
+    @Nullable
     @Override
     protected GitRepository guessCurrentRepository(@Nonnull Project project, @Nullable VirtualFile selectedFile) {
         return DvcsUtil.guessWidgetRepository(project, GitUtil.getRepositoryManager(project), mySettings.getRecentRootPath(), selectedFile);
@@ -71,7 +73,8 @@ public class GitBranchWidget extends DvcsStatusWidget<GitRepository> {
     @Nonnull
     @Override
     protected ListPopup getPopup(@Nonnull Project project, @Nonnull GitRepository repository) {
-        return GitBranchPopup.getInstance(project, repository).asListPopup();
+        return DvcsBranchesTreePopupFactory.getInstance(project)
+            .createTreePopup(new GitBranchesTreePopupModel(ActionManager.getInstance(), repository, project));
     }
 
     @Override

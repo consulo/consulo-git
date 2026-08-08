@@ -1,5 +1,11 @@
 action.Annotate.with.Blame.text:
     text: A_nnotate with Git Blame
+git.branches.popup.search.field.empty.text:
+    text: Search for branches{0}{1}
+git.branches.popup.search.field.actions.empty.text:
+    text: "{0,choice,1# and|2#,} actions"
+git.branches.popup.search.field.repositories.empty.text:
+    text: "{0,choice,1# and|2#,} repositories"
 action.Git.Pull.text:
     text: Pull…
 action.Git.Stash.Silently.text:

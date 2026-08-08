@@ -42,7 +42,7 @@ import static git4idea.branch.GitBranchType.LOCAL;
 import static git4idea.branch.GitBranchType.REMOTE;
 import static java.util.stream.Collectors.toList;
 
-class GitBranchPopupActions {
+public class GitBranchPopupActions {
     private final Project myProject;
     private final GitRepository myRepository;
 
@@ -140,7 +140,7 @@ class GitBranchPopupActions {
         private final Project myProject;
         private final List<GitRepository> myRepositories;
 
-        CheckoutRevisionActions(Project project, List<GitRepository> repositories) {
+        public CheckoutRevisionActions(Project project, List<GitRepository> repositories) {
             super(GitBranchesLocalize.actionCheckoutTagOrRevisionText());
             myProject = project;
             myRepositories = repositories;
@@ -275,8 +275,8 @@ class GitBranchPopupActions {
         }
     }
 
-    static class LocalBranchActions extends AbstractBranchActions implements PopupElementWithAdditionalInfo {
-        LocalBranchActions(
+    public static class LocalBranchActions extends AbstractBranchActions implements PopupElementWithAdditionalInfo {
+        public LocalBranchActions(
             @Nonnull Project project,
             @Nonnull List<GitRepository> repositories,
             @Nonnull String branchName,
@@ -399,8 +399,8 @@ class GitBranchPopupActions {
     /**
      * Actions available for remote branches
      */
-    static class RemoteBranchActions extends AbstractBranchActions {
-        RemoteBranchActions(
+    public static class RemoteBranchActions extends AbstractBranchActions {
+        public RemoteBranchActions(
             @Nonnull Project project,
             @Nonnull List<GitRepository> repositories,
             @Nonnull String branchName,
