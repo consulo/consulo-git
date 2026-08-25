@@ -35,6 +35,8 @@ module com.intellij.git {
     // serializing state
     opens git4idea.config to consulo.util.xml.serializer;
     opens git4idea.push to consulo.util.xml.serializer;
+    opens git4idea.checkout to consulo.util.xml.serializer;
+    
     // reflect action creating
     opens git4idea.actions to consulo.component.impl;
     opens git4idea.reset to consulo.component.impl;

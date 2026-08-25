@@ -18,17 +18,13 @@ package git4idea.remote;
 import consulo.annotation.component.ComponentScope;
 import consulo.annotation.component.ServiceAPI;
 import consulo.annotation.component.ServiceImpl;
+import consulo.application.Application;
 import consulo.component.persist.PersistentStateComponent;
 import consulo.component.persist.State;
 import consulo.component.persist.Storage;
 import consulo.component.persist.StoragePathMacros;
-import consulo.application.Application;
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
+import consulo.versionControlSystem.distributed.DvcsRememberedInputs;
 import jakarta.inject.Singleton;
-
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * @author Kirill Likhodedov
@@ -40,18 +36,13 @@ import java.util.List;
 )
 @ServiceAPI(ComponentScope.APPLICATION)
 @ServiceImpl
-public class GitRememberedInputs implements PersistentStateComponent<GitRememberedInputs.State> {
-    private State myState = new State();
-
-    public static class State {
-        public List<UrlAndUserName> visitedUrls = new ArrayList<>();
-        public String cloneParentDir = "";
+public class GitRememberedInputs extends DvcsRememberedInputs implements PersistentStateComponent<GitRememberedInputs.State> {
+    public static class State extends DvcsRememberedInputs.State {
         public String puttyKey = "";
     }
 
-    public static class UrlAndUserName {
-        public String url;
-        public String userName;
+    public GitRememberedInputs() {
+        super.loadState(new State());
     }
 
     public static GitRememberedInputs getInstance() {
@@ -60,67 +51,19 @@ public class GitRememberedInputs implements PersistentStateComponent<GitRemember
 
     @Override
     public State getState() {
-        return myState;
+        return (State)super.getState();
     }
 
     @Override
     public void loadState(State state) {
-        myState = state;
-    }
-
-    public void addUrl(@Nonnull String url) {
-        addUrl(url, "");
-    }
-
-    public void addUrl(@Nonnull String url, @Nonnull String userName) {
-        for (UrlAndUserName visitedUrl : myState.visitedUrls) {
-            if (visitedUrl.url.equalsIgnoreCase(url)) {  // don't add multiple entries for a single url
-                if (!userName.isEmpty()) {                 // rewrite username, unless no username is specified
-                    visitedUrl.userName = userName;
-                }
-                return;
-            }
-        }
-
-        UrlAndUserName urlAndUserName = new UrlAndUserName();
-        urlAndUserName.url = url;
-        urlAndUserName.userName = userName;
-        myState.visitedUrls.add(urlAndUserName);
-    }
-
-    @Nullable
-    public String getUserNameForUrl(String url) {
-        for (UrlAndUserName urlAndUserName : myState.visitedUrls) {
-            if (urlAndUserName.url.equalsIgnoreCase(url)) {
-                return urlAndUserName.userName;
-            }
-        }
-        return null;
-    }
-
-    @Nonnull
-    public List<String> getVisitedUrls() {
-        List<String> urls = new ArrayList<>(myState.visitedUrls.size());
-        for (UrlAndUserName urlAndUserName : myState.visitedUrls) {
-            urls.add(urlAndUserName.url);
-        }
-        return urls;
+        super.loadState(state);
     }
 
     public void setPuttyKey(String puttyKey) {
-        myState.puttyKey = puttyKey;
+        getState().puttyKey = puttyKey;
     }
 
     public String getPuttyKey() {
-        return myState.puttyKey;
+        return getState().puttyKey;
     }
-
-    public String getCloneParentDir() {
-        return myState.cloneParentDir;
-    }
-
-    public void setCloneParentDir(String cloneParentDir) {
-        myState.cloneParentDir = cloneParentDir;
-    }
-
 }
