@@ -18,15 +18,19 @@ package git4idea.checkout;
 import consulo.annotation.component.ExtensionImpl;
 import consulo.application.progress.ProgressIndicator;
 import consulo.application.progress.Task;
+import consulo.disposer.Disposable;
+import consulo.git.icon.GitIconGroup;
 import consulo.git.localize.GitLocalize;
 import consulo.localize.LocalizeValue;
 import consulo.project.Project;
 import consulo.project.ui.notification.NotificationService;
 import consulo.ui.annotation.RequiredUIAccess;
+import consulo.ui.image.Image;
 import consulo.versionControlSystem.VcsNotifier;
 import consulo.versionControlSystem.change.VcsDirtyScopeManager;
+import consulo.versionControlSystem.checkout.CheckoutCallback;
+import consulo.versionControlSystem.checkout.CheckoutPage;
 import consulo.versionControlSystem.checkout.CheckoutProvider;
-import consulo.virtualFileSystem.LocalFileSystem;
 import consulo.virtualFileSystem.VirtualFile;
 import git4idea.GitVcs;
 import git4idea.actions.BasicAction;
@@ -35,7 +39,6 @@ import git4idea.commands.GitCommandResult;
 import git4idea.commands.GitLineHandlerListener;
 import git4idea.commands.GitStandardProgressAnalyzer;
 import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import jakarta.inject.Inject;
 
 import java.io.File;
@@ -53,43 +56,31 @@ public class GitCheckoutProvider implements CheckoutProvider {
         myGit = git;
     }
 
-    @Nonnull
     @Override
-    public String getVcsName() {
-        return "_Git";
+    public LocalizeValue getName() {
+        return GitLocalize.git4ideaVcsName();
+    }
+
+    @Override
+    public Image getIcon() {
+        return GitIconGroup.git();
+    }
+
+    @Override
+    public LocalizeValue getActionName() {
+        return GitLocalize.cloneButton();
     }
 
     @Override
     @RequiredUIAccess
-    public void doCheckout(@Nonnull Project project, @Nullable Listener listener) {
-        BasicAction.saveAll();
-        GitCloneDialog dialog = new GitCloneDialog(project);
-        dialog.show();
-        if (!dialog.isOK()) {
-            return;
-        }
-        dialog.rememberSettings();
-        LocalFileSystem lfs = LocalFileSystem.getInstance();
-        File parent = new File(dialog.getParentDirectory());
-        VirtualFile destinationParent = lfs.findFileByIoFile(parent);
-        if (destinationParent == null) {
-            destinationParent = lfs.refreshAndFindFileByIoFile(parent);
-        }
-        if (destinationParent == null) {
-            return;
-        }
-        String sourceRepositoryURL = dialog.getSourceRepositoryURL();
-        String directoryName = dialog.getDirectoryName();
-        String parentDirectory = dialog.getParentDirectory();
-        String puttyKey = dialog.getPuttyKeyFile();
-        clone(project, myGit, listener, destinationParent, sourceRepositoryURL, directoryName, parentDirectory, puttyKey);
+    public CheckoutPage createPage(@Nonnull Project project, @Nonnull Disposable uiDisposable) {
+        return new GitCheckoutPage(project, uiDisposable, myGit);
     }
 
     public static void clone(
         final Project project,
         @Nonnull final Git git,
-        final Listener listener,
-        final VirtualFile destinationParent,
+        final CheckoutCallback listener,
         final String sourceRepositoryURL,
         final String directoryName,
         final String parentDirectory,
@@ -109,17 +100,8 @@ public class GitCheckoutProvider implements CheckoutProvider {
                     return;
                 }
 
-                destinationParent.refresh(
-                    true,
-                    true,
-                    () -> {
-                        if (project.isOpen() && (!project.isDisposed()) && (!project.isDefault())) {
-                            VcsDirtyScopeManager mgr = VcsDirtyScopeManager.getInstance(project);
-                            mgr.fileDirty(destinationParent);
-                        }
-                    }
-                );
                 listener.directoryCheckedOut(new File(parentDirectory, directoryName), GitVcs.getKey());
+
                 listener.checkoutCompleted();
             }
         }.queue();
