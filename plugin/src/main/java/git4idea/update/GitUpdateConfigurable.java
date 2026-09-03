@@ -17,13 +17,14 @@ package git4idea.update;
 
 import consulo.configurable.Configurable;
 import consulo.configurable.ConfigurationException;
+import consulo.disposer.Disposable;
 import consulo.git.localize.GitLocalize;
 import consulo.localize.LocalizeValue;
+import consulo.ui.Component;
 import consulo.ui.annotation.RequiredUIAccess;
 import git4idea.config.GitVcsSettings;
 import jakarta.annotation.Nonnull;
-
-import javax.swing.*;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Configurable for the update session
@@ -58,46 +59,33 @@ public class GitUpdateConfigurable implements Configurable {
         return "reference.VersionControl.Git.UpdateProject";
     }
 
-    /**
-     * {@inheritDoc}
-     */
-    @Override
     @RequiredUIAccess
-    public JComponent createComponent() {
-        myPanel = new GitUpdateOptionsPanel();
+    @Override
+    public @Nullable Component createUIComponent(Disposable parentDisposable) {
+        if (myPanel == null) {
+            myPanel = new GitUpdateOptionsPanel();
+        }
         return myPanel.getPanel();
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     @RequiredUIAccess
     public boolean isModified() {
         return myPanel.isModified(mySettings);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     @RequiredUIAccess
     public void apply() throws ConfigurationException {
         myPanel.applyTo(mySettings);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     @RequiredUIAccess
     public void reset() {
         myPanel.updateFrom(mySettings);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     @RequiredUIAccess
     public void disposeUIResources() {

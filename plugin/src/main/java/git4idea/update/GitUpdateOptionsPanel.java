@@ -17,17 +17,15 @@ package git4idea.update;
 
 import consulo.application.Application;
 import consulo.git.localize.GitLocalize;
+import consulo.ui.Component;
 import consulo.ui.RadioButton;
-import consulo.ui.ValueGroups;
+import consulo.ui.RadioGroup;
 import consulo.ui.annotation.RequiredUIAccess;
-import consulo.ui.ex.awtUnsafe.TargetAWT;
 import consulo.ui.layout.LabeledLayout;
 import consulo.ui.layout.VerticalLayout;
 import git4idea.config.GitVcsSettings;
 import git4idea.config.UpdateMethod;
 import jakarta.annotation.Nonnull;
-
-import javax.swing.*;
 
 /**
  * Update options panel
@@ -35,56 +33,52 @@ import javax.swing.*;
 public class GitUpdateOptionsPanel {
     private VerticalLayout myPanel;
 
-    private RadioButton myBranchDefaultRadioButton;
-    private RadioButton myForceRebaseRadioButton;
-    private RadioButton myForceMergeRadioButton;
-    private RadioButton myStashRadioButton;
-    private RadioButton myShelveRadioButton;
+    private final RadioGroup<GitVcsSettings.UpdateChangesPolicy> mySavePolicyGroup;
+    private final RadioGroup<UpdateMethod> mySaveUpdateGroup;
 
     @RequiredUIAccess
     public GitUpdateOptionsPanel() {
         myPanel = VerticalLayout.create();
 
-        myShelveRadioButton = RadioButton.create(GitLocalize.updateOptionsSaveShelve());
-        myShelveRadioButton.setToolTipText(GitLocalize.updateOptionsSaveShelveTooltip(Application.get().getName()));
-        myForceMergeRadioButton = RadioButton.create(GitLocalize.updateOptionsTypeMerge());
-        myForceMergeRadioButton.setToolTipText(GitLocalize.updateOptionsTypeMergeTooltip());
-        myForceRebaseRadioButton = RadioButton.create(GitLocalize.updateOptionsTypeRebase());
-        myForceRebaseRadioButton.setToolTipText(GitLocalize.updateOptionsTypeRebaseTooltip());
-        myBranchDefaultRadioButton = RadioButton.create(GitLocalize.updateOptionsTypeDefault());
-        myBranchDefaultRadioButton.setValue(true);
-        myBranchDefaultRadioButton.setToolTipText(GitLocalize.updateOptionsTypeDefaultTooltip());
-        myStashRadioButton = RadioButton.create(GitLocalize.updateOptionsSaveStash());
-        myStashRadioButton.setValue(true);
-        myStashRadioButton.setToolTipText(GitLocalize.updateOptionsSaveStashTooltip());
-        myShelveRadioButton.setValue(false);
+        mySaveUpdateGroup = RadioGroup.create();
+
+        RadioButton forceMergeRadioButton = mySaveUpdateGroup.newButton(GitLocalize.updateOptionsTypeMerge(), UpdateMethod.MERGE);
+        forceMergeRadioButton.setToolTipText(GitLocalize.updateOptionsTypeMergeTooltip());
+
+        RadioButton forceRebaseRadioButton = mySaveUpdateGroup.newButton(GitLocalize.updateOptionsTypeRebase(), UpdateMethod.REBASE);
+        forceRebaseRadioButton.setToolTipText(GitLocalize.updateOptionsTypeRebaseTooltip());
+
+        RadioButton branchDefaultRadioButton = mySaveUpdateGroup.newButton(GitLocalize.updateOptionsTypeDefault(), UpdateMethod.BRANCH_DEFAULT);
+        branchDefaultRadioButton.setToolTipText(GitLocalize.updateOptionsTypeDefaultTooltip());
+
+        mySaveUpdateGroup.setValue(UpdateMethod.BRANCH_DEFAULT);
+
+        mySavePolicyGroup = RadioGroup.create();
+        RadioButton stashRadioButton = mySavePolicyGroup.newButton(GitLocalize.updateOptionsSaveStash(), GitVcsSettings.UpdateChangesPolicy.STASH);
+        stashRadioButton.setToolTipText(GitLocalize.updateOptionsSaveStashTooltip());
+
+        RadioButton shelveRadioButton = mySavePolicyGroup.newButton(GitLocalize.updateOptionsSaveShelve(), GitVcsSettings.UpdateChangesPolicy.SHELVE);
+        shelveRadioButton.setToolTipText(GitLocalize.updateOptionsSaveShelveTooltip(Application.get().getName()));
+
+        mySavePolicyGroup.setValue(GitVcsSettings.UpdateChangesPolicy.STASH);
 
         VerticalLayout leftGroup = VerticalLayout.create()
-            .add(myForceMergeRadioButton)
-            .add(myForceRebaseRadioButton)
-            .add(myBranchDefaultRadioButton);
+            .add(forceMergeRadioButton)
+            .add(forceRebaseRadioButton)
+            .add(branchDefaultRadioButton);
 
         myPanel.add(LabeledLayout.create(GitLocalize.updateOptionsType(), leftGroup));
 
         VerticalLayout rightGroup = VerticalLayout.create()
-            .add(myStashRadioButton)
-            .add(myShelveRadioButton);
+            .add(stashRadioButton)
+            .add(shelveRadioButton);
 
         myPanel.add(LabeledLayout.create(GitLocalize.updateOptionsSaveBeforeUpdate(), rightGroup));
-
-        ValueGroups.boolGroup()
-            .add(myBranchDefaultRadioButton)
-            .add(myForceRebaseRadioButton)
-            .add(myForceMergeRadioButton);
-
-        ValueGroups.boolGroup()
-            .add(myStashRadioButton)
-            .add(myShelveRadioButton);
     }
 
     @Nonnull
-    public JComponent getPanel() {
-        return (JComponent) TargetAWT.to(myPanel);
+    public Component getPanel() {
+        return myPanel;
     }
 
     @RequiredUIAccess
@@ -98,7 +92,7 @@ public class GitUpdateOptionsPanel {
      */
     @RequiredUIAccess
     private GitVcsSettings.UpdateChangesPolicy updateSaveFilesPolicy() {
-        return UpdatePolicyUtils.getUpdatePolicy(myStashRadioButton, myShelveRadioButton);
+        return mySavePolicyGroup.getValueOrError();
     }
 
     /**
@@ -106,17 +100,7 @@ public class GitUpdateOptionsPanel {
      */
     @RequiredUIAccess
     private UpdateMethod getUpdateType() {
-        if (myForceRebaseRadioButton.getValueOrError()) {
-            return UpdateMethod.REBASE;
-        }
-        else if (myForceMergeRadioButton.getValueOrError()) {
-            return UpdateMethod.MERGE;
-        }
-        else if (myBranchDefaultRadioButton.getValueOrError()) {
-            return UpdateMethod.BRANCH_DEFAULT;
-        }
-        assert false;
-        return null;
+        return mySaveUpdateGroup.getValueOrError();
     }
 
     /**
@@ -133,11 +117,8 @@ public class GitUpdateOptionsPanel {
      */
     @RequiredUIAccess
     public void updateFrom(GitVcsSettings settings) {
-        switch (settings.getUpdateType()) {
-            case REBASE -> myForceRebaseRadioButton.setValue(true);
-            case MERGE -> myForceMergeRadioButton.setValue(true);
-            case BRANCH_DEFAULT -> myBranchDefaultRadioButton.setValue(true);
-        }
-        UpdatePolicyUtils.updatePolicyItem(settings.updateChangesPolicy(), myStashRadioButton, myShelveRadioButton);
+        mySaveUpdateGroup.setValue(settings.getUpdateType());
+
+        mySavePolicyGroup.setValue(settings.updateChangesPolicy());
     }
 }

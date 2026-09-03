@@ -26,11 +26,10 @@ import consulo.process.cmd.ParametersListUtil;
 import consulo.project.Project;
 import consulo.ui.*;
 import consulo.ui.annotation.RequiredUIAccess;
-import consulo.ui.border.BorderPosition;
-import consulo.ui.border.BorderStyle;
 import consulo.ui.layout.DockLayout;
 import consulo.ui.layout.HorizontalLayout;
 import consulo.ui.layout.VerticalLayout;
+import consulo.ui.util.Indenter;
 import consulo.ui.util.LabeledBuilder;
 import consulo.util.collection.ContainerUtil;
 import consulo.versionControlSystem.distributed.branch.DvcsSyncSettings;
@@ -124,13 +123,13 @@ public class GitVcsPanel {
         myRootPanel.add(myWarnAboutCrlf);
         myRootPanel.add(myWarnAboutDetachedHead);
         Component updateMethodLabeled = LabeledBuilder.sided(GitLocalize.settingsUpdateMethod(), myUpdateMethodComboBox);
-        updateMethodLabeled.addBorder(BorderPosition.LEFT, BorderStyle.EMPTY, 18);
+        Indenter.indent(updateMethodLabeled);
         myRootPanel.add(updateMethodLabeled);
         myRootPanel.add(myAutoUpdateIfPushRejected);
         myRootPanel.add(
             DockLayout.create()
                 .left(myEnableForcePush)
-                .right(HorizontalLayout.create(5).add(myProtectedBranchesLabel).add(myProtectedBranchesButton))
+                .right(HorizontalLayout.create().add(myProtectedBranchesLabel).add(myProtectedBranchesButton))
         );
     }
 
