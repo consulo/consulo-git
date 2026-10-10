@@ -68,6 +68,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
 import static consulo.util.lang.ObjectUtil.assertNotNull;
@@ -1154,5 +1155,21 @@ public class GitUtil {
 
     public static boolean isHashString(@Nonnull String revision) {
         return HASH_STRING_PATTERN.matcher(revision).matches();
+    }
+
+    public static <T extends GitHandler> T createHandlerWithPaths(
+        @Nullable Collection<FilePath> paths,
+        Supplier<T> handlerBuilder
+    ) {
+        T handler = handlerBuilder.get();
+        handler.endOptions();
+        if (paths != null) {
+            handler.addRelativePaths(paths);
+            if (handler.isLargeCommandLine()) {
+                handler = handlerBuilder.get();
+                handler.endOptions();
+            }
+        }
+        return handler;
     }
 }

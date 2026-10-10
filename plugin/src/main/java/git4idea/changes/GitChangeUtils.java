@@ -15,6 +15,7 @@
  */
 package git4idea.changes;
 
+import consulo.git.localize.GitLocalize;
 import consulo.logging.Logger;
 import consulo.project.Project;
 import consulo.util.collection.ArrayUtil;
@@ -31,8 +32,10 @@ import git4idea.GitContentRevision;
 import git4idea.GitRevisionNumber;
 import git4idea.GitUtil;
 import git4idea.GitVcs;
+import git4idea.commands.Git;
 import git4idea.commands.GitCommand;
 import git4idea.commands.GitHandler;
+import git4idea.commands.GitLineHandler;
 import git4idea.commands.GitSimpleHandler;
 import git4idea.history.browser.SHAHash;
 import git4idea.util.StringScanner;
@@ -449,6 +452,117 @@ public class GitChangeUtils {
         return changes;
     }
 
+    public static Collection<GitDiffChange> getWorkingTreeChanges(
+        Project project,
+        VirtualFile root,
+        @Nullable Collection<FilePath> paths,
+        boolean detectMoves
+    ) throws VcsException {
+        if (detectMoves) {
+            return getLocalChanges(project, root, paths, "-M", GitUtil.HEAD);
+        }
+        else {
+            return getLocalChanges(project, root, paths, "--no-renames", GitUtil.HEAD);
+        }
+    }
+
+    private static Collection<GitDiffChange> getLocalChanges(
+        Project project,
+        VirtualFile root,
+        @Nullable Collection<FilePath> paths,
+        String... parameters
+    ) throws VcsException {
+        return getLocalChanges(project, root, paths, GitDiffChange::new, parameters);
+    }
+
+    private static <T> Collection<T> getLocalChanges(
+        Project project,
+        VirtualFile root,
+        @Nullable Collection<FilePath> paths,
+        FileStatusLineParser<T> parser,
+        String... parameters
+    ) throws VcsException {
+        if (paths != null && paths.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        GitLineHandler handler = GitUtil.createHandlerWithPaths(paths, () -> {
+            GitLineHandler diff = new GitLineHandler(project, root, GitCommand.DIFF);
+            diff.addParameters("--name-status");
+            diff.addParameters(parameters);
+            return diff;
+        });
+        String output = Git.getInstance().runCommand(handler).getOutputOrThrow();
+
+        Collection<T> changes = new ArrayList<>();
+        parseChanges(root, new StringScanner(output), (status, beforePath, afterPath) -> {
+            changes.add(parser.parse(status, beforePath, afterPath));
+        });
+        return changes;
+    }
+
+    private static void parseChanges(VirtualFile vcsRoot, StringScanner s, FileStatusLineConsumer consumer) throws VcsException {
+        while (s.hasMoreData()) {
+            FileStatus status = null;
+            if (s.isEol()) {
+                s.nextLine();
+                continue;
+            }
+            if ("CADUMRT".indexOf(s.peek()) == -1) {
+                // exit if there is no next character
+                return;
+            }
+            String[] tokens = s.line().split("\t");
+            FilePath before;
+            FilePath after;
+            String path = tokens[tokens.length - 1];
+            FilePath filePath = GitContentRevision.createPathFromEscaped(vcsRoot, path);
+            switch (tokens[0].charAt(0)) {
+                case 'C':
+                case 'A':
+                    status = FileStatus.ADDED;
+                    before = null;
+                    after = filePath;
+                    break;
+                case 'U':
+                    status = FileStatus.MERGED_WITH_CONFLICTS;
+                case 'M':
+                    if (status == null) {
+                        status = FileStatus.MODIFIED;
+                    }
+                    before = filePath;
+                    after = filePath;
+                    break;
+                case 'D':
+                    status = FileStatus.DELETED;
+                    before = filePath;
+                    after = null;
+                    break;
+                case 'R':
+                    status = FileStatus.MODIFIED;
+                    before = GitContentRevision.createPathFromEscaped(vcsRoot, tokens[1]);
+                    after = filePath;
+                    break;
+                case 'T':
+                    status = FileStatus.MODIFIED;
+                    before = filePath;
+                    after = filePath;
+                    break;
+                default:
+                    throw new VcsException(GitLocalize.errorGitParseUnknownFileStatus(Arrays.asList(tokens)));
+            }
+            consumer.consume(status, before, after);
+        }
+    }
+
+    private interface FileStatusLineConsumer {
+        void consume(FileStatus status, @Nullable FilePath beforePath, @Nullable FilePath afterPath);
+    }
+
+    private interface FileStatusLineParser<T> {
+        T parse(FileStatus status, @Nullable FilePath beforePath, @Nullable FilePath afterPath);
+    }
+
     @Nonnull
     public static Collection<Change> getDiffWithWorkingDir(
         @Nonnull Project project,
@@ -530,5 +644,39 @@ public class GitChangeUtils {
             handler.addRelativePaths(dirtyPaths);
         }
         return handler;
+    }
+
+    public static class GitDiffChange {
+        private final FileStatus status;
+        @Nullable
+        private final FilePath beforePath;
+        @Nullable
+        private final FilePath afterPath;
+
+        public GitDiffChange(FileStatus status, @Nullable FilePath beforePath, @Nullable FilePath afterPath) {
+            assert beforePath != null || afterPath != null;
+            this.status = status;
+            this.beforePath = beforePath;
+            this.afterPath = afterPath;
+        }
+
+        @Nullable
+        public FilePath getBeforePath() {
+            return beforePath;
+        }
+
+        @Nullable
+        public FilePath getAfterPath() {
+            return afterPath;
+        }
+
+        public FilePath getFilePath() {
+            FilePath t = afterPath != null ? afterPath : beforePath;
+            return Objects.requireNonNull(t);
+        }
+
+        public FileStatus getStatus() {
+            return status;
+        }
     }
 }

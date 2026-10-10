@@ -33,6 +33,8 @@ import git4idea.GitContentRevision;
 import git4idea.GitFormatException;
 import git4idea.GitRevisionNumber;
 import git4idea.GitUtil;
+import git4idea.changes.GitChangeUtils;
+import git4idea.changes.GitChangeUtils.GitDiffChange;
 import git4idea.commands.Git;
 import git4idea.commands.GitCommand;
 import git4idea.commands.GitHandler;
@@ -42,8 +44,10 @@ import git4idea.repo.GitUntrackedFilesHolder;
 import jakarta.annotation.Nonnull;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -156,6 +160,8 @@ public class GitNewChangesCollector extends GitChangesCollector {
     private void parseOutput(@Nonnull String output, @Nonnull GitHandler handler) throws VcsException {
         VcsRevisionNumber head = getHead();
 
+        List<FilePath> bothModifiedPaths = new ArrayList<>();
+
         final String[] split = output.split("\u0000");
 
         for (int pos = 0; pos < split.length; pos++) {
@@ -163,15 +169,28 @@ public class GitNewChangesCollector extends GitChangesCollector {
             if (StringUtil.isEmptyOrSpaces(line)) { // skip empty lines if any (e.g. the whole output may be empty on a clean working tree).
                 continue;
             }
+            if (line.startsWith("starting fsmonitor-daemon in ")) { // skip debug output from experimental daemon in git-for-windows-2.33
+                continue;
+            }
 
             // format: XY_filename where _ stands for space.
-            if (line.length() < 4) { // X, Y, space and at least one symbol for the file
+            if (line.length() < 4 || line.charAt(2) != ' ') { // X, Y, space and at least one symbol for the file
                 throwGFE("Line is too short.", handler, output, line, '0', '0');
             }
             final String xyStatus = line.substring(0, 2);
             final String filepath = line.substring(3); // skipping the space
             final char xStatus = xyStatus.charAt(0);
             final char yStatus = xyStatus.charAt(1);
+
+            String oldFilepath = null;
+            if (isRenamed(xStatus) || isRenamed(yStatus)) {
+                if (pos + 1 >= split.length) {
+                    throwGFE("Missing original path.", handler, output, line, xStatus, yStatus);
+                }
+                //noinspection AssignmentToForLoopParameter
+                pos += 1;  // read the "from" filepath which is separated also by NUL character.
+                oldFilepath = split[pos];
+            }
 
             switch (xStatus) {
                 case ' ':
@@ -181,11 +200,17 @@ public class GitNewChangesCollector extends GitChangesCollector {
                     else if (yStatus == 'D') {
                         reportDeleted(filepath, head);
                     }
+                    else if (yStatus == 'A' || yStatus == 'C') {
+                        reportAdded(filepath);
+                    }
                     else if (yStatus == 'T') {
                         reportTypeChanged(filepath, head);
                     }
                     else if (yStatus == 'U') {
                         reportConflict(filepath, head);
+                    }
+                    else if (yStatus == 'R') {
+                        reportRename(filepath, oldFilepath, head);
                     }
                     else {
                         throwYStatus(output, handler, line, xStatus, yStatus);
@@ -193,7 +218,11 @@ public class GitNewChangesCollector extends GitChangesCollector {
                     break;
 
                 case 'M':
-                    if (yStatus == ' ' || yStatus == 'M' || yStatus == 'T') {
+                    if (yStatus == 'M') {
+                        // schedule 'git diff HEAD' command to detect staged changes, that were reverted
+                        bothModifiedPaths.add(GitContentRevision.createPath(myVcsRoot, filepath, false, false, false));
+                    }
+                    else if (yStatus == ' ' || yStatus == 'T') {
                         reportModified(filepath, head);
                     }
                     else if (yStatus == 'D') {
@@ -205,10 +234,6 @@ public class GitNewChangesCollector extends GitChangesCollector {
                     break;
 
                 case 'C':
-                    //noinspection AssignmentToForLoopParameter
-                    pos += 1;  // read the "from" filepath which is separated also by NUL character.
-                    // NB: no "break" here!
-                    // we treat "Copy" as "Added", but we still have to read the old path not to break the format parsing.
                 case 'A':
                     if (yStatus == 'M' || yStatus == ' ' || yStatus == 'T') {
                         reportAdded(filepath);
@@ -216,7 +241,10 @@ public class GitNewChangesCollector extends GitChangesCollector {
                     else if (yStatus == 'D') {
                         // added + deleted => no change (from IDEA point of view).
                     }
-                    else if (yStatus == 'U' || yStatus == 'A') { // AU - unmerged, added by us; AA - unmerged, both added
+                    else if (yStatus == 'U') { // AU - unmerged, added by us
+                        reportConflict(filepath, head);
+                    }
+                    else if (yStatus == 'A') { // AA - unmerged, both added
                         reportConflict(filepath, head);
                     }
                     else {
@@ -232,9 +260,17 @@ public class GitNewChangesCollector extends GitChangesCollector {
                         reportConflict(filepath, head);
                     }
                     else if (yStatus == 'D') { // DD - unmerged, both deleted
-                        // TODO
-                        // currently not displaying, because "both deleted" conflicts can't be handled by our conflict resolver.
-                        // see IDEA-63156
+                        reportConflict(filepath, head);
+                    }
+                    else if (yStatus == 'C') {
+                        reportModified(filepath, head);
+                    }
+                    else if (yStatus == 'R') {
+                        reportRename(filepath, oldFilepath, head);
+                    }
+                    else if (yStatus == 'A') {
+                        // [DA] status is not documented, but might be reported by git
+                        reportModified(filepath, head);
                     }
                     else {
                         throwYStatus(output, handler, line, xStatus, yStatus);
@@ -242,8 +278,13 @@ public class GitNewChangesCollector extends GitChangesCollector {
                     break;
 
                 case 'U':
-                    if (yStatus == 'U' || yStatus == 'A' || yStatus == 'D' || yStatus == 'T') {
-                        // UU - unmerged, both modified; UD - unmerged, deleted by them; UA - unmerged, added by them
+                    if (yStatus == 'U' || yStatus == 'T') { // UU - unmerged, both modified
+                        reportConflict(filepath, head);
+                    }
+                    else if (yStatus == 'A') { // UA - unmerged, added by them
+                        reportConflict(filepath, head);
+                    }
+                    else if (yStatus == 'D') { // UD - unmerged, deleted by them
                         reportConflict(filepath, head);
                     }
                     else {
@@ -252,27 +293,26 @@ public class GitNewChangesCollector extends GitChangesCollector {
                     break;
 
                 case 'R':
-                    //noinspection AssignmentToForLoopParameter
-                    pos += 1;  // read the "from" filepath which is separated also by NUL character.
-                    String oldFilename = split[pos];
-
                     if (yStatus == 'D') {
-                        reportDeleted(filepath, head);
+                        reportDeleted(oldFilepath, head);
                     }
                     else if (yStatus == ' ' || yStatus == 'M' || yStatus == 'T') {
-                        reportRename(filepath, oldFilename, head);
+                        reportRename(filepath, oldFilepath, head);
                     }
                     else {
                         throwYStatus(output, handler, line, xStatus, yStatus);
                     }
                     break;
 
-                case 'T'://TODO
+                case 'T':
                     if (yStatus == ' ' || yStatus == 'M') {
                         reportTypeChanged(filepath, head);
                     }
                     else if (yStatus == 'D') {
                         reportDeleted(filepath, head);
+                    }
+                    else if (yStatus == 'T') {
+                        reportConflict(filepath, head);
                     }
                     else {
                         throwYStatus(output, handler, line, xStatus, yStatus);
@@ -291,6 +331,30 @@ public class GitNewChangesCollector extends GitChangesCollector {
 
             }
         }
+
+        collectStagedUnstagedModifications(bothModifiedPaths, head);
+    }
+
+    private void collectStagedUnstagedModifications(List<FilePath> bothModifiedPaths, VcsRevisionNumber head) throws VcsException {
+        if (bothModifiedPaths.isEmpty()) {
+            return;
+        }
+
+        Collection<GitDiffChange> changes = GitChangeUtils.getWorkingTreeChanges(myProject, myVcsRoot, bothModifiedPaths, false);
+
+        // no directories expected here, hierarchical comparator is not necessary
+        Set<FilePath> expectedPaths = new HashSet<>(bothModifiedPaths);
+
+        for (GitDiffChange change : changes) {
+            FilePath filePath = change.getFilePath();
+            if (expectedPaths.contains(filePath)) {
+                reportModified(filePath, head);
+            }
+        }
+    }
+
+    private static boolean isRenamed(char status) {
+        return status == 'R' || status == 'C';
     }
 
     @NotNull
@@ -315,6 +379,12 @@ public class GitNewChangesCollector extends GitChangesCollector {
     private void reportModified(String filepath, VcsRevisionNumber head) throws VcsException {
         ContentRevision before = GitContentRevision.createRevision(myVcsRoot, filepath, head, myProject, false, true, false);
         ContentRevision after = GitContentRevision.createRevision(myVcsRoot, filepath, null, myProject, false, false, false);
+        reportChange(FileStatus.MODIFIED, before, after);
+    }
+
+    private void reportModified(FilePath filepath, VcsRevisionNumber head) {
+        ContentRevision before = GitContentRevision.createRevision(filepath, head, myProject);
+        ContentRevision after = GitContentRevision.createRevision(filepath, null, myProject);
         reportChange(FileStatus.MODIFIED, before, after);
     }
 

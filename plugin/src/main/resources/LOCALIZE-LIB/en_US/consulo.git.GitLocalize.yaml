@@ -312,6 +312,8 @@ error.commit.cant.create.message.file:
     text: Creation of commit message file failed
 error.dialog.title:
     text: Error
+error.git.parse.unknown.file.status:
+    text: 'Unknown file status: {0}'
 error.list.title:
     text: '{0} Error:'
 error.occurred.during:

@@ -167,9 +167,9 @@ public class GitContentRevision implements ByteBackedContentRevision {
         return createRevision(file, revisionNumber, project);
     }
 
-    private static ContentRevision createRevision(@Nonnull FilePath filePath,
-                                                  @Nullable VcsRevisionNumber revisionNumber,
-                                                  @Nonnull Project project) {
+    public static ContentRevision createRevision(@Nonnull FilePath filePath,
+                                                 @Nullable VcsRevisionNumber revisionNumber,
+                                                 @Nonnull Project project) {
         if (revisionNumber != null && revisionNumber != VcsRevisionNumber.NULL) {
             return createRevisionImpl(filePath, (GitRevisionNumber) revisionNumber, project, null);
         }
@@ -207,6 +207,15 @@ public class GitContentRevision implements ByteBackedContentRevision {
             file = VcsContextFactory.getInstance().createFilePathOn(new File(absolutePath), false);
         }
         return file;
+    }
+
+    public static FilePath createPathFromEscaped(VirtualFile vcsRoot, String path) throws VcsException {
+        return createPathFromEscaped(vcsRoot, path, false);
+    }
+
+    public static FilePath createPathFromEscaped(VirtualFile vcsRoot, String path, boolean isDirectory) throws VcsException {
+        String absolutePath = makeAbsolutePath(vcsRoot, path, true);
+        return VcsUtil.getFilePath(absolutePath, isDirectory);
     }
 
     private static String makeAbsolutePath(@Nonnull VirtualFile vcsRoot, @Nonnull String path, boolean unescapePath) throws VcsException {
