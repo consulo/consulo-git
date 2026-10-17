@@ -17,7 +17,6 @@
 package git4idea.ui.branch.popup;
 
 import consulo.project.Project;
-import consulo.ui.ex.awt.SeparatorWithText;
 import consulo.versionControlSystem.distributed.ui.branch.popup.*;
 import git4idea.GitBranch;
 import git4idea.GitLocalBranch;
@@ -26,7 +25,6 @@ import git4idea.GitRemoteBranch;
 import git4idea.branch.GitBranchesCollection;
 import org.jspecify.annotations.Nullable;
 
-import javax.swing.tree.TreePath;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -43,7 +41,7 @@ public class GitBranchesTreeSingleRepoModel extends DvcsBranchesTreeModel {
     private static final List<DvcsRefType> SUPPORTED_TYPES = List.of(GitRefType.LOCAL, GitRefType.REMOTE);
 
     private final GitDvcsRepositoryModel myRepository;
-    private final SeparatorWithText myActionsSeparator = new SeparatorWithText();
+    private final DvcsBranchesTreeSeparator myActionsSeparator = new DvcsBranchesTreeSeparator();
 
     public GitBranchesTreeSingleRepoModel(Project project, GitDvcsRepositoryModel repository, List<Object> topLevelActions) {
         super(project, topLevelActions, List.<DvcsRepositoryModel>of(repository));
@@ -126,7 +124,7 @@ public class GitBranchesTreeSingleRepoModel extends DvcsBranchesTreeModel {
     }
 
     @Override
-    public TreePath getPreferredSelection() {
+    public @Nullable List<Object> getPreferredSelection() {
         Object preferred = myActionsTree.getTopMatch();
         if (preferred == null) {
             preferred = getPreferredRef();
