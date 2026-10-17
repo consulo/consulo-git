@@ -15,14 +15,12 @@
  */
 package git4idea.update;
 
-import consulo.application.Application;
 import consulo.application.progress.ProgressIndicator;
 import consulo.component.ProcessCanceledException;
 import consulo.localize.LocalizeValue;
 import consulo.logging.Logger;
 import consulo.project.Project;
 import consulo.ui.annotation.RequiredUIAccess;
-import consulo.ui.ex.awt.UIUtil;
 import consulo.util.collection.ContainerUtil;
 import consulo.util.dataholder.Key;
 import consulo.util.io.FileUtil;
@@ -33,8 +31,7 @@ import consulo.versionControlSystem.change.Change;
 import consulo.versionControlSystem.change.ChangeListManager;
 import consulo.versionControlSystem.change.ContentRevision;
 import consulo.versionControlSystem.change.LocalChangeList;
-import consulo.versionControlSystem.ui.awt.LegacyComponentFactory;
-import consulo.versionControlSystem.ui.awt.LegacyDialog;
+import consulo.versionControlSystem.ui.VcsChangesDialogFactory;
 import consulo.versionControlSystem.update.UpdatedFiles;
 import consulo.versionControlSystem.util.VcsUtil;
 import consulo.virtualFileSystem.VirtualFile;
@@ -127,15 +124,15 @@ public class GitMergeUpdater extends GitUpdater {
             List<FilePath> paths = getFilesOverwrittenByMerge(mergeLineListener.getOutput());
             Collection<Change> changes = getLocalChangesFilteredByFiles(paths);
 
-            LegacyComponentFactory componentFactory = Application.get().getInstance(LegacyComponentFactory.class);
-            UIUtil.invokeAndWaitIfNeeded((Runnable) () -> {
-                String description = "Your local changes to the following files would be overwritten by merge.<br/>" +
-                    "Please, commit your changes or stash them before you can merge.";
-
-                LegacyDialog viewerDialog = componentFactory.createChangeListViewerDialog(myProject, changes, false, description);
-
-                viewerDialog.show();
-            });
+            VcsChangesDialogFactory dialogFactory = myProject.getApplication().getInstance(VcsChangesDialogFactory.class);
+            LocalizeValue description = LocalizeValue.localizeTODO(
+                "Your local changes to the following files would be overwritten by merge.<br/>" +
+                    "Please, commit your changes or stash them before you can merge."
+            );
+            myProject.getUIAccess()
+                .giveAsync(() -> dialogFactory.showChanges(myProject, changes).description(description).showAsync())
+                .thenCompose(closed -> closed)
+                .join();
             return GitUpdateResult.ERROR;
         }
         else if (untrackedFilesWouldBeOverwrittenByMergeDetector.wasMessageDetected()) {

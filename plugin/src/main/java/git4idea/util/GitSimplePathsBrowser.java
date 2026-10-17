@@ -15,16 +15,15 @@
  */
 package git4idea.util;
 
+import consulo.disposer.Disposable;
 import consulo.project.Project;
-import consulo.ui.ex.action.ActionManager;
-import consulo.ui.ex.action.ActionPlaces;
-import consulo.ui.ex.action.ActionToolbar;
-import consulo.ui.ex.action.DefaultActionGroup;
+import consulo.ui.annotation.RequiredUIAccess;
+import consulo.ui.ex.awtUnsafe.TargetAWT;
 import consulo.util.collection.ContainerUtil;
 import consulo.versionControlSystem.FilePath;
 import consulo.versionControlSystem.action.VcsContextFactory;
-import consulo.versionControlSystem.ui.awt.ChangesBrowserTree;
-import consulo.versionControlSystem.ui.awt.LegacyComponentFactory;
+import consulo.versionControlSystem.ui.VcsChangesDialogFactory;
+import consulo.versionControlSystem.ui.VcsFileList;
 import jakarta.annotation.Nonnull;
 
 import javax.swing.*;
@@ -34,29 +33,16 @@ import java.util.Collection;
 import java.util.List;
 
 public class GitSimplePathsBrowser extends JPanel {
-    public GitSimplePathsBrowser(@Nonnull Project project, @Nonnull Collection<String> absolutePaths) {
+    @RequiredUIAccess
+    public GitSimplePathsBrowser(@Nonnull Project project, @Nonnull Collection<String> absolutePaths, @Nonnull Disposable parentDisposable) {
         super(new BorderLayout());
 
-        ChangesBrowserTree<FilePath> browser = createBrowser(project, absolutePaths);
-        ActionToolbar toolbar = createToolbar(browser);
+        VcsFileList<FilePath> list = project.getApplication().getInstance(VcsChangesDialogFactory.class)
+            .filePathList(project, toFilePaths(absolutePaths))
+            .toolbar()
+            .build(parentDisposable);
 
-        add(toolbar.getComponent(), BorderLayout.NORTH);
-        add(browser.getComponent());
-    }
-
-    @Nonnull
-    private static ChangesBrowserTree<FilePath> createBrowser(@Nonnull Project project, @Nonnull Collection<String> absolutePaths) {
-        List<FilePath> filePaths = toFilePaths(absolutePaths);
-        LegacyComponentFactory componentFactory = project.getApplication().getInstance(LegacyComponentFactory.class);
-        ChangesBrowserTree<FilePath> browser = componentFactory.createFilePathChangesTreeList(project, filePaths, false, false, null);
-        browser.setChangesToDisplay(filePaths);
-        return browser;
-    }
-
-    @Nonnull
-    private static ActionToolbar createToolbar(@Nonnull ChangesBrowserTree<FilePath> browser) {
-        DefaultActionGroup actionGroup = new DefaultActionGroup(browser.getTreeActions());
-        return ActionManager.getInstance().createActionToolbar(ActionPlaces.UNKNOWN, actionGroup, true);
+        add(TargetAWT.to(list.getComponent()));
     }
 
     @Nonnull

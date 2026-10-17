@@ -20,6 +20,7 @@ import consulo.logging.Logger;
 import consulo.project.Project;
 import consulo.project.ui.notification.Notification;
 import consulo.project.ui.notification.NotificationGroup;
+import consulo.project.ui.notification.NotificationService;
 import consulo.project.ui.notification.NotificationType;
 import consulo.util.collection.ContainerUtil;
 import consulo.util.lang.StringUtil;
@@ -53,13 +54,8 @@ class GitPushResultNotification extends Notification {
 
     private static final Logger LOG = Logger.getInstance(GitPushResultNotification.class);
 
-    public GitPushResultNotification(
-        @Nonnull NotificationGroup groupDisplayId,
-        @Nonnull String title,
-        @Nonnull String content,
-        @Nonnull NotificationType type
-    ) {
-        super(groupDisplayId, title, content, type);
+    public GitPushResultNotification(@Nonnull Notification.Builder notificationBuilder) {
+        super(notificationBuilder);
     }
 
     @Nonnull
@@ -96,7 +92,9 @@ class GitPushResultNotification extends Notification {
         NotificationGroup group =
             type == NotificationType.INFORMATION ? VcsNotifier.STANDARD_NOTIFICATION : VcsNotifier.IMPORTANT_ERROR_NOTIFICATION;
 
-        GitPushResultNotification notification = new GitPushResultNotification(group, title, description, type);
+        GitPushResultNotification notification = new GitPushResultNotification(
+            NotificationService.getInstance().newOfType(group, type).title(LocalizeValue.of(title)).content(LocalizeValue.of(description))
+        );
 
         UpdatedFiles updatedFiles = pushResult.getUpdatedFiles();
         if (!updatedFiles.isEmpty()) {

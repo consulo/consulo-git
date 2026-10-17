@@ -16,22 +16,24 @@
 package git4idea.util;
 
 import consulo.application.Application;
+import consulo.disposer.Disposable;
+import consulo.disposer.Disposer;
 import consulo.localize.LocalizeValue;
 import consulo.project.Project;
 import consulo.project.ui.notification.NotificationService;
 import consulo.ui.annotation.RequiredUIAccess;
 import consulo.ui.ex.awt.DialogWrapper;
 import consulo.ui.ex.awt.JBLabel;
-import consulo.ui.ex.awt.ScrollPaneFactory;
 import consulo.ui.ex.awt.VerticalFlowLayout;
 import consulo.ui.ex.awt.internal.laf.MultiLineLabelUI;
+import consulo.ui.ex.awtUnsafe.TargetAWT;
 import consulo.util.collection.ContainerUtil;
 import consulo.util.lang.StringUtil;
 import consulo.util.lang.ref.SimpleReference;
 import consulo.util.lang.xml.XmlStringUtil;
 import consulo.versionControlSystem.VcsNotifier;
-import consulo.versionControlSystem.ui.awt.LegacyComponentFactory;
-import consulo.versionControlSystem.ui.awt.LegacyDialog;
+import consulo.versionControlSystem.ui.VcsChangesDialogFactory;
+import consulo.versionControlSystem.ui.VcsFileList;
 import consulo.virtualFileSystem.VirtualFile;
 import git4idea.DialogManager;
 import git4idea.GitUtil;
@@ -83,20 +85,13 @@ public class GitUntrackedFilesHelper {
                         GitUtil.showPathsInDialog(project, absolutePaths, title, dialogDesc);
                     }
                     else {
-                        LegacyComponentFactory componentFactory = Application.get().getInstance(LegacyComponentFactory.class);
-
-                        LegacyDialog legacyDialog = componentFactory.createSelectFilesDialogOnlyOk(
-                            project,
-                            new ArrayList<>(untrackedFiles),
-                            dialogDesc.map(s -> StringUtil.stripHtml(s, true)).get(),
-                            null,
-                            false,
-                            false,
-                            true
-                        );
-
-                        legacyDialog.setTitle(title);
-                        legacyDialog.show();
+                        project.getApplication().getInstance(VcsChangesDialogFactory.class)
+                            .selectFiles(project, new ArrayList<>(untrackedFiles))
+                            .title(title)
+                            .prompt(dialogDesc.map(s -> StringUtil.stripHtml(s, true)))
+                            .okOnly()
+                            .deletable()
+                            .showAsync();
                     }
                 }
             })
@@ -142,16 +137,16 @@ public class GitUntrackedFilesHelper {
         Application application = project.getApplication();
         application.invokeAndWait(
             () -> {
+                Disposable browserDisposable = Disposable.newDisposable("Git untracked files");
                 JComponent filesBrowser;
                 if (untrackedFiles.isEmpty()) {
-                    filesBrowser = new GitSimplePathsBrowser(project, absolutePaths);
+                    filesBrowser = new GitSimplePathsBrowser(project, absolutePaths, browserDisposable);
                 }
                 else {
-                    LegacyComponentFactory componentFactory = application.getInstance(LegacyComponentFactory.class);
-
-                    filesBrowser = ScrollPaneFactory.createScrollPane(
-                        componentFactory.createVirtualFileList(project, untrackedFiles, false, false).getComponent()
-                    );
+                    VcsFileList<VirtualFile> fileList = application.getInstance(VcsChangesDialogFactory.class)
+                        .fileList(project, untrackedFiles)
+                        .build(browserDisposable);
+                    filesBrowser = (JComponent) TargetAWT.to(fileList.getComponent());
                 }
                 LocalizeValue title = LocalizeValue.localizeTODO("Could not " + operationName.capitalize());
                 LocalizeValue description = createUntrackedFilesOverwrittenDescription(operationName, false)
@@ -160,6 +155,7 @@ public class GitUntrackedFilesHelper {
                 dialog.setTitle(title);
                 DialogManager.show(dialog);
                 rollback.set(dialog.isOK());
+                Disposer.dispose(browserDisposable);
             },
             application.getDefaultModalityState()
         );

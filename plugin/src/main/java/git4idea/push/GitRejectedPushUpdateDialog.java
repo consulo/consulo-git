@@ -15,170 +15,162 @@
  */
 package git4idea.push;
 
+import consulo.git.localize.GitLocalize;
 import consulo.localize.LocalizeValue;
 import consulo.project.Project;
-import consulo.ui.ex.awt.DialogWrapper;
-import consulo.ui.ex.awt.JBLabel;
-import consulo.ui.ex.awt.UIUtil;
+import consulo.ui.MessageBoxBuilder;
+import consulo.ui.MessageBoxRemember;
+import consulo.ui.MessageButtonRole;
+import consulo.ui.annotation.RequiredUIAccess;
+import consulo.util.lang.StringUtil;
 import consulo.versionControlSystem.distributed.DvcsUtil;
 import git4idea.GitBranch;
 import git4idea.GitUtil;
 import git4idea.config.UpdateMethod;
 import git4idea.repo.GitRepository;
 import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import org.jetbrains.annotations.TestOnly;
+import org.jspecify.annotations.Nullable;
 
-import javax.swing.*;
-import java.awt.*;
-import java.awt.event.ActionEvent;
+import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
-
-import static consulo.util.lang.xml.XmlStringUtil.wrapInHtml;
-import static git4idea.util.GitUIUtil.code;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * @author Kirill Likhodedov
  */
-class GitRejectedPushUpdateDialog extends DialogWrapper {
-    static final int MERGE_EXIT_CODE = NEXT_USER_EXIT_CODE;
-    static final int REBASE_EXIT_CODE = MERGE_EXIT_CODE + 1;
+class GitRejectedPushUpdateDialog {
+    private static final LocalizeValue INDENT = LocalizeValue.of("&nbsp;&nbsp;&nbsp;&nbsp;");
+    private static final LocalizeValue LINE_BREAK = LocalizeValue.of("<br/>");
+    private static final LocalizeValue SPACE = LocalizeValue.of(" ");
 
-    private static final String HTML_INDENT = "&nbsp;&nbsp;&nbsp;&nbsp;";
-    public static final String DESCRIPTION_START = "Push of current branch ";
-
+    @Nonnull
     private final Project myProject;
+    @Nonnull
     private final Collection<GitRepository> myRepositories;
+    @Nonnull
+    private final PushUpdateSettings myInitialSettings;
     private final boolean myRebaseOverMergeProblemDetected;
-    private final JCheckBox myUpdateAllRoots;
-    private final RebaseAction myRebaseAction;
-    private final MergeAction myMergeAction;
-    private final JCheckBox myAutoUpdateInFuture;
+    private boolean myAutoUpdateInFuture;
 
-    protected GitRejectedPushUpdateDialog(
+    GitRejectedPushUpdateDialog(
         @Nonnull Project project,
         @Nonnull Collection<GitRepository> repositories,
         @Nonnull PushUpdateSettings initialSettings,
         boolean rebaseOverMergeProblemDetected
     ) {
-        super(project);
         myProject = project;
         myRepositories = repositories;
+        myInitialSettings = initialSettings;
         myRebaseOverMergeProblemDetected = rebaseOverMergeProblemDetected;
-
-        myUpdateAllRoots = new JCheckBox("Update not rejected repositories as well", initialSettings.shouldUpdateAllRoots());
-        myUpdateAllRoots.setMnemonic('u');
-        myAutoUpdateInFuture = new JCheckBox(
-            "<html>Remember the update method choice and <u>s</u>ilently update in future <br/>" +
-                "(you may change this in the Settings)</html>"
-        );
-        myAutoUpdateInFuture.setMnemonic('s');
-
-        myMergeAction = new MergeAction();
-        myRebaseAction = new RebaseAction();
-        setDefaultAndFocusedActions(initialSettings.updateMethod());
-        init();
-        setTitle(LocalizeValue.localizeTODO("Push Rejected"));
-    }
-
-    private void setDefaultAndFocusedActions(@Nullable UpdateMethod updateMethod) {
-        Action defaultAction;
-        Action focusedAction;
-        if (myRebaseOverMergeProblemDetected) {
-            defaultAction = myMergeAction;
-            focusedAction = getCancelAction();
-        }
-        else if (updateMethod == UpdateMethod.REBASE) {
-            defaultAction = myRebaseAction;
-            focusedAction = myMergeAction;
-        }
-        else {
-            defaultAction = myMergeAction;
-            focusedAction = myRebaseAction;
-        }
-        defaultAction.putValue(DEFAULT_ACTION, Boolean.TRUE);
-        focusedAction.putValue(FOCUSED_ACTION, Boolean.TRUE);
-    }
-
-    @Override
-    protected JComponent createCenterPanel() {
-        JBLabel desc = new JBLabel(wrapInHtml(makeDescription()));
-
-        JPanel options = new JPanel(new BorderLayout());
-        if (!myRebaseOverMergeProblemDetected) {
-            options.add(myAutoUpdateInFuture, BorderLayout.SOUTH);
-        }
-
-        if (!GitUtil.justOneGitRepository(myProject)) {
-            options.add(myUpdateAllRoots);
-        }
-
-        int GAP = 15;
-        JPanel rootPanel = new JPanel(new BorderLayout(GAP, GAP));
-        rootPanel.add(desc);
-        rootPanel.add(options, BorderLayout.SOUTH);
-        JLabel iconLabel = new JBLabel(myRebaseOverMergeProblemDetected ? UIUtil.getWarningIcon() : UIUtil.getQuestionIcon());
-        rootPanel.add(iconLabel, BorderLayout.WEST);
-
-        return rootPanel;
-    }
-
-    @Override
-    protected String getHelpId() {
-        return "reference.VersionControl.Git.UpdateOnRejectedPushDialog";
-    }
-
-    private String makeDescription() {
-        if (GitUtil.justOneGitRepository(myProject)) {
-            assert !myRepositories.isEmpty() : "repositories are empty";
-            GitRepository repository = myRepositories.iterator().next();
-            GitBranch currentBranch = getCurrentBranch(repository);
-            return DESCRIPTION_START + code(currentBranch.getName()) + " was rejected. <br/>" + descriptionEnding();
-        }
-        else if (myRepositories.size() == 1) {  // there are more than 1 repositories in the project, but only one was rejected
-            GitRepository repository = myRepositories.iterator().next();
-            GitBranch currentBranch = getCurrentBranch(repository);
-
-            return DESCRIPTION_START + code(currentBranch.getName()) + " in repository <br/>" + code(repository.getPresentableUrl()) +
-                " was rejected. <br/>" + descriptionEnding();
-        }
-        else {  // several repositories rejected the push
-            Map<GitRepository, GitBranch> currentBranches = getCurrentBranches();
-            if (allBranchesHaveTheSameName(currentBranches)) {
-                String branchName = currentBranches.values().iterator().next().getName();
-                StringBuilder sb = new StringBuilder(DESCRIPTION_START + code(branchName) + " was rejected in repositories <br/>");
-                for (GitRepository repository : DvcsUtil.sortRepositories(currentBranches.keySet())) {
-                    sb.append(HTML_INDENT).append(code(repository.getPresentableUrl())).append("<br/>");
-                }
-                sb.append(descriptionEnding());
-                return sb.toString();
-            }
-            else {
-                StringBuilder sb = new StringBuilder("<html>Push of current branch was rejected: <br/>");
-                for (Map.Entry<GitRepository, GitBranch> entry : currentBranches.entrySet()) {
-                    GitRepository repository = entry.getKey();
-                    GitBranch currentBranch = entry.getValue();
-                    sb.append(HTML_INDENT).append(code(currentBranch.getName()))
-                        .append(" in ").append(code(repository.getPresentableUrl())).append("<br/>");
-                }
-                sb.append(descriptionEnding());
-                return sb.toString();
-            }
-        }
     }
 
     @Nonnull
-    private String descriptionEnding() {
-        String desc = "Remote changes need to be merged before pushing.";
-        if (myRebaseOverMergeProblemDetected) {
-            desc +=
-                "<br/><br/>In this case <b>merge is highly recommended</b>, because there are non-pushed merge commits. " + "<br/>Rebasing them" +
-                    " " +
-                    "can lead to problems.";
+    @RequiredUIAccess
+    CompletableFuture<@Nullable UpdateMethod> showAsync() {
+        boolean rebaseByDefault = !myRebaseOverMergeProblemDetected && myInitialSettings.updateMethod() == UpdateMethod.REBASE;
+
+        MessageBoxBuilder<@Nullable UpdateMethod> builder = MessageBoxBuilder.<@Nullable UpdateMethod>create()
+            .asWarning()
+            .title(GitLocalize.pushRejectedDialogTitle())
+            .text(makeDescription())
+            .richText()
+            .button(MessageButtonRole.YES, GitLocalize.pushRejectedMerge(), UpdateMethod.MERGE);
+        if (!rebaseByDefault) {
+            builder = builder.asDefaultButton();
         }
-        return desc;
+
+        LocalizeValue rebaseText = myRebaseOverMergeProblemDetected ? GitLocalize.pushRejectedRebaseAnyway() : GitLocalize.pushRejectedRebase();
+        builder = builder.button(MessageButtonRole.NO, rebaseText, UpdateMethod.REBASE);
+        if (rebaseByDefault) {
+            builder = builder.asDefaultButton();
+        }
+
+        return builder.button(MessageButtonRole.CANCEL, (UpdateMethod) null)
+            .asExitButton()
+            .remember(new MessageBoxRemember<>() {
+                @Override
+                public void setValue(@Nullable UpdateMethod value) {
+                    if (value != null) {
+                        myAutoUpdateInFuture = true;
+                    }
+                }
+
+                @Override
+                public @Nullable UpdateMethod getValue() {
+                    return null;
+                }
+
+                @Override
+                public LocalizeValue getMessageText() {
+                    return GitLocalize.pushRejectedRememberCheckbox();
+                }
+            })
+            .showAsync();
+    }
+
+    boolean shouldAutoUpdateInFuture() {
+        return myAutoUpdateInFuture;
+    }
+
+    @TestOnly
+    boolean warnsAboutRebaseOverMerge() {
+        return myRebaseOverMergeProblemDetected;
+    }
+
+    @Nonnull
+    private LocalizeValue makeDescription() {
+        List<LocalizeValue> parts = new ArrayList<>();
+        if (GitUtil.justOneGitRepository(myProject)) {
+            assert !myRepositories.isEmpty() : "repositories are empty";
+            GitRepository repository = myRepositories.iterator().next();
+            parts.add(GitLocalize.pushRejectedOnlyOneGitRepo(escape(getCurrentBranch(repository).getName())));
+            parts.add(SPACE);
+        }
+        else if (myRepositories.size() == 1) {
+            GitRepository repository = myRepositories.iterator().next();
+            parts.add(GitLocalize.pushRejectedSpecificRepo(
+                escape(getCurrentBranch(repository).getName()),
+                escape(DvcsUtil.getShortRepositoryName(repository))
+            ));
+            parts.add(SPACE);
+        }
+        else {
+            Map<GitRepository, GitBranch> currentBranches = getCurrentBranches();
+            if (allBranchesHaveTheSameName(currentBranches)) {
+                String branchName = currentBranches.values().iterator().next().getName();
+                parts.add(GitLocalize.pushRejectedManyReposSingleBranch(escape(branchName)));
+                parts.add(LINE_BREAK);
+                for (GitRepository repository : DvcsUtil.sortRepositories(currentBranches.keySet())) {
+                    parts.add(INDENT);
+                    parts.add(LocalizeValue.of(escape(DvcsUtil.getShortRepositoryName(repository))));
+                    parts.add(LINE_BREAK);
+                }
+            }
+            else {
+                parts.add(GitLocalize.pushRejectedManyRepos());
+                parts.add(LINE_BREAK);
+                for (Map.Entry<GitRepository, GitBranch> entry : currentBranches.entrySet()) {
+                    parts.add(INDENT);
+                    parts.add(GitLocalize.pushRejectedManyReposItem(
+                        escape(entry.getValue().getName()),
+                        escape(DvcsUtil.getShortRepositoryName(entry.getKey()))
+                    ));
+                    parts.add(LINE_BREAK);
+                }
+            }
+        }
+
+        parts.add(myRebaseOverMergeProblemDetected ? GitLocalize.pushRejectedMergeNeededWithProblem() : GitLocalize.pushRejectedMergeNeeded());
+        return LocalizeValue.join(parts.toArray(LocalizeValue[]::new));
+    }
+
+    @Nonnull
+    private static String escape(@Nonnull String text) {
+        return StringUtil.escapeXmlEntities(text);
     }
 
     private static boolean allBranchesHaveTheSameName(@Nonnull Map<GitRepository, GitBranch> branches) {
@@ -196,7 +188,7 @@ class GitRejectedPushUpdateDialog extends DialogWrapper {
 
     @Nonnull
     private Map<GitRepository, GitBranch> getCurrentBranches() {
-        Map<GitRepository, GitBranch> currentBranches = new HashMap<>();
+        Map<GitRepository, GitBranch> currentBranches = new LinkedHashMap<>();
         for (GitRepository repository : myRepositories) {
             currentBranches.put(repository, getCurrentBranch(repository));
         }
@@ -204,56 +196,9 @@ class GitRejectedPushUpdateDialog extends DialogWrapper {
     }
 
     @Nonnull
-    private static GitBranch getCurrentBranch(GitRepository repository) {
+    private static GitBranch getCurrentBranch(@Nonnull GitRepository repository) {
         GitBranch currentBranch = repository.getCurrentBranch();
         assert currentBranch != null : "Current branch can't be null here. " + repository;
         return currentBranch;
     }
-
-    @Nonnull
-    @Override
-    protected Action[] createActions() {
-        return new Action[]{
-            getCancelAction(),
-            myMergeAction,
-            myRebaseAction
-        };
-    }
-
-    boolean shouldUpdateAll() {
-        return myUpdateAllRoots.isSelected();
-    }
-
-    boolean shouldAutoUpdateInFuture() {
-        return myAutoUpdateInFuture.isSelected();
-    }
-
-    @TestOnly
-    boolean warnsAboutRebaseOverMerge() {
-        return myRebaseOverMergeProblemDetected;
-    }
-
-    private class MergeAction extends AbstractAction {
-        MergeAction() {
-            super("&Merge");
-        }
-
-        @Override
-        public void actionPerformed(ActionEvent e) {
-            close(MERGE_EXIT_CODE);
-        }
-    }
-
-    private class RebaseAction extends AbstractAction {
-
-        RebaseAction() {
-            super(myRebaseOverMergeProblemDetected ? "Rebase Anyway" : "&Rebase");
-        }
-
-        @Override
-        public void actionPerformed(ActionEvent e) {
-            close(REBASE_EXIT_CODE);
-        }
-    }
-
 }

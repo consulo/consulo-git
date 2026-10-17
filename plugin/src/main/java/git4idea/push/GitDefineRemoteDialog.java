@@ -15,11 +15,25 @@
  */
 package git4idea.push;
 
-import consulo.application.progress.ProgressManager;
-import consulo.component.ProcessCanceledException;
+import consulo.application.progress.ProgressBuilderFactory;
+import consulo.disposer.Disposable;
 import consulo.localize.LocalizeValue;
+import consulo.project.Project;
+import consulo.ui.Component;
+import consulo.ui.MessageBoxBuilder;
+import consulo.ui.MessageButtonRole;
+import consulo.ui.TextBox;
+import consulo.ui.UIAccess;
 import consulo.ui.annotation.RequiredUIAccess;
-import consulo.ui.ex.awt.*;
+import consulo.ui.ex.action.AnAction;
+import consulo.ui.ex.dialog.Dialog;
+import consulo.ui.ex.dialog.DialogDescriptor;
+import consulo.ui.ex.dialog.DialogService;
+import consulo.ui.ex.dialog.DialogValue;
+import consulo.ui.ex.dialog.action.DialogOkAction;
+import consulo.ui.util.FormBuilder;
+import consulo.util.concurrent.coroutine.Coroutine;
+import consulo.util.concurrent.coroutine.step.CodeExecution;
 import consulo.util.lang.StringUtil;
 import consulo.virtualFileSystem.util.VirtualFileUtil;
 import git4idea.commands.Git;
@@ -32,10 +46,9 @@ import jakarta.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.swing.*;
-import java.awt.*;
+import java.util.concurrent.CompletableFuture;
 
-class GitDefineRemoteDialog extends DialogWrapper {
+class GitDefineRemoteDialog extends DialogDescriptor {
     private static final Logger LOG = LoggerFactory.getLogger(GitDefineRemoteDialog.class);
 
     @Nonnull
@@ -43,82 +56,120 @@ class GitDefineRemoteDialog extends DialogWrapper {
     @Nonnull
     private final Git myGit;
 
-    @Nonnull
-    private final JTextField myRemoteName;
-    @Nonnull
-    private final JTextField myRemoteUrl;
+    @Nullable
+    private TextBox myRemoteName;
+    @Nullable
+    private TextBox myRemoteUrl;
+    @Nullable
+    private Dialog myDialog;
+    private boolean myValidated;
 
-    GitDefineRemoteDialog(@Nonnull GitRepository repository, @Nonnull Git git) {
-        super(repository.getProject());
+    private GitDefineRemoteDialog(@Nonnull GitRepository repository, @Nonnull Git git) {
+        super(LocalizeValue.localizeTODO("Define Remote"));
         myRepository = repository;
         myGit = git;
-        myRemoteName = new JTextField(GitRemote.ORIGIN_NAME, 20);
-        myRemoteUrl = new JTextField(20);
-        setTitle(LocalizeValue.localizeTODO("Define Remote"));
-        init();
+    }
+
+    @Nonnull
+    @RequiredUIAccess
+    static CompletableFuture<GitDefinedRemote> show(@Nonnull GitRepository repository, @Nonnull Git git) {
+        Project project = repository.getProject();
+        GitDefineRemoteDialog descriptor = new GitDefineRemoteDialog(repository, git);
+        Dialog dialog = project.getApplication().getInstance(DialogService.class).build(descriptor);
+        descriptor.myDialog = dialog;
+
+        CompletableFuture<GitDefinedRemote> result = new CompletableFuture<>();
+        dialog.showAsync().whenComplete((value, error) -> result.complete(
+            descriptor.myValidated ? new GitDefinedRemote(descriptor.getRemoteName(), descriptor.getRemoteUrl()) : null
+        ));
+        return result;
+    }
+
+    @Nonnull
+    @RequiredUIAccess
+    @Override
+    public Component createCenterComponent(@Nonnull Disposable uiDisposable) {
+        TextBox remoteName = TextBox.create(GitRemote.ORIGIN_NAME);
+        TextBox remoteUrl = TextBox.create();
+        myRemoteName = remoteName;
+        myRemoteUrl = remoteUrl;
+
+        return FormBuilder.create()
+            .addLabeled(LocalizeValue.localizeTODO("Name:"), remoteName)
+            .addLabeled(LocalizeValue.localizeTODO("URL:"), remoteUrl)
+            .build();
     }
 
     @Nullable
+    @RequiredUIAccess
     @Override
-    protected JComponent createCenterPanel() {
-        JPanel defineRemoteComponent = new JPanel(new GridBagLayout());
-        GridBag gb = new GridBag()
-            .setDefaultAnchor(GridBagConstraints.LINE_START)
-            .setDefaultInsets(UIUtil.DEFAULT_VGAP, UIUtil.DEFAULT_HGAP, 0, 0);
-        defineRemoteComponent.add(new JBLabel("Name:"), gb.nextLine().next().anchor(GridBagConstraints.EAST));
-        defineRemoteComponent.add(myRemoteName, gb.next());
-        defineRemoteComponent.add(
-            new JBLabel("URL: "),
-            gb.nextLine().next().anchor(GridBagConstraints.EAST).insets(0, UIUtil.DEFAULT_HGAP, UIUtil.DEFAULT_VGAP, 0)
-        );
-        defineRemoteComponent.add(myRemoteUrl, gb.next());
-        return defineRemoteComponent;
+    public Component getPreferredFocusedComponent() {
+        return myRemoteUrl;
     }
 
     @Nonnull
     String getRemoteName() {
-        return StringUtil.notNullize(myRemoteName.getText()).trim();
+        TextBox remoteName = myRemoteName;
+        return remoteName == null ? "" : StringUtil.notNullize(remoteName.getValue()).trim();
     }
 
     @Nonnull
     String getRemoteUrl() {
-        return StringUtil.notNullize(myRemoteUrl.getText()).trim();
+        TextBox remoteUrl = myRemoteUrl;
+        return remoteUrl == null ? "" : StringUtil.notNullize(remoteUrl.getValue()).trim();
     }
 
-    @Nullable
-    @Override
     @RequiredUIAccess
-    public JComponent getPreferredFocusedComponent() {
-        return myRemoteUrl;
-    }
+    @Override
+    public boolean canHandle(@Nonnull AnAction action, @Nullable DialogValue value) {
+        if (!(action instanceof DialogOkAction) || myValidated) {
+            return true;
+        }
 
-    @Override
-    @RequiredUIAccess
-    protected void doOKAction() {
-        LocalizeValue error = validateRemoteUnderModal(getRemoteName(), getRemoteUrl());
-        if (error.isNotEmpty()) {
-            Messages.showErrorDialog(myRepository.getProject(), error.get(), "Invalid Remote");
-        }
-        else {
-            super.doOKAction();
-        }
+        UIAccess uiAccess = UIAccess.current();
+        validateRemoteUnderModal(getRemoteName(), getRemoteUrl()).whenCompleteAsync((error, throwable) -> {
+            if (throwable != null) {
+                return;
+            }
+            if (error.isNotEmpty()) {
+                MessageBoxBuilder.<Boolean>create()
+                    .asError()
+                    .title(LocalizeValue.localizeTODO("Invalid Remote"))
+                    .text(error)
+                    .button(MessageButtonRole.OK, Boolean.TRUE)
+                    .asDefaultButton()
+                    .showAsync();
+                return;
+            }
+
+            myValidated = true;
+            Dialog dialog = myDialog;
+            if (dialog != null) {
+                dialog.doOkAction(DialogValue.OK_VALUE);
+            }
+        }, uiAccess);
+        return false;
     }
 
     @Nonnull
-    private LocalizeValue validateRemoteUnderModal(@Nonnull String name, @Nonnull String url) throws ProcessCanceledException {
+    @RequiredUIAccess
+    private CompletableFuture<LocalizeValue> validateRemoteUnderModal(@Nonnull String name, @Nonnull String url) {
         if (url.isEmpty()) {
             LOG.warn("Invalid remote. Name: {}, URL: {}, error: {}", name, url, "URL can't be empty");
-            return LocalizeValue.localizeTODO("URL can't be empty");
+            return CompletableFuture.completedFuture(LocalizeValue.localizeTODO("URL can't be empty"));
         }
         if (!GitRefNameValidator.getInstance().checkInput(name)) {
             LOG.warn("Invalid remote. Name: {}, URL: {}, error: {}", name, url, "Remote name contains illegal characters");
-            return LocalizeValue.localizeTODO("Remote name contains illegal characters");
+            return CompletableFuture.completedFuture(LocalizeValue.localizeTODO("Remote name contains illegal characters"));
         }
 
-        return ProgressManager.getInstance().runProcessWithProgressSynchronously(
-            () -> {
-                GitCommandResult result =
-                    myGit.lsRemote(myRepository.getProject(), VirtualFileUtil.virtualToIoFile(myRepository.getRoot()), url);
+        Project project = myRepository.getProject();
+        return project.getApplication().getInstance(ProgressBuilderFactory.class)
+            .newProgressBuilder(project, LocalizeValue.localizeTODO("Checking URL..."))
+            .modal()
+            .cancelable()
+            .execute(UIAccess.current(), () -> Coroutine.first(CodeExecution.<Object, LocalizeValue>apply((input, continuation) -> {
+                GitCommandResult result = myGit.lsRemote(project, VirtualFileUtil.virtualToIoFile(myRepository.getRoot()), url);
                 if (!result.success()) {
                     LOG.warn(
                         "Invalid remote. Name: {}, URL: {}, error: {}",
@@ -128,13 +179,7 @@ class GitDefineRemoteDialog extends DialogWrapper {
                     );
                     return LocalizeValue.join(LocalizeValue.localizeTODO("Remote URL test failed: "), result.getErrorOutputAsHtmlValue());
                 }
-                else {
-                    return LocalizeValue.empty();
-                }
-            },
-            LocalizeValue.localizeTODO("Checking URL..."),
-            true,
-            myRepository.getProject()
-        );
+                return LocalizeValue.empty();
+            })));
     }
 }

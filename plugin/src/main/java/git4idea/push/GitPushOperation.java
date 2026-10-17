@@ -15,7 +15,6 @@
  */
 package git4idea.push;
 
-import consulo.application.Application;
 import consulo.application.progress.EmptyProgressIndicator;
 import consulo.application.progress.ProgressIndicator;
 import consulo.application.progress.ProgressManager;
@@ -24,17 +23,14 @@ import consulo.localHistory.LocalHistory;
 import consulo.logging.Logger;
 import consulo.project.Project;
 import consulo.ui.annotation.RequiredUIAccess;
-import consulo.ui.ex.awt.DialogWrapper;
 import consulo.util.collection.ContainerUtil;
 import consulo.util.lang.ObjectUtil;
-import consulo.util.lang.ref.SimpleReference;
 import consulo.versionControlSystem.VcsException;
 import consulo.versionControlSystem.distributed.DvcsUtil;
 import consulo.versionControlSystem.distributed.push.PushSpec;
 import consulo.versionControlSystem.distributed.repository.Repository;
 import consulo.versionControlSystem.update.UpdatedFiles;
 import consulo.virtualFileSystem.VirtualFile;
-import git4idea.DialogManager;
 import git4idea.GitLocalBranch;
 import git4idea.GitRemoteBranch;
 import git4idea.GitRevisionNumber;
@@ -58,6 +54,7 @@ import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static consulo.util.collection.ContainerUtil.filter;
@@ -403,41 +400,23 @@ public class GitPushOperation {
     }
 
     @Nullable
-    @RequiredUIAccess
     private PushUpdateSettings showDialogAndGetExitCode(
         @Nonnull Set<GitRepository> repositories,
         @Nonnull PushUpdateSettings initialSettings,
         boolean rebaseOverMergeProblemDetected
     ) {
-        SimpleReference<PushUpdateSettings> updateSettings = SimpleReference.create();
-        Application.get().invokeAndWait(() -> {
-            GitRejectedPushUpdateDialog dialog = new GitRejectedPushUpdateDialog(
-                myProject,
-                repositories,
-                initialSettings,
-                rebaseOverMergeProblemDetected
-            );
-            DialogManager.show(dialog);
-            int exitCode = dialog.getExitCode();
-            if (exitCode != DialogWrapper.CANCEL_EXIT_CODE) {
-                mySettings.setAutoUpdateIfPushRejected(dialog.shouldAutoUpdateInFuture());
-                updateSettings.set(new PushUpdateSettings(
-                    dialog.shouldUpdateAll(),
-                    convertUpdateMethodFromDialogExitCode(
-                        exitCode)
-                ));
-            }
-        });
-        return updateSettings.get();
-    }
-
-    @Nonnull
-    private static UpdateMethod convertUpdateMethodFromDialogExitCode(int exitCode) {
-        return switch (exitCode) {
-            case GitRejectedPushUpdateDialog.MERGE_EXIT_CODE -> UpdateMethod.MERGE;
-            case GitRejectedPushUpdateDialog.REBASE_EXIT_CODE -> UpdateMethod.REBASE;
-            default -> throw new IllegalStateException("Unexpected exit code: " + exitCode);
-        };
+        GitRejectedPushUpdateDialog dialog = new GitRejectedPushUpdateDialog(
+            myProject,
+            repositories,
+            initialSettings,
+            rebaseOverMergeProblemDetected
+        );
+        UpdateMethod updateMethod = myProject.getUIAccess().giveAsync(dialog::showAsync).thenCompose(Function.identity()).join();
+        if (updateMethod == null) {
+            return null;
+        }
+        mySettings.setAutoUpdateIfPushRejected(dialog.shouldAutoUpdateInFuture());
+        return new PushUpdateSettings(initialSettings.shouldUpdateAllRoots(), updateMethod);
     }
 
     @Nonnull

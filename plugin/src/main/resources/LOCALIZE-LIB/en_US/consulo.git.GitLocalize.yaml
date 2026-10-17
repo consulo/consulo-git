@@ -679,6 +679,30 @@ push.policy.selected:
     text: Selected branches
 push.policy.tooltip:
     text: <html>Select push policy:<ul><li><em>Default</em> - the push is done according to the configuration of the remote.</li><li><em>Selected branches</em> - selected branches are pushed.</li><li><em>All</em> - all references under refs/heads are pushed.</li><li><em>Mirror</em> - all references under refs/ are pushed including tags and remotes.</li></ul></html>
+push.rejected.dialog.title:
+    text: Push Rejected
+push.rejected.many.repos:
+    text: 'Push of the current branch was rejected:'
+push.rejected.many.repos.item:
+    text: '{0} in {1}'
+push.rejected.many.repos.single.branch:
+    text: Push of the current branch "{0}" was rejected.
+push.rejected.merge:
+    text: _Merge
+push.rejected.merge.needed:
+    text: Remote changes need to be merged before pushing.
+push.rejected.merge.needed.with.problem:
+    text: Remote changes need to be merged before pushing.<br/><br/>In this case <b>merge is highly recommended</b>, because there are non-pushed merge commits. <br/>Rebasing them can lead to problems.
+push.rejected.only.one.git.repo:
+    text: Push of the current branch "{0}" was rejected.
+push.rejected.rebase:
+    text: _Rebase
+push.rejected.rebase.anyway:
+    text: Rebase Anyway
+push.rejected.remember.checkbox:
+    text: Remember the update method and update silently in the future. Change this later in Settings | Version Control | Git.
+push.rejected.specific.repo:
+    text: Push of the current branch "{0}" in repository "{1}" was rejected.
 push.remote:
     text: 'Re&mote:'
 push.remote.tooltip:

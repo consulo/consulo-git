@@ -1017,7 +1017,7 @@ public class GitUtil {
         @Nonnull LocalizeValue description
     ) {
         DialogBuilder builder = new DialogBuilder(project);
-        builder.setCenterPanel(new GitSimplePathsBrowser(project, absolutePaths));
+        builder.setCenterPanel(new GitSimplePathsBrowser(project, absolutePaths, builder));
         if (description.isNotEmpty()) {
             builder.setNorthPanel(new MultiLineLabel(description.get()));
         }

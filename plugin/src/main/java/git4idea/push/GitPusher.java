@@ -17,7 +17,7 @@ package git4idea.push;
 
 import consulo.project.Project;
 import consulo.project.ui.notification.NotificationType;
-import consulo.project.ui.notification.NotificationsManager;
+import consulo.project.ui.notification.NotificationService;
 import consulo.ui.annotation.RequiredUIAccess;
 import consulo.versionControlSystem.distributed.push.PushSpec;
 import consulo.versionControlSystem.distributed.push.Pusher;
@@ -29,6 +29,7 @@ import git4idea.repo.GitRepositoryManager;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 
+import java.util.List;
 import java.util.Map;
 
 class GitPusher extends Pusher<GitRepository, GitPushSource, GitPushTarget> {
@@ -75,8 +76,8 @@ class GitPusher extends Pusher<GitRepository, GitPushSource, GitPushTarget> {
     }
 
     protected void expireExistingErrorsAndWarnings() {
-        GitPushResultNotification[] existingNotifications =
-            NotificationsManager.getNotificationsManager().getNotificationsOfType(GitPushResultNotification.class, myProject);
+        List<GitPushResultNotification> existingNotifications =
+            NotificationService.getInstance().getNotificationsOfType(GitPushResultNotification.class, myProject);
         for (GitPushResultNotification notification : existingNotifications) {
             if (notification.getType() != NotificationType.INFORMATION) {
                 notification.expire();

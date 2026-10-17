@@ -22,6 +22,9 @@ import consulo.application.Application;
 import consulo.git.localize.GitLocalize;
 import consulo.application.Application;
 import consulo.language.editor.ui.awt.*;
+import consulo.language.editor.ui.textCompletion.ValuesCompletionProvider;
+import consulo.language.editor.ui.textCompletion.DefaultTextCompletionValueDescriptor;
+import consulo.language.editor.ui.textCompletion.TextCompletionProvider;
 import consulo.localize.LocalizeValue;
 import consulo.platform.Platform;
 import consulo.platform.base.localize.CommonLocalize;
@@ -31,13 +34,11 @@ import consulo.ui.annotation.RequiredUIAccess;
 import consulo.ui.ex.awt.GridBag;
 import consulo.ui.ex.awt.JBCheckBox;
 import consulo.ui.ex.awt.JBUI;
-import consulo.ui.ex.awt.UIUtil;
 import consulo.ui.ex.awtUnsafe.TargetAWT;
 import consulo.util.io.FileUtil;
 import consulo.util.lang.StringUtil;
 import consulo.util.lang.function.Functions;
 import consulo.util.lang.function.PairConsumer;
-import consulo.util.lang.ref.SimpleReference;
 import consulo.util.lang.xml.XmlStringUtil;
 import consulo.versionControlSystem.FilePath;
 import consulo.versionControlSystem.VcsException;
@@ -53,8 +54,7 @@ import consulo.versionControlSystem.log.VcsUser;
 import consulo.versionControlSystem.log.VcsUserRegistry;
 import consulo.versionControlSystem.log.util.VcsUserUtil;
 import consulo.versionControlSystem.ui.RefreshableOnComponent;
-import consulo.versionControlSystem.ui.awt.LegacyComponentFactory;
-import consulo.versionControlSystem.ui.awt.LegacyDialog;
+import consulo.versionControlSystem.ui.VcsChangesDialogFactory;
 import consulo.versionControlSystem.util.VcsFileUtil;
 import consulo.versionControlSystem.util.VcsUtil;
 import consulo.virtualFileSystem.VirtualFile;
@@ -293,11 +293,7 @@ public class GitCheckinEnvironment implements CheckinEnvironment {
                 () -> {
                     DistributedVersionControlHelper helper = application.getInstance(DistributedVersionControlHelper.class);
 
-                    helper.createPushDialog(
-                        myProject,
-                        preselectedRepositories,
-                        GitBranchUtil.getCurrentRepository(myProject)
-                    ).show();
+                    helper.showPushDialog(myProject, preselectedRepositories, GitBranchUtil.getCurrentRepository(myProject));
                 },
                 application.getDefaultModalityState()
             );
@@ -478,33 +474,18 @@ public class GitCheckinEnvironment implements CheckinEnvironment {
             List<FilePath> files = new ArrayList<>();
             files.addAll(realAdded);
             files.addAll(realRemoved);
-            SimpleReference<Boolean> mergeAll = new SimpleReference<>();
-            try {
-                LegacyComponentFactory legacyComponentFactory = project.getApplication().getInstance(LegacyComponentFactory.class);
-
-                UIUtil.invokeAndWaitIfNeeded((Runnable) () -> {
-                    LocalizeValue message = GitLocalize.commitPartialMergeMessage(partialOperation.getName());
-                    LegacyDialog dialog = legacyComponentFactory.createSelectFilePathsDialog(
-                        project,
-                        files,
-                        message.get(),
-                        null,
-                        GitLocalize.buttonCommitAllFiles(),
-                        CommonLocalize.buttonCancel(),
-                        false
-                    );
-                    dialog.setTitle(GitLocalize.commitPartialMergeTitle());
-                    dialog.show();
-                    mergeAll.set(dialog.isOK());
-                });
-            }
-            catch (RuntimeException ex) {
-                throw ex;
-            }
-            catch (Exception ex) {
-                throw new RuntimeException("Unable to invoke a message box on AWT thread", ex);
-            }
-            if (!mergeAll.get()) {
+            VcsChangesDialogFactory dialogFactory = project.getApplication().getInstance(VcsChangesDialogFactory.class);
+            boolean mergeAll = project.getUIAccess()
+                .giveAsync(() -> dialogFactory.selectFilePaths(project, files)
+                    .title(GitLocalize.commitPartialMergeTitle())
+                    .prompt(GitLocalize.commitPartialMergeMessage(partialOperation.getName()))
+                    .okText(GitLocalize.buttonCommitAllFiles())
+                    .cancelText(CommonLocalize.buttonCancel())
+                    .showAsync())
+                .thenCompose(selection -> selection)
+                .join()
+                .isPresent();
+            if (!mergeAll) {
                 return false;
             }
             // update non-indexed files

@@ -15,6 +15,7 @@
  */
 package git4idea.push;
 
+import consulo.localize.LocalizeValue;
 import consulo.project.Project;
 import consulo.versionControlSystem.VcsException;
 import consulo.versionControlSystem.distributed.push.OutgoingCommitsProvider;
@@ -67,8 +68,8 @@ public class GitOutgoingCommitsProvider extends OutgoingCommitsProvider<GitRepos
             return new OutgoingResult(commits, Collections.<VcsError>emptyList());
         }
         catch (VcsException e) {
-            return new OutgoingResult(Collections.<VcsFullCommitDetails>emptyList(), Collections.singletonList(new VcsError(GitUtil
-                .cleanupErrorPrefixes(e.getMessage()))));
+            return new OutgoingResult(Collections.<VcsFullCommitDetails>emptyList(), Collections.singletonList(new VcsError(LocalizeValue.of(GitUtil
+                .cleanupErrorPrefixes(e.getMessage())))));
         }
     }
 }

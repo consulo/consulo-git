@@ -15,78 +15,70 @@
  */
 package git4idea.push;
 
-import consulo.ui.ex.awt.ComboBox;
-import consulo.ui.ex.awt.JBCheckBox;
-import consulo.ui.ex.awt.JBUI;
-import consulo.ui.ex.awt.ListCellRendererWrapper;
+import consulo.localize.LocalizeValue;
+import consulo.ui.CheckBox;
+import consulo.ui.ComboBox;
+import consulo.ui.Component;
+import consulo.ui.Space;
+import consulo.ui.annotation.RequiredUIAccess;
+import consulo.ui.layout.HorizontalLayout;
 import consulo.versionControlSystem.distributed.push.VcsPushOptionValue;
 import consulo.versionControlSystem.distributed.push.VcsPushOptionsPanel;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 
-import javax.swing.*;
-import java.awt.*;
-import java.awt.event.KeyEvent;
-
 public class GitPushOptionsPanel extends VcsPushOptionsPanel {
     @Nonnull
-    private final JBCheckBox myPushTags;
+    private final CheckBox myPushTags;
     @Nonnull
     private final ComboBox<GitPushTagMode> myPushTagsMode;
     @Nonnull
-    private final JBCheckBox myRunHooks;
+    private final CheckBox myRunHooks;
+    private final boolean myFollowTagsSupported;
+    private final boolean myShowSkipHookOption;
+    @Nonnull
+    private final HorizontalLayout myComponent = HorizontalLayout.create(Space.LARGE);
 
+    @RequiredUIAccess
     public GitPushOptionsPanel(@Nullable GitPushTagMode defaultMode, boolean followTagsSupported, boolean showSkipHookOption) {
-        String checkboxText = "Push Tags";
+        myFollowTagsSupported = followTagsSupported;
+        myShowSkipHookOption = showSkipHookOption;
+
+        myPushTags = CheckBox.create(LocalizeValue.localizeTODO(followTagsSupported ? "Push _Tags:" : "Push _Tags"));
+        myPushTags.setValue(defaultMode != null);
+
+        myPushTagsMode = ComboBox.create(GitPushTagMode.getValues());
+        myPushTagsMode.setTextRenderer(mode -> mode == null ? LocalizeValue.empty() : LocalizeValue.of(mode.getTitle()));
+        myPushTagsMode.setValue(defaultMode != null ? defaultMode : GitPushTagMode.ALL);
+        myPushTagsMode.setEnabled(myPushTags.getValueOrError());
+
+        myPushTags.addValueListener(event -> myPushTagsMode.setEnabled(event.getValue()));
+
+        myRunHooks = CheckBox.create(LocalizeValue.localizeTODO("Run Git _hooks"));
+        myRunHooks.setValue(true);
+
+        HorizontalLayout tags = HorizontalLayout.create(Space.SMALL);
+        tags.add(myPushTags);
         if (followTagsSupported) {
-            checkboxText += ": ";
+            tags.add(myPushTagsMode);
         }
-        myPushTags = new JBCheckBox(checkboxText);
-        myPushTags.setMnemonic('T');
-        myPushTags.setSelected(defaultMode != null);
-
-        myPushTagsMode = new ComboBox<>(GitPushTagMode.getValues());
-        myPushTagsMode.setRenderer(new ListCellRendererWrapper<>() {
-            @Override
-            public void customize(JList list, GitPushTagMode value, int index, boolean selected, boolean hasFocus) {
-                setText(value.getTitle());
-            }
-        });
-        myPushTagsMode.setEnabled(myPushTags.isSelected());
-        if (defaultMode != null) {
-            myPushTagsMode.setSelectedItem(defaultMode);
-        }
-
-        myPushTags.addActionListener(e -> myPushTagsMode.setEnabled(myPushTags.isSelected()));
-        myPushTagsMode.setVisible(followTagsSupported);
-
-        myRunHooks = new JBCheckBox("Run Git hooks");
-        myRunHooks.setMnemonic(KeyEvent.VK_H);
-        myRunHooks.setSelected(true);
-        myRunHooks.setVisible(showSkipHookOption);
-
-        setLayout(new FlowLayout(FlowLayout.LEFT, 0, 0));
-        add(myPushTags);
-        if (myPushTagsMode.isVisible()) {
-            add(Box.createHorizontalStrut(calcStrutWidth(8, myPushTags, myPushTagsMode)));
-            add(myPushTagsMode);
-        }
-        if (myRunHooks.isVisible()) {
-            add(Box.createHorizontalStrut(calcStrutWidth(40, myPushTagsMode, myRunHooks)));
-            add(myRunHooks);
+        myComponent.add(tags);
+        if (showSkipHookOption) {
+            myComponent.add(myRunHooks);
         }
     }
 
-    private static int calcStrutWidth(int plannedWidth, @Nonnull JComponent leftComponent, @Nonnull JComponent rightComponent) {
-        return JBUI.scale(plannedWidth) - JBUI.insets(rightComponent.getInsets()).left - JBUI.insets(leftComponent.getInsets()).right;
+    @Nonnull
+    @Override
+    public Component getComponent() {
+        return myComponent;
     }
 
     @Nullable
     @Override
     public VcsPushOptionValue getValue() {
-        GitPushTagMode selectedTagMode =
-            !myPushTagsMode.isVisible() ? GitPushTagMode.ALL : (GitPushTagMode) myPushTagsMode.getSelectedItem();
-        GitPushTagMode tagMode = myPushTags.isSelected() ? selectedTagMode : null;
-        return new GitVcsPushOptionValue(tagMode, myRunHooks.isVisible() && !myRunHooks.isSelected());
+        GitPushTagMode selectedTagMode = !myFollowTagsSupported ? GitPushTagMode.ALL : myPushTagsMode.getValue();
+        GitPushTagMode tagMode = myPushTags.getValueOrError() ? selectedTagMode : null;
+        return new GitVcsPushOptionValue(tagMode, myShowSkipHookOption && !myRunHooks.getValueOrError());
     }
 }

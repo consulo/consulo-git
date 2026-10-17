@@ -162,7 +162,11 @@ public class GitPushSupport extends PushSupport<GitRepository, GitPushSource, Gi
     @Nonnull
     @Override
     @RequiredUIAccess
-    public PushTargetPanel<GitPushTarget> createTargetPanel(@Nonnull GitRepository repository, @Nullable GitPushTarget defaultTarget) {
+    public PushTargetPanel<GitPushTarget> createTargetPanel(
+        @Nonnull GitRepository repository,
+        @Nonnull GitPushSource source,
+        @Nullable GitPushTarget defaultTarget
+    ) {
         return new GitPushTargetPanel(this, repository, defaultTarget);
     }
 
@@ -172,13 +176,9 @@ public class GitPushSupport extends PushSupport<GitRepository, GitPushSource, Gi
         return !mySharedSettings.isBranchProtected(targetBranch);
     }
 
-    @Override
-    public boolean isForcePushEnabled() {
-        return true;
-    }
-
     @Nullable
     @Override
+    @RequiredUIAccess
     public VcsPushOptionsPanel createOptionsPanel() {
         return new GitPushOptionsPanel(
             mySettings.getPushTagMode(),

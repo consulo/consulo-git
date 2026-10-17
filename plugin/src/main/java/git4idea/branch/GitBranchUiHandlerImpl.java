@@ -17,6 +17,8 @@ package git4idea.branch;
 
 import consulo.application.Application;
 import consulo.application.progress.ProgressIndicator;
+import consulo.disposer.Disposable;
+import consulo.disposer.Disposer;
 import consulo.localize.LocalizeValue;
 import consulo.project.Project;
 import consulo.project.ui.notification.NotificationService;
@@ -170,15 +172,21 @@ public class GitBranchUiHandlerImpl implements GitBranchUiHandler {
         @Nonnull String operation,
         @Nullable String forceButtonTitle
     ) {
-        JComponent fileBrowser;
-        if (!changes.isEmpty()) {
-            ChangesBrowserFactory browserFactory = project.getApplication().getInstance(ChangesBrowserFactory.class);
-            fileBrowser = browserFactory.createChangeBrowserWithRollback(project, changes).getComponent();
+        Disposable browserDisposable = Disposable.newDisposable("Git smart operation files");
+        try {
+            JComponent fileBrowser;
+            if (!changes.isEmpty()) {
+                ChangesBrowserFactory browserFactory = project.getApplication().getInstance(ChangesBrowserFactory.class);
+                fileBrowser = browserFactory.createChangeBrowserWithRollback(project, changes).getComponent();
+            }
+            else {
+                fileBrowser = new GitSimplePathsBrowser(project, paths, browserDisposable);
+            }
+            return GitSmartOperationDialog.showAndGetAnswer(myProject, fileBrowser, operation, forceButtonTitle);
         }
-        else {
-            fileBrowser = new GitSimplePathsBrowser(project, paths);
+        finally {
+            Disposer.dispose(browserDisposable);
         }
-        return GitSmartOperationDialog.showAndGetAnswer(myProject, fileBrowser, operation, forceButtonTitle);
     }
 
     @Override
