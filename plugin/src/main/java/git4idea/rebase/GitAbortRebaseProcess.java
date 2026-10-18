@@ -18,18 +18,15 @@ package git4idea.rebase;
 import consulo.application.AccessToken;
 import consulo.application.Application;
 import consulo.application.progress.ProgressIndicator;
-import consulo.application.Application;
 import consulo.localize.LocalizeValue;
 import consulo.logging.Logger;
 import consulo.project.Project;
 import consulo.project.ui.notification.NotificationService;
-import consulo.ui.annotation.RequiredUIAccess;
-import consulo.ui.ex.awt.Messages;
-import consulo.util.lang.ref.SimpleReference;
+import consulo.ui.MessageBoxBuilder;
+import consulo.ui.MessageButtonRole;
 import consulo.versionControlSystem.VcsNotifier;
 import consulo.versionControlSystem.distributed.DvcsUtil;
 import consulo.virtualFileSystem.util.VirtualFileUtil;
-import git4idea.DialogManager;
 import git4idea.GitUtil;
 import git4idea.commands.Git;
 import git4idea.commands.GitCommandResult;
@@ -44,8 +41,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import static consulo.application.CommonBundle.getCancelButtonText;
-import static consulo.ui.ex.awt.Messages.getQuestionIcon;
 import static consulo.versionControlSystem.distributed.DvcsUtil.getShortRepositoryName;
 import static git4idea.GitUtil.getRootsFromRepositories;
 import static git4idea.rebase.GitRebaseUtils.mentionLocalChangesRemainingInStash;
@@ -90,71 +85,64 @@ class GitAbortRebaseProcess {
         myGit = Application.get().getInstance(Git.class);
     }
 
-    @RequiredUIAccess
     void abortWithConfirmation() {
         LOG.info(
             "Abort rebase. " + (myRepositoryToAbort == null ? "Nothing to abort" : getShortRepositoryName(myRepositoryToAbort)) +
             ". Roots to rollback: " + DvcsUtil.joinShortNames(myRepositoriesToRollback.keySet())
         );
-        SimpleReference<AbortChoice> ref = SimpleReference.create();
-        Application application = myProject.getApplication();
-        application.invokeAndWait(() -> ref.set(confirmAbort()), application.getDefaultModalityState());
+        AbortChoice choice = confirmAbort();
 
-        LOG.info("User choice: " + ref.get());
-        if (ref.get() == AbortChoice.ROLLBACK_AND_ABORT) {
+        LOG.info("User choice: " + choice);
+        if (choice == AbortChoice.ROLLBACK_AND_ABORT) {
             doAbort(true);
         }
-        else if (ref.get() == AbortChoice.ABORT) {
+        else if (choice == AbortChoice.ABORT) {
             doAbort(false);
         }
     }
 
     @Nonnull
     private AbortChoice confirmAbort() {
-        String title = "Abort Rebase";
+        LocalizeValue title = LocalizeValue.localizeTODO("Abort Rebase");
         if (myRepositoryToAbort != null) {
             if (myRepositoriesToRollback.isEmpty()) {
-                String message = "Are you sure you want to abort rebase" + GitUtil.mention(myRepositoryToAbort) + "?";
-                int choice = DialogManager.showOkCancelDialog(myProject, message, title, "Abort", getCancelButtonText(), getQuestionIcon());
-                if (choice == Messages.OK) {
-                    return AbortChoice.ABORT;
-                }
+                LocalizeValue message =
+                    LocalizeValue.localizeTODO("Are you sure you want to abort rebase" + GitUtil.mention(myRepositoryToAbort) + "?");
+                return ask(title, message, MessageBoxBuilder.<AbortChoice>create()
+                    .button(MessageButtonRole.OK, LocalizeValue.localizeTODO("Abort"), AbortChoice.ABORT)
+                    .asDefaultButton());
             }
-            else {
-                String message = "Do you want just to abort rebase" + GitUtil.mention(myRepositoryToAbort) + ",\n" +
-                    "or also rollback the successful rebase" + GitUtil.mention(myRepositoriesToRollback.keySet()) + "?";
-                int choice = DialogManager.showYesNoCancelDialog(
-                    myProject,
-                    message,
-                    title,
-                    "Abort & Rollback",
-                    "Abort",
-                    getCancelButtonText(),
-                    getQuestionIcon()
-                );
-                if (choice == Messages.YES) {
-                    return AbortChoice.ROLLBACK_AND_ABORT;
-                }
-                else if (choice == Messages.NO) {
-                    return AbortChoice.ABORT;
-                }
-            }
+            LocalizeValue message = LocalizeValue.localizeTODO(
+                "Do you want just to abort rebase" + GitUtil.mention(myRepositoryToAbort) + ",\n" +
+                    "or also rollback the successful rebase" + GitUtil.mention(myRepositoriesToRollback.keySet()) + "?"
+            );
+            return ask(title, message, MessageBoxBuilder.<AbortChoice>create()
+                .button(MessageButtonRole.YES, LocalizeValue.localizeTODO("Abort & Rollback"), AbortChoice.ROLLBACK_AND_ABORT)
+                .asDefaultButton()
+                .button(MessageButtonRole.NO, LocalizeValue.localizeTODO("Abort"), AbortChoice.ABORT));
         }
-        else {
-            if (myRepositoriesToRollback.isEmpty()) {
-                LOG.error(new Throwable());
-            }
-            else {
-                String description =
-                    "Do you want to rollback the successful rebase" + GitUtil.mention(myRepositoriesToRollback.keySet()) + "?";
-                int choice =
-                    DialogManager.showOkCancelDialog(myProject, description, title, "Rollback", getCancelButtonText(), getQuestionIcon());
-                if (choice == Messages.YES) {
-                    return AbortChoice.ROLLBACK_AND_ABORT;
-                }
-            }
+        if (myRepositoriesToRollback.isEmpty()) {
+            LOG.error(new Throwable());
+            return AbortChoice.CANCEL;
         }
-        return AbortChoice.CANCEL;
+        LocalizeValue description = LocalizeValue.localizeTODO(
+            "Do you want to rollback the successful rebase" + GitUtil.mention(myRepositoriesToRollback.keySet()) + "?"
+        );
+        return ask(title, description, MessageBoxBuilder.<AbortChoice>create()
+            .button(MessageButtonRole.OK, LocalizeValue.localizeTODO("Rollback"), AbortChoice.ROLLBACK_AND_ABORT)
+            .asDefaultButton());
+    }
+
+    @Nonnull
+    private AbortChoice ask(@Nonnull LocalizeValue title, @Nonnull LocalizeValue message, @Nonnull MessageBoxBuilder<AbortChoice> builder) {
+        AbortChoice choice = DvcsUtil.showAndWait(myProject, () -> builder
+            .asQuestion()
+            .title(title)
+            .text(message)
+            .button(MessageButtonRole.CANCEL, AbortChoice.CANCEL)
+            .asExitButton()
+            .showAsync(myProject));
+        return choice == null ? AbortChoice.CANCEL : choice;
     }
 
     enum AbortChoice {

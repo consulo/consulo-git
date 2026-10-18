@@ -19,12 +19,12 @@ import consulo.document.FileDocumentManager;
 import consulo.git.localize.GitLocalize;
 import consulo.localize.LocalizeValue;
 import consulo.project.Project;
+import consulo.ui.MessageBoxes;
 import consulo.ui.annotation.RequiredUIAccess;
 import consulo.ui.ex.action.ActionPlaces;
 import consulo.ui.ex.action.AnActionEvent;
 import consulo.ui.ex.action.AnActionWithSyncUpdate;
 import consulo.ui.ex.action.DumbAwareAction;
-import consulo.ui.ex.awt.Messages;
 import consulo.ui.image.Image;
 import consulo.util.collection.ArrayUtil;
 import consulo.versionControlSystem.ProjectLevelVcsManager;
@@ -181,7 +181,9 @@ public abstract class GitRepositoryAction extends DumbAwareAction implements AnA
             roots = GitUtil.getGitRoots(project, vcs);
         }
         catch (VcsException e) {
-            Messages.showErrorDialog(project, e.getMessage(), GitLocalize.repositoryActionMissingRootsTitle().get());
+            MessageBoxes.okError(LocalizeValue.of(e.getMessage()))
+                .title(GitLocalize.repositoryActionMissingRootsTitle())
+                .showAsync(project);
             return null;
         }
         return roots;

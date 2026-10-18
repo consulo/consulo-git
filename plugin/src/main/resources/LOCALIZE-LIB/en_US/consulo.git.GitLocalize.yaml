@@ -231,6 +231,10 @@ commit.author:
     text: 'A&uthor:'
 commit.author.tooltip:
     text: '<html>Specify a commit author here if it is different from committer. The author should be in the format: Author Name &lt;author@ema.il&gt;</html>'
+commit.sign.off:
+    text: Si_gn-off commit
+commit.sign.off.tooltip:
+    text: 'Adds the following line at the end of the commit message: Signed-off by: {0}'
 commit.partial.merge.message:
     text: |-
         Partial commit during a {0} is not allowed.
@@ -419,6 +423,8 @@ git.light.status.bar.text:
     text: 'Git: {0}'
 git.light.status.bar.tooltip:
     text: 'Current Git branch: {0}'
+git.new.tag.dialog.tag.name.invalid:
+    text: Tag name must not be empty or contain whitespace
 git.new.tag.dialog.tag.name.label:
     text: Enter the name of new tag
 git.new.tag.dialog.title:

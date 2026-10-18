@@ -17,13 +17,14 @@ package git4idea.branch;
 
 import consulo.localize.LocalizeValue;
 import consulo.project.Project;
-import consulo.ui.ex.awt.DialogWrapper;
-import consulo.ui.ex.awt.MessageDialogBuilder;
-import consulo.ui.ex.awt.Messages;
-import consulo.ui.ex.awt.UIUtil;
+import consulo.ui.MessageBoxBuilder;
+import consulo.ui.MessageBoxRemember;
+import consulo.ui.MessageButtonRole;
+import consulo.ui.RememberScope;
 import consulo.util.lang.Couple;
 import consulo.util.lang.StringUtil;
 import consulo.versionControlSystem.VcsNotifier;
+import consulo.versionControlSystem.distributed.DvcsUtil;
 import git4idea.commands.Git;
 import git4idea.commands.GitCommandResult;
 import git4idea.commands.GitCompoundResult;
@@ -37,7 +38,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
 
 class GitDeleteRemoteBranchOperation extends GitBranchOperation {
     private final String myBranchName;
@@ -64,20 +64,14 @@ class GitDeleteRemoteBranchOperation extends GitBranchOperation {
             trackingBranches.remove(currentBranch);
         }
 
-        AtomicReference<DeleteRemoteBranchDecision> decision = new AtomicReference<>();
-        boolean finalCurrentBranchTracksBranchToDelete = currentBranchTracksBranchToDelete;
-        UIUtil.invokeAndWaitIfNeeded((Runnable) () -> decision.set(confirmBranchDeletion(
-            myBranchName,
-            trackingBranches,
-            finalCurrentBranchTracksBranchToDelete,
-            repositories
-        )));
+        DeleteRemoteBranchDecision decision =
+            confirmBranchDeletion(myBranchName, trackingBranches, currentBranchTracksBranchToDelete, repositories);
 
-        if (decision.get().delete()) {
+        if (decision.delete()) {
             boolean deletedSuccessfully = doDeleteRemote(myBranchName, repositories);
             if (deletedSuccessfully) {
                 final Collection<String> successfullyDeletedLocalBranches = new ArrayList<>(1);
-                if (decision.get().deleteTracking()) {
+                if (decision.deleteTracking()) {
                     for (final String branch : trackingBranches) {
                         getIndicator().setText("Deleting " + branch);
                         new GitDeleteBranchOperation(myProject, myGit, myUiHandler, repositories, branch) {
@@ -203,50 +197,60 @@ class GitDeleteRemoteBranchOperation extends GitBranchOperation {
         boolean currentBranchTracksBranchToDelete,
         @Nonnull Collection<GitRepository> repositories
     ) {
-        String title = "Delete Remote Branch";
-        String message = "Delete remote branch " + branchName;
-
-        boolean delete;
-        boolean deleteTracking;
         if (trackingBranches.isEmpty()) {
-            delete = Messages.showYesNoDialog(myProject, message, title, "Delete", "Cancel", UIUtil.getQuestionIcon()) == Messages.YES;
-            deleteTracking = false;
+            String message = "Delete remote branch " + branchName;
+            Boolean delete = DvcsUtil.showAndWait(myProject, () -> createDeleteBox(message).showAsync(myProject));
+            return new DeleteRemoteBranchDecision(Boolean.TRUE.equals(delete), false);
         }
-        else {
-            if (currentBranchTracksBranchToDelete) {
-                message += "\n\nCurrent branch " + GitBranchUtil.getCurrentBranchOrRev(repositories) +
-                    " tracks " + branchName + " but won't be deleted.";
-            }
-            final LocalizeValue checkboxMessage;
-            if (trackingBranches.size() == 1) {
-                checkboxMessage =
-                    LocalizeValue.localizeTODO("Delete tracking local branch " + trackingBranches.iterator().next() + " as well");
-            }
-            else {
-                checkboxMessage = LocalizeValue.localizeTODO("Delete tracking local branches " + StringUtil.join(trackingBranches, ", "));
-            }
 
-            final AtomicBoolean deleteChoice = new AtomicBoolean();
-            delete = MessageDialogBuilder.yesNo(title, message)
-                .project(myProject)
-                .yesText("Delete")
-                .noText("Cancel")
-                .doNotAsk(new DialogWrapper.DoNotAskOption.Adapter() {
-                    @Override
-                    public void rememberChoice(boolean isSelected, int exitCode) {
-                        deleteChoice.set(isSelected);
-                    }
-
-                    @Nonnull
-                    @Override
-                    public LocalizeValue getDoNotShowMessage() {
-                        return checkboxMessage;
-                    }
-                })
-                .show() == Messages.YES;
-            deleteTracking = deleteChoice.get();
+        String message = "Delete remote branch " + branchName;
+        if (currentBranchTracksBranchToDelete) {
+            message += "\n\nCurrent branch " + GitBranchUtil.getCurrentBranchOrRev(repositories) +
+                " tracks " + branchName + " but won't be deleted.";
         }
-        return new DeleteRemoteBranchDecision(delete, deleteTracking);
+        LocalizeValue checkboxMessage = trackingBranches.size() == 1
+            ? LocalizeValue.localizeTODO("Delete tracking local branch " + trackingBranches.iterator().next() + " as well")
+            : LocalizeValue.localizeTODO("Delete tracking local branches " + StringUtil.join(trackingBranches, ", "));
+
+        String finalMessage = message;
+        AtomicBoolean deleteTracking = new AtomicBoolean();
+        Boolean delete = DvcsUtil.showAndWait(myProject, () -> createDeleteBox(finalMessage)
+            .remember(new MessageBoxRemember<>() {
+                @Override
+                public void setValue(Boolean value) {
+                    deleteTracking.set(Boolean.TRUE.equals(value));
+                }
+
+                @Nullable
+                @Override
+                public Boolean getValue() {
+                    return null;
+                }
+
+                @Override
+                public LocalizeValue getMessageText() {
+                    return checkboxMessage;
+                }
+
+                @Override
+                public RememberScope getScope() {
+                    return RememberScope.ON_ACCEPT;
+                }
+            })
+            .showAsync(myProject));
+        return new DeleteRemoteBranchDecision(Boolean.TRUE.equals(delete), deleteTracking.get());
+    }
+
+    @Nonnull
+    private static MessageBoxBuilder<Boolean> createDeleteBox(@Nonnull String message) {
+        return MessageBoxBuilder.<Boolean>create()
+            .asQuestion()
+            .title(LocalizeValue.localizeTODO("Delete Remote Branch"))
+            .text(LocalizeValue.localizeTODO(message))
+            .button(MessageButtonRole.YES, LocalizeValue.localizeTODO("Delete"), Boolean.TRUE)
+            .asDefaultButton()
+            .button(MessageButtonRole.CANCEL, Boolean.FALSE)
+            .asExitButton();
     }
 
     private static class DeleteRemoteBranchDecision {

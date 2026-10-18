@@ -29,10 +29,13 @@ import consulo.platform.base.localize.CommonLocalize;
 import consulo.process.cmd.GeneralCommandLine;
 import consulo.project.Project;
 import consulo.project.ui.notification.NotificationService;
+import consulo.ui.MessageBoxes;
 import consulo.ui.ModalityState;
+import consulo.ui.UIAccess;
 import consulo.ui.annotation.RequiredUIAccess;
 import consulo.ui.ex.awt.*;
 import consulo.ui.ex.awt.event.DocumentAdapter;
+import consulo.ui.ex.awtUnsafe.TargetAWT;
 import consulo.util.dataholder.Key;
 import consulo.versionControlSystem.VcsException;
 import consulo.versionControlSystem.VcsNotifier;
@@ -55,7 +58,6 @@ import jakarta.annotation.Nonnull;
 
 import javax.swing.*;
 import javax.swing.event.DocumentEvent;
-import javax.swing.event.HyperlinkEvent;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -148,51 +150,61 @@ public class GitUnstashDialog extends DialogWrapper {
             }
         });
         myPopStashCheckBox.addActionListener(e -> updateDialogState());
-        myClearButton.addActionListener(e -> {
-            if (Messages.YES == Messages.showYesNoDialog(
-                GitUnstashDialog.this.getContentPane(),
-                GitLocalize.gitUnstashClearConfirmationMessage().get(),
-                GitLocalize.gitUnstashClearConfirmationTitle().get(),
-                UIUtil.getWarningIcon()
-            )) {
-                GitLineHandler h = new GitLineHandler(myProject, getGitRoot(), GitCommand.STASH);
-                h.addParameters("clear");
-                GitHandlerUtil.doSynchronously(h, GitLocalize.unstashClearingStashes(), LocalizeValue.ofNullable(h.printableCommandLine()));
-                refreshStashList();
-                updateDialogState();
-            }
-        });
+        myClearButton.addActionListener(e -> MessageBoxes.yesNo()
+            .asWarning()
+            .title(GitLocalize.gitUnstashClearConfirmationTitle())
+            .text(GitLocalize.gitUnstashClearConfirmationMessage())
+            .showAsync(TargetAWT.from(getWindow()))
+            .whenCompleteAsync((yes, error) -> {
+                if (Boolean.TRUE.equals(yes)) {
+                    GitLineHandler h = new GitLineHandler(myProject, getGitRoot(), GitCommand.STASH);
+                    h.addParameters("clear");
+                    GitHandlerUtil.doSynchronously(
+                        h,
+                        GitLocalize.unstashClearingStashes(),
+                        LocalizeValue.ofNullable(h.printableCommandLine())
+                    );
+                    refreshStashList();
+                    updateDialogState();
+                }
+            }, UIAccess.current()));
         myDropButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
                 final StashInfo stash = getSelectedStash();
-                if (Messages.YES == Messages.showYesNoDialog(
-                    GitUnstashDialog.this.getContentPane(),
-                    GitLocalize.gitUnstashDropConfirmationMessage(stash.getStash(), stash.getMessage()).get(),
-                    GitLocalize.gitUnstashDropConfirmationTitle(stash.getStash()).get(),
-                    UIUtil.getQuestionIcon()
-                )) {
-                    final ModalityState current = myProject.getApplication().getCurrentModalityState();
-                    ProgressManager.getInstance()
-                        .run(new Task.Modal(myProject, LocalizeValue.localizeTODO("Removing stash " + stash.getStash()), false) {
-                            @Override
-                            public void run(@Nonnull ProgressIndicator indicator) {
-                                GitSimpleHandler h = dropHandler(stash.getStash());
-                                try {
-                                    h.run();
-                                    h.unsilence();
-                                }
-                                catch (VcsException ex) {
-                                    project.getApplication().invokeLater(
-                                        () -> GitUIUtil.showOperationError((Project) myProject, ex, h.printableCommandLine()),
-                                        current
-                                    );
-                                }
+                MessageBoxes.yesNo()
+                    .title(GitLocalize.gitUnstashDropConfirmationTitle(stash.getStash()))
+                    .text(GitLocalize.gitUnstashDropConfirmationMessage(stash.getStash(), stash.getMessage()))
+                    .showAsync(TargetAWT.from(getWindow()))
+                    .whenCompleteAsync((yes, error) -> {
+                        if (Boolean.TRUE.equals(yes)) {
+                            dropStash(stash);
+                        }
+                    }, UIAccess.current());
+            }
+
+            @RequiredUIAccess
+            private void dropStash(StashInfo stash) {
+                final ModalityState current = myProject.getApplication().getCurrentModalityState();
+                ProgressManager.getInstance()
+                    .run(new Task.Modal(myProject, LocalizeValue.localizeTODO("Removing stash " + stash.getStash()), false) {
+                        @Override
+                        public void run(@Nonnull ProgressIndicator indicator) {
+                            GitSimpleHandler h = dropHandler(stash.getStash());
+                            try {
+                                h.run();
+                                h.unsilence();
                             }
-                        });
-                    refreshStashList();
-                    updateDialogState();
-                }
+                            catch (VcsException ex) {
+                                project.getApplication().invokeLater(
+                                    () -> GitUIUtil.showOperationError((Project) myProject, ex, h.printableCommandLine()),
+                                    current
+                                );
+                            }
+                        }
+                    });
+                refreshStashList();
+                updateDialogState();
             }
 
             private GitSimpleHandler dropHandler(String stash) {
@@ -857,7 +869,7 @@ public class GitUnstashDialog extends DialogWrapper {
                         "<a href='resolve'>Resolve</a> conflicts."
                 ))
                 .hyperlinkListener((notification, event) -> {
-                    if (event.getEventType() == HyperlinkEvent.EventType.ACTIVATED && "resolve".equals(event.getDescription())) {
+                    if ("resolve".equals(event.getDescription())) {
                         new UnstashConflictResolver(myProject, myRoot, myStashInfo).mergeNoProceed();
                     }
                 })

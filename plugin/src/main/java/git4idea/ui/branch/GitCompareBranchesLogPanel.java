@@ -15,15 +15,16 @@
  */
 package git4idea.ui.branch;
 
-import consulo.application.Application;
+import consulo.disposer.Disposable;
 import consulo.project.Project;
+import consulo.ui.annotation.RequiredUIAccess;
 import consulo.ui.ex.awt.JBLabel;
 import consulo.ui.ex.awt.Splitter;
 import consulo.ui.ex.awt.UIUtil;
+import consulo.ui.ex.awtUnsafe.TargetAWT;
 import consulo.util.collection.ArrayUtil;
-import consulo.versionControlSystem.change.Change;
-import consulo.versionControlSystem.change.ChangesBrowser;
-import consulo.versionControlSystem.change.ChangesBrowserFactory;
+import consulo.versionControlSystem.ui.VcsChangesBrowser;
+import consulo.versionControlSystem.ui.VcsChangesDialogFactory;
 import git4idea.GitCommit;
 import git4idea.repo.GitRepository;
 import git4idea.ui.GitCommitListPanel;
@@ -35,7 +36,6 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.KeyEvent;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 /**
@@ -61,7 +61,8 @@ class GitCompareBranchesLogPanel extends JPanel {
         @Nonnull String branchName,
         @Nonnull String currentBranchName,
         @Nonnull GitCommitCompareInfo compareInfo,
-        @Nonnull GitRepository initialRepo
+        @Nonnull GitRepository initialRepo,
+        @Nonnull Disposable parentDisposable
     ) {
         super(new BorderLayout(UIUtil.DEFAULT_HGAP, UIUtil.DEFAULT_VGAP));
         myProject = project;
@@ -71,23 +72,14 @@ class GitCompareBranchesLogPanel extends JPanel {
         myInitialRepo = initialRepo;
 
         add(createNorthPanel(), BorderLayout.NORTH);
-        add(createCenterPanel());
+        add(createCenterPanel(parentDisposable));
     }
 
-    private JComponent createCenterPanel() {
-        ChangesBrowserFactory browserFactory = Application.get().getInstance(ChangesBrowserFactory.class);
-
-        ChangesBrowser changesBrowser = browserFactory.createChangeBrowser(
-            myProject,
-            null,
-            Collections.<Change>emptyList(),
-            null,
-            false,
-            true,
-            null,
-            ChangesBrowser.MyUseCase.COMMITTED_CHANGES,
-            null
-        );
+    @RequiredUIAccess
+    private JComponent createCenterPanel(Disposable parentDisposable) {
+        VcsChangesBrowser changesBrowser = myProject.getApplication().getInstance(VcsChangesDialogFactory.class)
+            .changesBrowser(myProject)
+            .build(parentDisposable);
 
         myHeadToBranchListPanel = new GitCommitListPanel(
             getHeadToBranchCommits(myInitialRepo),
@@ -119,7 +111,7 @@ class GitCompareBranchesLogPanel extends JPanel {
         };
 
         Splitter rootPanel = new Splitter(false, 0.7f);
-        rootPanel.setSecondComponent(changesBrowser.getComponent());
+        rootPanel.setSecondComponent((JComponent) TargetAWT.to(changesBrowser.getComponent()));
         rootPanel.setFirstComponent(listPanel);
         return rootPanel;
     }
@@ -164,10 +156,10 @@ class GitCompareBranchesLogPanel extends JPanel {
     private static void addSelectionListener(
         @Nonnull GitCommitListPanel sourcePanel,
         @Nonnull GitCommitListPanel otherPanel,
-        @Nonnull ChangesBrowser changesBrowser
+        @Nonnull VcsChangesBrowser changesBrowser
     ) {
         sourcePanel.addListMultipleSelectionListener(changes -> {
-            changesBrowser.setChangesToDisplay(changes);
+            changesBrowser.setChanges(changes);
             otherPanel.clearSelection();
         });
     }

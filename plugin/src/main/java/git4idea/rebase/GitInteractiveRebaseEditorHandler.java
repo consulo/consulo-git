@@ -15,13 +15,12 @@
  */
 package git4idea.rebase;
 
+import consulo.localize.LocalizeValue;
 import consulo.logging.Logger;
-import consulo.platform.base.localize.CommonLocalize;
 import consulo.project.Project;
-import consulo.ui.annotation.RequiredUIAccess;
-import consulo.ui.ex.awt.Messages;
-import consulo.ui.ex.awt.UIUtil;
+import consulo.ui.MessageBoxes;
 import consulo.util.lang.ref.SimpleReference;
+import consulo.versionControlSystem.distributed.DvcsUtil;
 import consulo.virtualFileSystem.VirtualFile;
 import git4idea.DialogManager;
 import git4idea.commands.GitHandler;
@@ -111,10 +110,10 @@ public class GitInteractiveRebaseEditorHandler implements Closeable, GitRebaseEd
      * @return the exit code to be returned from editor
      */
     @Override
-    @RequiredUIAccess
     public int editCommits(String path) {
         ensureOpen();
         SimpleReference<Boolean> isSuccess = new SimpleReference<>();
+        SimpleReference<Boolean> noop = new SimpleReference<>(false);
         myProject.getApplication().invokeAndWait(() -> {
             try {
                 myEditorCancelled = false;
@@ -150,26 +149,8 @@ public class GitInteractiveRebaseEditorHandler implements Closeable, GitRebaseEd
                     }
                     catch (GitInteractiveRebaseFile.NoopException e) {
                         LOG.info("Noop situation while rebasing " + myRoot);
-                        String message =
-                            "There are no commits to rebase because the current branch is directly below the base branch, " +
-                                "or they point to the same commit (the 'noop' situation).\n" +
-                                "Do you want to continue (this will reset the current branch to the base branch)?";
-                        int rebase = DialogManager.showOkCancelDialog(
-                            myProject,
-                            message,
-                            "Git Rebase",
-                            CommonLocalize.buttonOk().get(),
-                            CommonLocalize.buttonCancel().get(),
-                            UIUtil.getQuestionIcon()
-                        );
-                        if (rebase == Messages.OK) {
-                            isSuccess.set(true);
-                            myNoopSituation = true;
-                            return;
-                        }
-                        else {
-                            myEditorCancelled = true;
-                        }
+                        noop.set(true);
+                        return;
                     }
                 }
             }
@@ -178,7 +159,28 @@ public class GitInteractiveRebaseEditorHandler implements Closeable, GitRebaseEd
             }
             isSuccess.set(false);
         });
+        if (noop.get()) {
+            if (confirmNoopRebase()) {
+                myNoopSituation = true;
+                return 0;
+            }
+            myEditorCancelled = true;
+            return GitRebaseEditorMain.ERROR_EXIT_CODE;
+        }
         return (isSuccess.isNull() || !isSuccess.get()) ? GitRebaseEditorMain.ERROR_EXIT_CODE : 0;
+    }
+
+    private boolean confirmNoopRebase() {
+        LocalizeValue message = LocalizeValue.localizeTODO(
+            "There are no commits to rebase because the current branch is directly below the base branch, " +
+                "or they point to the same commit (the 'noop' situation).\n" +
+                "Do you want to continue (this will reset the current branch to the base branch)?"
+        );
+        Boolean ok = DvcsUtil.showAndWait(myProject, () -> MessageBoxes.okCancel()
+            .title(LocalizeValue.localizeTODO("Git Rebase"))
+            .text(message)
+            .showAsync(myProject));
+        return Boolean.TRUE.equals(ok);
     }
 
     /**

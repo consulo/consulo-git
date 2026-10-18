@@ -70,8 +70,8 @@ public class GitCompareBranchesDialog extends DialogWrapper {
     @Override
     @RequiredUIAccess
     protected JComponent createCenterPanel() {
-        myLogPanel = new GitCompareBranchesLogPanel(myProject, myBranchName, myCurrentBranchName, myCompareInfo, myInitialRepo);
-        JPanel diffPanel = new GitCompareBranchesDiffPanel(myProject, myBranchName, myCurrentBranchName, myCompareInfo);
+        myLogPanel = new GitCompareBranchesLogPanel(myProject, myBranchName, myCurrentBranchName, myCompareInfo, myInitialRepo, getDisposable());
+        JPanel diffPanel = new GitCompareBranchesDiffPanel(myProject, myBranchName, myCurrentBranchName, myCompareInfo, getDisposable());
 
         TabbedPaneWrapper wrapper = new TabbedPaneWrapper(getDisposable());
         wrapper.addTab("Log", PlatformIconGroup.vcsBranch(), myLogPanel, null);

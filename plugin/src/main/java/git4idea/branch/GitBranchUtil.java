@@ -20,9 +20,8 @@ import consulo.git.localize.GitLocalize;
 import consulo.localize.LocalizeValue;
 import consulo.logging.Logger;
 import consulo.project.Project;
+import consulo.ui.InputBoxBuilder;
 import consulo.ui.annotation.RequiredUIAccess;
-import consulo.ui.ex.awt.Messages;
-import consulo.ui.ex.awt.UIUtil;
 import consulo.util.collection.ContainerUtil;
 import consulo.versionControlSystem.VcsException;
 import consulo.versionControlSystem.distributed.DvcsUtil;
@@ -46,6 +45,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
 import static consulo.util.lang.ObjectUtil.assertNotNull;
@@ -261,23 +261,21 @@ public class GitBranchUtil {
     /**
      * Shows a message dialog to enter the name of new branch.
      *
-     * @return name of new branch or {@code null} if user has cancelled the dialog.
+     * @return name of new branch; the result fails if user has cancelled the dialog.
      */
-    @Nullable
+    @Nonnull
     @RequiredUIAccess
-    public static String getNewBranchNameFromUser(
+    public static CompletableFuture<String> getNewBranchNameFromUser(
         @Nonnull Project project,
         @Nonnull Collection<GitRepository> repositories,
         @Nonnull LocalizeValue dialogTitle
     ) {
-        return Messages.showInputDialog(
-            project,
-            GitLocalize.dialogMessageEnterTheNameOfNewBranch().get(),
-            dialogTitle.get(),
-            UIUtil.getQuestionIcon(),
-            "",
-            GitNewBranchNameValidator.newInstance(repositories)
-        );
+        return InputBoxBuilder.text()
+            .asQuestion()
+            .title(dialogTitle)
+            .text(GitLocalize.dialogMessageEnterTheNameOfNewBranch())
+            .validator(GitNewBranchNameValidator.newInstance(repositories))
+            .showAsync(project);
     }
 
     /**

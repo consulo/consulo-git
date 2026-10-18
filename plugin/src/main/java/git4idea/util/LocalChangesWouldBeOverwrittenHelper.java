@@ -21,17 +21,20 @@ import consulo.project.ui.notification.Notification;
 import consulo.project.ui.notification.NotificationService;
 import consulo.project.ui.notification.event.NotificationListener;
 import consulo.ui.annotation.RequiredUIAccess;
+import consulo.ui.event.HyperlinkEvent;
 import consulo.ui.ex.awt.DialogBuilder;
 import consulo.ui.ex.awt.MultiLineLabel;
+import consulo.ui.ex.awtUnsafe.TargetAWT;
 import consulo.util.lang.StringUtil;
 import consulo.versionControlSystem.VcsNotifier;
 import consulo.versionControlSystem.change.Change;
-import consulo.versionControlSystem.change.ChangesBrowserFactory;
+import consulo.versionControlSystem.ui.VcsChangesBrowser;
+import consulo.versionControlSystem.ui.VcsChangesDialogFactory;
 import consulo.virtualFileSystem.VirtualFile;
 import git4idea.GitUtil;
 import jakarta.annotation.Nonnull;
 
-import javax.swing.event.HyperlinkEvent;
+import javax.swing.*;
 import java.util.Collection;
 import java.util.List;
 
@@ -69,10 +72,10 @@ public class LocalChangesWouldBeOverwrittenHelper {
         NotificationService.getInstance().newError(VcsNotifier.IMPORTANT_ERROR_NOTIFICATION)
             .title(LocalizeValue.localizeTODO("Git " + StringUtil.capitalize(operationName) + " Failed"))
             .content(getErrorNotificationDescription())
-            .hyperlinkListener(new NotificationListener.Adapter() {
+            .hyperlinkListener(new NotificationListener() {
                 @Override
                 @RequiredUIAccess
-                protected void hyperlinkActivated(@Nonnull Notification notification, @Nonnull HyperlinkEvent e) {
+                public void hyperlinkActivated(@Nonnull Notification notification, @Nonnull HyperlinkEvent e) {
                     showErrorDialog(project, operationName, changes, absolutePaths);
                 }
             })
@@ -106,8 +109,12 @@ public class LocalChangesWouldBeOverwrittenHelper {
         else {
             DialogBuilder builder = new DialogBuilder(project);
             builder.setNorthPanel(new MultiLineLabel(description.get()));
-            ChangesBrowserFactory browserFactory = project.getApplication().getInstance(ChangesBrowserFactory.class);
-            builder.setCenterPanel(browserFactory.createChangeBrowserWithRollback(project, changes).getComponent());
+            VcsChangesBrowser browser = project.getApplication().getInstance(VcsChangesDialogFactory.class)
+                .changesBrowser(project)
+                .withRollback()
+                .build(builder);
+            browser.setChanges(changes);
+            builder.setCenterPanel((JComponent) TargetAWT.to(browser.getComponent()));
             builder.addOkAction();
             builder.setTitle(title);
             builder.show();

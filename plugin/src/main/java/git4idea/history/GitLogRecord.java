@@ -29,6 +29,7 @@ import consulo.project.Project;
 import consulo.versionControlSystem.VcsException;
 import consulo.versionControlSystem.change.Change;
 import consulo.util.collection.ArrayUtil;
+import consulo.util.lang.StringUtil;
 import consulo.versionControlSystem.util.VcsUtil;
 import consulo.versionControlSystem.FilePath;
 import consulo.virtualFileSystem.VirtualFile;
@@ -182,13 +183,7 @@ class GitLogRecord
 	public Collection<String> getRefs()
 	{
 		final String decorate = myOptions.get(REF_NAMES);
-		final String[] refNames = parseRefNames(decorate);
-		final List<String> result = new ArrayList<String>(refNames.length);
-		for(String refName : refNames)
-		{
-			result.add(shortBuffer(refName));
-		}
-		return result;
+		return parseRefNames(decorate);
 	}
 
 	/**
@@ -217,16 +212,39 @@ class GitLogRecord
     }
     return Pair.create(tags, branches);
   }*/
-	private static String[] parseRefNames(final String decorate)
+	private static List<String> parseRefNames(final String decoration)
 	{
-		final int startParentheses = decorate.indexOf("(");
-		final int endParentheses = decorate.indexOf(")");
+		if(decoration == null)
+		{
+			return List.of();
+		}
+		final int startParentheses = decoration.indexOf("(");
+		final int endParentheses = decoration.lastIndexOf(")");
 		if((startParentheses == -1) || (endParentheses == -1))
 		{
-			return ArrayUtil.EMPTY_STRING_ARRAY;
+			return List.of();
 		}
-		final String refs = decorate.substring(startParentheses + 1, endParentheses);
-		return refs.split(", ");
+		String refs = decoration.substring(startParentheses + 1, endParentheses);
+		String[] names = refs.split(", ");
+		List<String> result = new ArrayList<>();
+		for(String item : names)
+		{
+			final String POINTER = " -> ";   // HEAD -> refs/heads/master in Git 2.4.3+
+			if(item.contains(POINTER))
+			{
+				for(String part : StringUtil.split(item, POINTER))
+				{
+					result.add(part.trim());
+				}
+			}
+			else
+			{
+				int colon = item.indexOf(':'); // tags have the "tag:" prefix.
+				String raw = colon > 0 ? item.substring(colon + 1).trim() : item;
+				result.add(raw);
+			}
+		}
+		return result;
 	}
 
 	private static String shortBuffer(String raw)

@@ -16,14 +16,15 @@
 package git4idea.merge;
 
 import consulo.git.localize.GitLocalize;
+import consulo.localize.LocalizeValue;
 import consulo.logging.Logger;
 import consulo.project.Project;
-import consulo.ui.ex.awt.ColumnInfo;
 import consulo.util.collection.ArrayUtil;
 import consulo.versionControlSystem.FilePath;
 import consulo.versionControlSystem.VcsException;
 import consulo.versionControlSystem.history.VcsRevisionNumber;
 import consulo.versionControlSystem.merge.MergeData;
+import consulo.versionControlSystem.merge.MergeInfoColumn;
 import consulo.versionControlSystem.merge.MergeProvider;
 import consulo.versionControlSystem.merge.MergeProvider2;
 import consulo.versionControlSystem.merge.MergeSession;
@@ -318,8 +319,8 @@ public class GitMergeProvider implements MergeProvider2 {
         }
 
         @Override
-        public ColumnInfo[] getMergeInfoColumns() {
-            return new ColumnInfo[]{new StatusColumn(false), new StatusColumn(true)};
+        public List<MergeInfoColumn> getMergeInfoColumns() {
+            return List.of(new StatusColumn(false), new StatusColumn(true));
         }
 
         @Override
@@ -359,37 +360,31 @@ public class GitMergeProvider implements MergeProvider2 {
         /**
          * The column shows either "yours" or "theirs" status
          */
-        class StatusColumn extends ColumnInfo<VirtualFile, String> {
+        class StatusColumn implements MergeInfoColumn {
             /**
              * if false, "yours" status is displayed, otherwise "theirs"
              */
             private final boolean myIsTheirs;
 
             public StatusColumn(boolean isTheirs) {
-                super(isTheirs ? GitLocalize.mergeToolColumnTheirsStatus() : GitLocalize.mergeToolColumnYoursStatus());
                 myIsTheirs = isTheirs;
             }
 
             @Override
-            public String valueOf(VirtualFile file) {
+            public LocalizeValue getName() {
+                return myIsTheirs ? GitLocalize.mergeToolColumnTheirsStatus() : GitLocalize.mergeToolColumnYoursStatus();
+            }
+
+            @Override
+            public LocalizeValue getValue(VirtualFile file) {
                 Conflict c = myConflicts.get(file);
                 assert c != null : "No conflict for the file " + file;
                 Conflict.Status s = myIsTheirs ? c.myStatusTheirs : c.myStatusYours;
                 return switch (s) {
-                    case MODIFIED -> GitLocalize.mergeToolColumnStatusModified().get();
-                    case DELETED -> GitLocalize.mergeToolColumnStatusDeleted().get();
+                    case MODIFIED -> GitLocalize.mergeToolColumnStatusModified();
+                    case DELETED -> GitLocalize.mergeToolColumnStatusDeleted();
                     default -> throw new IllegalStateException("Unknown status " + s + " for file " + file.getPath());
                 };
-            }
-
-            @Override
-            public String getMaxStringValue() {
-                return GitLocalize.mergeToolColumnStatusModified().get();
-            }
-
-            @Override
-            public int getAdditionalWidth() {
-                return 10;
             }
         }
     }

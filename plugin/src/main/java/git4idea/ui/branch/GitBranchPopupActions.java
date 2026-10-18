@@ -18,9 +18,10 @@ package git4idea.ui.branch;
 import consulo.git.localize.GitBranchesLocalize;
 import consulo.localize.LocalizeValue;
 import consulo.project.Project;
+import consulo.ui.InputBoxBuilder;
+import consulo.ui.UIAccess;
 import consulo.ui.annotation.RequiredUIAccess;
 import consulo.ui.ex.action.*;
-import consulo.ui.ex.awt.Messages;
 import consulo.util.collection.ContainerUtil;
 import consulo.versionControlSystem.distributed.DvcsUtil;
 import consulo.versionControlSystem.distributed.branch.BranchActionGroup;
@@ -123,13 +124,14 @@ public class GitBranchPopupActions {
         @Override
         @RequiredUIAccess
         public void actionPerformed(@Nonnull AnActionEvent e) {
-            String name =
-                GitBranchUtil.getNewBranchNameFromUser(myProject, myRepositories, GitBranchesLocalize.dialogTitleCreateNewBranch());
-            if (name != null) {
-                GitBrancher brancher = myProject.getInstance(GitBrancher.class);
-                brancher.checkoutNewBranch(name, myRepositories);
-                reportUsage("git.branch.create.new");
-            }
+            GitBranchUtil.getNewBranchNameFromUser(myProject, myRepositories, GitBranchesLocalize.dialogTitleCreateNewBranch())
+                .whenCompleteAsync((name, error) -> {
+                    if (name != null) {
+                        GitBrancher brancher = myProject.getInstance(GitBrancher.class);
+                        brancher.checkoutNewBranch(name, myRepositories);
+                        reportUsage("git.branch.create.new");
+                    }
+                }, UIAccess.current());
         }
     }
 
@@ -151,17 +153,17 @@ public class GitBranchPopupActions {
         public void actionPerformed(@Nonnull AnActionEvent e) {
             // TODO autocomplete branches, tags.
             // on type check ref validity, on OK check ref existence.
-            String reference = Messages.showInputDialog(
-                myProject,
-                GitBranchesLocalize.dialogMessageEnterReferenceBranchTagNameOrCommitHash().get(),
-                GitBranchesLocalize.dialogTitleCheckout().get(),
-                null
-            );
-            if (reference != null) {
-                GitBrancher brancher = myProject.getInstance(GitBrancher.class);
-                brancher.checkout(reference, true, myRepositories, null);
-                reportUsage("git.branch.checkout.revision");
-            }
+            InputBoxBuilder.text()
+                .title(GitBranchesLocalize.dialogTitleCheckout())
+                .text(GitBranchesLocalize.dialogMessageEnterReferenceBranchTagNameOrCommitHash())
+                .showAsync(myProject)
+                .whenCompleteAsync((reference, error) -> {
+                    if (reference != null) {
+                        GitBrancher brancher = myProject.getInstance(GitBrancher.class);
+                        brancher.checkout(reference, true, myRepositories, null);
+                        reportUsage("git.branch.checkout.revision");
+                    }
+                }, UIAccess.current());
         }
 
         @Override
@@ -344,17 +346,16 @@ public class GitBranchPopupActions {
             @Override
             @RequiredUIAccess
             public void actionPerformed(@Nonnull AnActionEvent e) {
-                String name = Messages.showInputDialog(
-                    myProject,
-                    GitBranchesLocalize.dialogMessageNewBranchName().get(),
-                    GitBranchesLocalize.dialogTitleCheckoutNewBranchFrom0(myBranchName).get(),
-                    null,
-                    "",
-                    GitNewBranchNameValidator.newInstance(myRepositories)
-                );
-                if (name != null) {
-                    myBrancher.checkoutNewBranchStartingFrom(name, myBranchName, myRepositories, null);
-                }
+                InputBoxBuilder.text()
+                    .title(GitBranchesLocalize.dialogTitleCheckoutNewBranchFrom0(myBranchName))
+                    .text(GitBranchesLocalize.dialogMessageNewBranchName())
+                    .validator(GitNewBranchNameValidator.newInstance(myRepositories))
+                    .showAsync(myProject)
+                    .whenCompleteAsync((name, error) -> {
+                        if (name != null) {
+                            myBrancher.checkoutNewBranchStartingFrom(name, myBranchName, myRepositories, null);
+                        }
+                    }, UIAccess.current());
                 reportUsage("git.checkout.as.new.branch");
             }
         }
@@ -367,18 +368,18 @@ public class GitBranchPopupActions {
             @Override
             @RequiredUIAccess
             public void actionPerformed(@Nonnull AnActionEvent e) {
-                String newName = Messages.showInputDialog(
-                    myProject,
-                    GitBranchesLocalize.dialogMessageNewNameForTheBranch0(myBranchName).get(),
-                    GitBranchesLocalize.dialogTitleRenameBranch0(myBranchName).get(),
-                    null,
-                    myBranchName,
-                    GitNewBranchNameValidator.newInstance(myRepositories)
-                );
-                if (newName != null) {
-                    myBrancher.renameBranch(myBranchName, newName, myRepositories);
-                    reportUsage("git.branch.rename");
-                }
+                InputBoxBuilder.text()
+                    .title(GitBranchesLocalize.dialogTitleRenameBranch0(myBranchName))
+                    .text(GitBranchesLocalize.dialogMessageNewNameForTheBranch0(myBranchName))
+                    .value(myBranchName)
+                    .validator(GitNewBranchNameValidator.newInstance(myRepositories))
+                    .showAsync(myProject)
+                    .whenCompleteAsync((newName, error) -> {
+                        if (newName != null) {
+                            myBrancher.renameBranch(myBranchName, newName, myRepositories);
+                            reportUsage("git.branch.rename");
+                        }
+                    }, UIAccess.current());
             }
         }
 
@@ -436,18 +437,18 @@ public class GitBranchPopupActions {
             @Override
             @RequiredUIAccess
             public void actionPerformed(@Nonnull AnActionEvent e) {
-                String name = Messages.showInputDialog(
-                    myProject,
-                    GitBranchesLocalize.dialogMessageNewBranchName().get(),
-                    GitBranchesLocalize.dialogTitleCheckoutRemoteBranch().get(),
-                    null,
-                    guessBranchName(),
-                    GitNewBranchNameValidator.newInstance(myRepositories)
-                );
-                if (name != null) {
-                    myBrancher.checkoutNewBranchStartingFrom(name, myBranchName, myRepositories, null);
-                    reportUsage("git.branch.checkout.remote");
-                }
+                InputBoxBuilder.text()
+                    .title(GitBranchesLocalize.dialogTitleCheckoutRemoteBranch())
+                    .text(GitBranchesLocalize.dialogMessageNewBranchName())
+                    .value(guessBranchName())
+                    .validator(GitNewBranchNameValidator.newInstance(myRepositories))
+                    .showAsync(myProject)
+                    .whenCompleteAsync((name, error) -> {
+                        if (name != null) {
+                            myBrancher.checkoutNewBranchStartingFrom(name, myBranchName, myRepositories, null);
+                            reportUsage("git.branch.checkout.remote");
+                        }
+                    }, UIAccess.current());
             }
 
             private String guessBranchName() {

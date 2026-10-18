@@ -15,18 +15,16 @@
  */
 package git4idea.update;
 
-import consulo.application.ApplicationManager;
-import consulo.application.CommonBundle;
+import consulo.localize.LocalizeValue;
 import consulo.logging.Logger;
 import consulo.project.Project;
-import consulo.ui.ex.awt.Messages;
-import consulo.util.collection.ContainerUtil;
-import consulo.util.lang.ObjectUtil;
+import consulo.ui.MessageBoxBuilder;
+import consulo.ui.MessageButtonRole;
 import consulo.util.lang.ref.Ref;
 import consulo.versionControlSystem.VcsException;
+import consulo.versionControlSystem.distributed.DvcsUtil;
 import consulo.versionControlSystem.log.TimedVcsCommit;
 import consulo.virtualFileSystem.VirtualFile;
-import git4idea.DialogManager;
 import git4idea.history.GitHistoryUtils;
 
 import jakarta.annotation.Nonnull;
@@ -40,33 +38,9 @@ public class GitRebaseOverMergeProblem {
     "It is recommended to merge instead of rebase in this case.";
 
   public enum Decision {
-    MERGE_INSTEAD("Merge"),
-    REBASE_ANYWAY("Rebase Anyway"),
-    CANCEL_OPERATION(CommonBundle.getCancelButtonText());
-
-    private final String myButtonText;
-
-    Decision(@Nonnull String buttonText) {
-      myButtonText = buttonText;
-    }
-
-    @Nonnull
-    private static String[] getButtonTitles() {
-      return ContainerUtil.map2Array(values(), String.class, decision -> decision.myButtonText);
-    }
-
-    @Nonnull
-    public static Decision getOption(final int index) {
-      return ObjectUtil.assertNotNull(ContainerUtil.find(values(), decision -> decision.ordinal() == index));
-    }
-
-    private static int getDefaultButtonIndex() {
-      return MERGE_INSTEAD.ordinal();
-    }
-
-    private static int getFocusedButtonIndex() {
-      return CANCEL_OPERATION.ordinal();
-    }
+    MERGE_INSTEAD,
+    REBASE_ANYWAY,
+    CANCEL_OPERATION
   }
 
   public static boolean hasProblem(@Nonnull Project project,
@@ -90,26 +64,17 @@ public class GitRebaseOverMergeProblem {
   }
 
   @Nonnull
-  public static Decision showDialog() {
-    final Ref<Decision> decision = Ref.create();
-    ApplicationManager.getApplication().invokeAndWait(new Runnable() {
-      @Override
-      public void run() {
-        decision.set(doShowDialog());
-      }
-    }, ApplicationManager.getApplication().getDefaultModalityState());
-    return decision.get();
-  }
-
-  @Nonnull
-  private static Decision doShowDialog() {
-    int decision = DialogManager.showMessage(DESCRIPTION,
-                                             "Rebasing Merge Commits",
-                                             Decision.getButtonTitles(),
-                                             Decision.getDefaultButtonIndex(),
-                                             Decision.getFocusedButtonIndex(),
-                                             Messages.getWarningIcon(),
-                                             null);
-    return Decision.getOption(decision);
+  public static Decision showDialog(@Nonnull Project project) {
+    Decision decision = DvcsUtil.showAndWait(project, () -> MessageBoxBuilder.<Decision>create()
+      .asWarning()
+      .title(LocalizeValue.localizeTODO("Rebasing Merge Commits"))
+      .text(LocalizeValue.localizeTODO(DESCRIPTION))
+      .button(MessageButtonRole.YES, LocalizeValue.localizeTODO("Merge"), Decision.MERGE_INSTEAD)
+      .asDefaultButton()
+      .button(MessageButtonRole.NO, LocalizeValue.localizeTODO("Rebase Anyway"), Decision.REBASE_ANYWAY)
+      .button(MessageButtonRole.CANCEL, Decision.CANCEL_OPERATION)
+      .asExitButton()
+      .showAsync(project));
+    return decision == null ? Decision.CANCEL_OPERATION : decision;
   }
 }

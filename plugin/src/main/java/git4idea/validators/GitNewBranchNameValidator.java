@@ -15,14 +15,21 @@
  */
 package git4idea.validators;
 
-import consulo.ui.ex.InputValidatorEx;
+import consulo.git.localize.GitBranchesLocalize;
+import consulo.localize.LocalizeValue;
+import consulo.ui.InputProblem;
+import consulo.ui.InputValidator;
+import consulo.util.lang.StringUtil;
 import git4idea.GitBranch;
-import git4idea.branch.GitBranchUtil;
 import git4idea.branch.GitBranchesCollection;
 import git4idea.repo.GitRepository;
 import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
+import java.util.function.Function;
 
 /**
  * <p>
@@ -37,10 +44,8 @@ import java.util.Collection;
  *
  * @author Kirill Likhodedov
  */
-public final class GitNewBranchNameValidator implements InputValidatorEx {
-
+public final class GitNewBranchNameValidator implements InputValidator<String> {
   private final Collection<GitRepository> myRepositories;
-  private String myErrorText;
 
   private GitNewBranchNameValidator(@Nonnull Collection<GitRepository> repositories) {
     myRepositories = repositories;
@@ -50,74 +55,57 @@ public final class GitNewBranchNameValidator implements InputValidatorEx {
     return new GitNewBranchNameValidator(repositories);
   }
 
+  @Nullable
   @Override
-  public boolean checkInput(String inputString) {
-    if (!GitRefNameValidator.getInstance().checkInput(inputString)){
-      myErrorText = "Invalid name for branch";
-      return false;
-    }
-    return checkBranchConflict(inputString);
+  public InputProblem validate(String inputString) {
+    InputProblem problem = checkRefName(inputString);
+    return problem != null ? problem : checkBranchConflict(inputString);
   }
 
-  private boolean checkBranchConflict(String inputString) {
-    if (isNotPermitted(inputString) || conflictsWithLocalBranch(inputString) || conflictsWithRemoteBranch(inputString)) {
-      return false;
+  @Nullable
+  private static InputProblem checkRefName(String inputString) {
+    if (StringUtil.isEmptyOrSpaces(inputString)) {
+      return InputProblem.error(GitBranchesLocalize.newBranchDialogErrorBranchNameEmpty());
     }
-    myErrorText = null;
-    return true;
-  }
-
-  private boolean isNotPermitted(@Nonnull String inputString) {
     if (inputString.equalsIgnoreCase("head")) {
-      myErrorText = "Branch name " + inputString + " is not valid";
-      return true;
+      return InputProblem.error(GitBranchesLocalize.newBranchDialogErrorBranchNameHead());
     }
-    return false;
+    if (!GitRefNameValidator.getInstance().checkInput(inputString)) {
+      return InputProblem.error(GitBranchesLocalize.newBranchDialogErrorBranchNameInvalid(inputString));
+    }
+    return null;
   }
 
-  private boolean conflictsWithLocalBranch(String inputString) {
-    return conflictsWithLocalOrRemote(inputString, true, " already exists");
+  @Nullable
+  private InputProblem checkBranchConflict(String inputString) {
+    InputProblem problem = conflictsWithLocalOrRemote(inputString, true, GitBranchesLocalize::newBranchDialogErrorBranchAlreadyExists);
+    return problem != null
+      ? problem
+      : conflictsWithLocalOrRemote(inputString, false, GitBranchesLocalize::newBranchDialogErrorBranchClashesWithRemote);
   }
 
-  private boolean conflictsWithRemoteBranch(String inputString) {
-    return conflictsWithLocalOrRemote(inputString, false, " clashes with remote branch with the same name");
-  }
-
-  private boolean conflictsWithLocalOrRemote(String inputString, boolean local, String message) {
+  @Nullable
+  private InputProblem conflictsWithLocalOrRemote(String inputString, boolean local, Function<String, LocalizeValue> message) {
+    List<GitRepository> conflicting = new ArrayList<>();
     for (GitRepository repository : myRepositories) {
       GitBranchesCollection branchesCollection = repository.getBranches();
       Collection<? extends GitBranch> branches = local ? branchesCollection.getLocalBranches() : branchesCollection.getRemoteBranches();
       for (GitBranch branch : branches) {
         if (branch.getName().equals(inputString)) {
-          myErrorText = "Branch name " + inputString + message;
-          if (myRepositories.size() > 1 && !allReposHaveBranch(inputString, local)) {
-            myErrorText += " in repository " + repository.getPresentableUrl();
-          }
-          return true;
+          conflicting.add(repository);
+          break;
         }
       }
     }
-    return false;
-  }
-
-  private boolean allReposHaveBranch(String inputString, boolean local) {
-    for (GitRepository repository : myRepositories) {
-      GitBranchesCollection branchesCollection = repository.getBranches();
-      Collection<? extends GitBranch> branches = local ? branchesCollection.getLocalBranches() : branchesCollection.getRemoteBranches();
-      if (!GitBranchUtil.convertBranchesToNames(branches).contains(inputString)) {
-        return false;
-      }
+    if (conflicting.isEmpty()) {
+      return null;
     }
-    return true;
-  }
-
-  @Override
-  public boolean canClose(String inputString) {
-    return checkInput(inputString);
-  }
-
-  @Override
-  public String getErrorText(String inputString) {
-    return myErrorText;
+    LocalizeValue text = message.apply(inputString);
+    if (myRepositories.size() > conflicting.size()) {
+      String repositories = StringUtil.join(conflicting, GitRepository::getPresentableUrl, ", ");
+      LocalizeValue partial = GitBranchesLocalize.newBranchDialogErrorBranchInRepository(text, repositories);
+      return local ? InputProblem.warning(partial) : InputProblem.error(partial);
+    }
+    return InputProblem.error(text);
   }
 }

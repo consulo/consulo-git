@@ -21,11 +21,11 @@ import consulo.git.localize.GitLocalize;
 import consulo.localize.LocalizeValue;
 import consulo.project.Project;
 import consulo.project.ui.notification.NotificationService;
+import consulo.ui.MessageBoxes;
 import consulo.ui.annotation.RequiredUIAccess;
 import consulo.ui.ex.awt.DialogWrapper;
 import consulo.ui.ex.awt.JBScrollPane;
 import consulo.ui.ex.awt.JBUI;
-import consulo.ui.ex.awt.Messages;
 import consulo.ui.ex.awt.event.DocumentAdapter;
 import consulo.util.io.FileUtil;
 import consulo.versionControlSystem.VcsException;
@@ -168,11 +168,9 @@ public class GitTagDialog extends DialogWrapper {
                 }
             }
             catch (IOException ex) {
-                Messages.showErrorDialog(
-                    myProject,
-                    GitLocalize.tagErrorCreatingMessageFileMessage(ex.toString()).get(),
-                    GitLocalize.tagErrorCreatingMessageFileTitle().get()
-                );
+                MessageBoxes.okError(GitLocalize.tagErrorCreatingMessageFileMessage(ex.toString()))
+                    .title(GitLocalize.tagErrorCreatingMessageFileTitle())
+                    .showAsync(myProject);
                 return;
             }
         }

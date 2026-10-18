@@ -22,7 +22,6 @@ import consulo.logging.Logger;
 import consulo.project.Project;
 import consulo.ui.ex.action.ActionManager;
 import consulo.ui.ex.action.AnAction;
-import consulo.ui.ex.awt.ColumnInfo;
 import consulo.util.collection.ArrayUtil;
 import consulo.util.lang.StringUtil;
 import consulo.versionControlSystem.FilePath;
@@ -47,7 +46,6 @@ import jakarta.inject.Singleton;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 
-import javax.swing.*;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Predicate;
@@ -71,11 +69,8 @@ public class GitHistoryProvider
     }
 
     @Override
-    public VcsDependentHistoryComponents getUICustomization(
-        final VcsHistorySession session,
-        JComponent forShortcutRegistration
-    ) {
-        return VcsDependentHistoryComponents.createOnlyColumns(new ColumnInfo[0]);
+    public VcsDependentHistoryComponents getUICustomization(VcsHistorySession session) {
+        return VcsDependentHistoryComponents.empty();
     }
 
     @Override

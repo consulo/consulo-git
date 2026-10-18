@@ -29,6 +29,7 @@ import consulo.project.ui.notification.Notification;
 import consulo.project.ui.notification.NotificationService;
 import consulo.project.ui.notification.event.NotificationListener;
 import consulo.ui.annotation.RequiredUIAccess;
+import consulo.ui.event.HyperlinkEvent;
 import consulo.util.collection.MultiMap;
 import consulo.util.lang.ExceptionUtil;
 import consulo.util.lang.StringUtil;
@@ -57,7 +58,6 @@ import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import org.jetbrains.annotations.Contract;
 
-import javax.swing.event.HyperlinkEvent;
 import java.util.*;
 
 import static consulo.util.collection.ContainerUtil.*;
@@ -386,9 +386,9 @@ public class GitRebaseProcess {
         myNotificationService.newInfo(VcsNotifier.STANDARD_NOTIFICATION)
             .title(LocalizeValue.localizeTODO("Rebase Successful"))
             .content(LocalizeValue.localizeTODO(message))
-            .hyperlinkListener(new NotificationListener.Adapter() {
+            .hyperlinkListener(new NotificationListener() {
                 @Override
-                protected void hyperlinkActivated(@Nonnull Notification notification, @Nonnull HyperlinkEvent e) {
+                public void hyperlinkActivated(@Nonnull Notification notification, @Nonnull HyperlinkEvent e) {
                     handlePossibleCommitLinks(e.getDescription(), skippedCommits);
                 }
             })
@@ -585,7 +585,7 @@ public class GitRebaseProcess {
         UNRESOLVED_REMAIN
     }
 
-    private class RebaseNotificationListener extends NotificationListener.Adapter {
+    private class RebaseNotificationListener implements NotificationListener {
         @Nonnull
         private final GitRepository myCurrentRepository;
         @Nonnull
@@ -601,7 +601,7 @@ public class GitRebaseProcess {
 
         @Override
         @RequiredUIAccess
-        protected void hyperlinkActivated(@Nonnull Notification notification, @Nonnull HyperlinkEvent e) {
+        public void hyperlinkActivated(@Nonnull Notification notification, @Nonnull HyperlinkEvent e) {
             String href = e.getDescription();
             if ("abort".equals(href)) {
                 abort();

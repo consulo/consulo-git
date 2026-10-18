@@ -21,9 +21,10 @@ import java.util.List;
 import jakarta.annotation.Nonnull;
 
 import consulo.application.ApplicationManager;
+import consulo.localize.LocalizeValue;
 import consulo.logging.Logger;
 import consulo.project.Project;
-import consulo.ui.ex.awt.Messages;
+import consulo.ui.MessageBoxes;
 import consulo.util.lang.Couple;
 import consulo.versionControlSystem.VcsException;
 import consulo.versionControlSystem.change.Change;
@@ -210,7 +211,10 @@ public final class GitBranchWorker
 	{
 		if(compareInfo.isEmpty())
 		{
-			Messages.showInfoMessage(myProject, String.format("<html>There are no changes between <code>%s</code> and <code>%s</code></html>", currentBranch, branchName), "No Changes Detected");
+			MessageBoxes.okInfo(LocalizeValue.localizeTODO(String.format("There are no changes between <code>%s</code> and <code>%s</code>", currentBranch, branchName)))
+				.richText()
+				.title(LocalizeValue.localizeTODO("No Changes Detected"))
+				.showAsync(myProject);
 		}
 		else
 		{

@@ -22,13 +22,15 @@ import consulo.disposer.Disposer;
 import consulo.localize.LocalizeValue;
 import consulo.project.Project;
 import consulo.project.ui.notification.NotificationService;
+import consulo.ui.MessageBoxBuilder;
+import consulo.ui.MessageButtonRole;
 import consulo.ui.annotation.RequiredUIAccess;
-import consulo.ui.ex.awt.Messages;
-import consulo.ui.ex.awt.UIUtil;
-import consulo.util.lang.xml.XmlStringUtil;
+import consulo.ui.ex.awtUnsafe.TargetAWT;
 import consulo.versionControlSystem.VcsNotifier;
 import consulo.versionControlSystem.change.Change;
-import consulo.versionControlSystem.change.ChangesBrowserFactory;
+import consulo.versionControlSystem.distributed.DvcsUtil;
+import consulo.versionControlSystem.ui.VcsChangesBrowser;
+import consulo.versionControlSystem.ui.VcsChangesDialogFactory;
 import consulo.virtualFileSystem.VirtualFile;
 import git4idea.DialogManager;
 import git4idea.GitCommit;
@@ -42,7 +44,6 @@ import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 
 import javax.swing.*;
-import javax.swing.event.HyperlinkEvent;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -71,23 +72,26 @@ public class GitBranchUiHandlerImpl implements GitBranchUiHandler {
         @Nonnull LocalizeValue message,
         @Nonnull LocalizeValue rollbackProposal
     ) {
-        AtomicBoolean ok = new AtomicBoolean();
-        UIUtil.invokeAndWaitIfNeeded((Runnable) () -> {
-            StringBuilder description = new StringBuilder();
-            if (message.isNotEmpty()) {
-                description.append(message).append("<br/>");
-            }
-            description.append(rollbackProposal);
-            ok.set(Messages.YES == DialogManager.showOkCancelDialog(
-                myProject,
-                XmlStringUtil.wrapInHtml(description),
-                title.get(),
-                "Rollback",
-                "Don't rollback",
-                UIUtil.getErrorIcon()
-            ));
-        });
-        return ok.get();
+        StringBuilder description = new StringBuilder();
+        if (message.isNotEmpty()) {
+            description.append(message.get()).append("<br/>");
+        }
+        description.append(rollbackProposal.get());
+        return askRollback(title, LocalizeValue.of(description.toString()));
+    }
+
+    private boolean askRollback(@Nonnull LocalizeValue title, @Nonnull LocalizeValue description) {
+        Boolean rollback = DvcsUtil.showAndWait(myProject, () -> MessageBoxBuilder.<Boolean>create()
+            .asError()
+            .richText()
+            .title(title)
+            .text(description)
+            .button(MessageButtonRole.OK, LocalizeValue.localizeTODO("Rollback"), Boolean.TRUE)
+            .asDefaultButton()
+            .button(MessageButtonRole.CANCEL, LocalizeValue.localizeTODO("Don't rollback"), Boolean.FALSE)
+            .asExitButton()
+            .showAsync(myProject));
+        return Boolean.TRUE.equals(rollback);
     }
 
     @Override
@@ -96,7 +100,7 @@ public class GitBranchUiHandlerImpl implements GitBranchUiHandler {
             .title(unmergedFilesErrorTitle(operationName))
             .content(unmergedFilesErrorNotificationDescription(operationName))
             .hyperlinkListener((notification, event) -> {
-                if (event.getEventType() == HyperlinkEvent.EventType.ACTIVATED && event.getDescription().equals("resolve")) {
+                if (event.getDescription().equals("resolve")) {
                     GitConflictResolver.Params params = new GitConflictResolver.Params()
                         .setMergeDescription(LocalizeValue.localizeTODO(String.format(
                             "The following files have unresolved conflicts. You need to resolve them before %s.",
@@ -111,25 +115,12 @@ public class GitBranchUiHandlerImpl implements GitBranchUiHandler {
 
     @Override
     public boolean showUnmergedFilesMessageWithRollback(@Nonnull LocalizeValue operationName, @Nonnull LocalizeValue rollbackProposal) {
-        AtomicBoolean ok = new AtomicBoolean();
-        UIUtil.invokeAndWaitIfNeeded((Runnable) () -> {
-            String description = String.format(
-                "<html>You have to resolve all merge conflicts before %s.<br/>%s</html>",
-                operationName,
-                rollbackProposal
-            );
-            // suppressing: this message looks ugly if capitalized by words
-            //noinspection DialogTitleCapitalization
-            ok.set(Messages.YES == DialogManager.showOkCancelDialog(
-                myProject,
-                description,
-                unmergedFilesErrorTitle(operationName).get(),
-                "Rollback",
-                "Don't rollback",
-                UIUtil.getErrorIcon()
-            ));
-        });
-        return ok.get();
+        LocalizeValue description = LocalizeValue.localizeTODO(String.format(
+            "You have to resolve all merge conflicts before %s.<br/>%s",
+            operationName,
+            rollbackProposal
+        ));
+        return askRollback(unmergedFilesErrorTitle(operationName), description);
     }
 
     @Override
@@ -176,8 +167,12 @@ public class GitBranchUiHandlerImpl implements GitBranchUiHandler {
         try {
             JComponent fileBrowser;
             if (!changes.isEmpty()) {
-                ChangesBrowserFactory browserFactory = project.getApplication().getInstance(ChangesBrowserFactory.class);
-                fileBrowser = browserFactory.createChangeBrowserWithRollback(project, changes).getComponent();
+                VcsChangesBrowser browser = project.getApplication().getInstance(VcsChangesDialogFactory.class)
+                    .changesBrowser(project)
+                    .withRollback()
+                    .build(browserDisposable);
+                browser.setChanges(changes);
+                fileBrowser = (JComponent) TargetAWT.to(browser.getComponent());
             }
             else {
                 fileBrowser = new GitSimplePathsBrowser(project, paths, browserDisposable);

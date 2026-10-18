@@ -33,9 +33,9 @@ import consulo.project.ui.notification.Notification;
 import consulo.project.ui.notification.NotificationService;
 import consulo.project.ui.notification.NotificationType;
 import consulo.project.ui.notification.event.NotificationListener;
+import consulo.ui.MessageBoxes;
 import consulo.ui.annotation.RequiredUIAccess;
-import consulo.ui.ex.awt.Messages;
-import consulo.ui.ex.awt.UIUtil;
+import consulo.ui.event.HyperlinkEvent;
 import consulo.ui.image.Image;
 import consulo.versionControlSystem.*;
 import consulo.versionControlSystem.change.ChangeProvider;
@@ -79,7 +79,6 @@ import jakarta.annotation.Nullable;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
-import javax.swing.event.HyperlinkEvent;
 import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -370,7 +369,10 @@ public class GitVcs extends AbstractVcs<CommittedChangeList> {
                 buffer.append(exception.getMessage());
             }
             String msg = buffer.toString();
-            UIUtil.invokeLaterIfNeeded(() -> Messages.showErrorDialog(myProject, msg, GitLocalize.errorDialogTitle().get()));
+            myProject.getApplication().invokeLater(
+                () -> MessageBoxes.okError(LocalizeValue.of(msg)).title(GitLocalize.errorDialogTitle()).showAsync(myProject),
+                myProject.getDisposed()
+            );
         }
     }
 
@@ -416,9 +418,9 @@ public class GitVcs extends AbstractVcs<CommittedChangeList> {
                 myNotificationService.newError(VcsNotifier.IMPORTANT_ERROR_NOTIFICATION)
                     .title(LocalizeValue.localizeTODO("Unsupported Git version"))
                     .content(LocalizeValue.localizeTODO(message))
-                    .hyperlinkListener(new NotificationListener.Adapter() {
+                    .hyperlinkListener(new NotificationListener() {
                         @Override
-                        protected void hyperlinkActivated(@Nonnull Notification notification, @Nonnull HyperlinkEvent e) {
+                        public void hyperlinkActivated(@Nonnull Notification notification, @Nonnull HyperlinkEvent e) {
                             if (SETTINGS_LINK.equals(e.getDescription())) {
                                 ShowSettingsUtil.getInstance().showSettingsDialog(myProject, getConfigurable().getDisplayName().get());
                             }

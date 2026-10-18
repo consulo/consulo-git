@@ -54,7 +54,6 @@ import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 
 import java.util.*;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static consulo.util.collection.ContainerUtil.filter;
@@ -411,7 +410,7 @@ public class GitPushOperation {
             initialSettings,
             rebaseOverMergeProblemDetected
         );
-        UpdateMethod updateMethod = myProject.getUIAccess().giveAsync(dialog::showAsync).thenCompose(Function.identity()).join();
+        UpdateMethod updateMethod = DvcsUtil.showAndWait(myProject, dialog::showAsync);
         if (updateMethod == null) {
             return null;
         }

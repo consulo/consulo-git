@@ -18,6 +18,7 @@ package git4idea.actions;
 import consulo.annotation.component.ActionImpl;
 import consulo.git.localize.GitLocalize;
 import consulo.project.Project;
+import consulo.ui.UIAccess;
 import consulo.ui.annotation.RequiredUIAccess;
 import consulo.versionControlSystem.log.Hash;
 import git4idea.branch.GitBranchUtil;
@@ -39,14 +40,15 @@ public class GitCreateNewBranchAction extends GitLogSingleCommitAction {
     protected void actionPerformed(@Nonnull GitRepository repository, @Nonnull Hash commit) {
         Project project = repository.getProject();
         String reference = commit.asString();
-        String name = GitBranchUtil.getNewBranchNameFromUser(
+        GitBranchUtil.getNewBranchNameFromUser(
             project,
             Collections.singleton(repository),
             GitLocalize.dialogTitleCheckoutNewBranchFrom0(reference)
-        );
-        if (name != null) {
-            GitBrancher brancher = project.getInstance(GitBrancher.class);
-            brancher.checkoutNewBranchStartingFrom(name, reference, Collections.singletonList(repository), null);
-        }
+        ).whenCompleteAsync((name, error) -> {
+            if (name != null) {
+                GitBrancher brancher = project.getInstance(GitBrancher.class);
+                brancher.checkoutNewBranchStartingFrom(name, reference, Collections.singletonList(repository), null);
+            }
+        }, UIAccess.current());
     }
 }

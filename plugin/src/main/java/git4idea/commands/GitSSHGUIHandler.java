@@ -20,10 +20,11 @@ import consulo.credentialStorage.ui.PasswordSafePromptDialog;
 import consulo.git.localize.GitLocalize;
 import consulo.localize.LocalizeValue;
 import consulo.project.Project;
+import consulo.ui.MessageBoxes;
 import consulo.ui.annotation.RequiredUIAccess;
 import consulo.ui.ex.awt.DialogWrapper;
-import consulo.ui.ex.awt.Messages;
 import consulo.ui.ex.awt.UIUtil;
+import consulo.versionControlSystem.distributed.DvcsUtil;
 import git4idea.config.SSHConnectionSettings;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
@@ -32,7 +33,6 @@ import javax.swing.*;
 import javax.swing.text.JTextComponent;
 import java.awt.*;
 import java.util.Vector;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -56,12 +56,11 @@ public class GitSSHGUIHandler {
         final LocalizeValue message = isNew
             ? GitLocalize.sshNewHostKey(hostname, port, fingerprint, serverHostKeyAlgorithm)
             : GitLocalize.sshChangedHostKey(hostname, port, fingerprint, serverHostKeyAlgorithm);
-        final AtomicBoolean rc = new AtomicBoolean();
-        Application.get().invokeAndWait(
-            () -> rc.set(Messages.YES == Messages.showYesNoDialog(myProject, message.get(), GitLocalize.sshConfirmKeyTitile().get(), null)),
-            Application.get().getAnyModalityState()
-        );
-        return rc.get();
+        Boolean accepted = DvcsUtil.showAndWait(myProject, () -> MessageBoxes.yesNo()
+            .title(GitLocalize.sshConfirmKeyTitile())
+            .text(message)
+            .showAsync(myProject));
+        return Boolean.TRUE.equals(accepted);
     }
 
     @Nullable
@@ -89,8 +88,7 @@ public class GitSSHGUIHandler {
     private String processLastError(boolean resetPassword, final String lastError) {
         String error;
         if (lastError != null && lastError.length() != 0 && !resetPassword) {
-            Application application = Application.get();
-            application.invokeAndWait(() -> showError(lastError), application.getAnyModalityState());
+            showError(lastError);
             error = null;
         }
         else {
@@ -99,10 +97,11 @@ public class GitSSHGUIHandler {
         return error;
     }
 
-    @RequiredUIAccess
-    private void showError(final String lastError) {
-        if (lastError.length() != 0) {
-            Messages.showErrorDialog(myProject, lastError, GitLocalize.sshErrorTitle().get());
+    private void showError(String lastError) {
+        if (!lastError.isEmpty()) {
+            DvcsUtil.showAndWait(myProject, () -> MessageBoxes.okError(LocalizeValue.of(lastError))
+                .title(GitLocalize.sshErrorTitle())
+                .showAsync(myProject));
         }
     }
 
@@ -131,11 +130,13 @@ public class GitSSHGUIHandler {
         final Vector<Boolean> echo,
         final String lastError
     ) {
+        if (lastError != null) {
+            showError(lastError);
+        }
         final AtomicReference<Vector<String>> rc = new AtomicReference<>();
         Application application = Application.get();
         application.invokeAndWait(
             () -> {
-                showError(lastError);
                 GitSSHKeyboardInteractiveDialog dialog =
                     new GitSSHKeyboardInteractiveDialog(name, numPrompts, instruction, prompt, echo, username);
                 if (dialog.showAndGet()) {
@@ -192,7 +193,10 @@ public class GitSSHGUIHandler {
         SSHConnectionSettings s = SSHConnectionSettings.getInstance();
         s.setLastSuccessful(userName, method);
         if (error != null && error.length() != 0) {
-            UIUtil.invokeLaterIfNeeded(() -> showError(error));
+            myProject.getApplication().invokeLater(
+                () -> MessageBoxes.okError(LocalizeValue.of(error)).title(GitLocalize.sshErrorTitle()).showAsync(myProject),
+                myProject.getDisposed()
+            );
         }
     }
 

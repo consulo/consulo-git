@@ -21,9 +21,9 @@ import consulo.localize.LocalizeValue;
 import consulo.project.Project;
 import consulo.project.ui.notification.NotificationService;
 import consulo.project.ui.notification.NotificationType;
+import consulo.ui.MessageBoxes;
 import consulo.ui.annotation.RequiredUIAccess;
 import consulo.ui.ex.awt.ListCellRendererWrapper;
-import consulo.ui.ex.awt.Messages;
 import consulo.util.lang.StringUtil;
 import consulo.versionControlSystem.AbstractVcsHelper;
 import consulo.versionControlSystem.VcsException;
@@ -269,7 +269,7 @@ public class GitUIUtil {
      */
     @RequiredUIAccess
     public static void showOperationError(Project project, @Nonnull LocalizeValue operation, @Nonnull LocalizeValue message) {
-        Messages.showErrorDialog(project, message.get(), GitLocalize.errorOccurredDuring(operation).get());
+        MessageBoxes.okError(message).title(GitLocalize.errorOccurredDuring(operation)).showAsync(project);
     }
 
     /**
@@ -283,7 +283,7 @@ public class GitUIUtil {
     @DeprecationInfo("Use variant with LocalizeValue")
     @RequiredUIAccess
     public static void showOperationError(Project project, String operation, String message) {
-        Messages.showErrorDialog(project, message, GitLocalize.errorOccurredDuring(operation).get());
+        showOperationError(project, LocalizeValue.of(operation), LocalizeValue.of(message));
     }
 
     /**

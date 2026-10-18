@@ -41,7 +41,6 @@ import git4idea.util.GitUIUtil;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 
-import javax.swing.event.HyperlinkEvent;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -208,18 +207,16 @@ public class GitStashChangesSaver extends GitChangesSaver {
                         "<a href='resolve'>Resolve</a> conflicts and drop the stash."
                 ))
                 .hyperlinkListener((notification, event) -> {
-                    if (event.getEventType() == HyperlinkEvent.EventType.ACTIVATED) {
-                        if (event.getDescription().equals("saver")) {
-                            // we don't use #showSavedChanges to specify unmerged root first
-                            GitUnstashDialog.showUnstashDialog(
-                                myProject,
-                                new ArrayList<>(myStashedRoots),
-                                myStashedRoots.iterator().next()
-                            );
-                        }
-                        else if (event.getDescription().equals("resolve")) {
-                            mergeNoProceed();
-                        }
+                    if (event.getDescription().equals("saver")) {
+                        // we don't use #showSavedChanges to specify unmerged root first
+                        GitUnstashDialog.showUnstashDialog(
+                            myProject,
+                            new ArrayList<>(myStashedRoots),
+                            myStashedRoots.iterator().next()
+                        );
+                    }
+                    else if (event.getDescription().equals("resolve")) {
+                        mergeNoProceed();
                     }
                 })
                 .notify(myProject);

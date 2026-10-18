@@ -23,6 +23,7 @@ import consulo.project.ui.notification.Notification;
 import consulo.project.ui.notification.NotificationService;
 import consulo.project.ui.notification.event.NotificationListener;
 import consulo.ui.annotation.RequiredUIAccess;
+import consulo.ui.event.HyperlinkEvent;
 import consulo.util.collection.ContainerUtil;
 import consulo.util.lang.StringUtil;
 import consulo.versionControlSystem.AbstractVcsHelper;
@@ -40,7 +41,6 @@ import git4idea.repo.GitRepositoryManager;
 import git4idea.util.StringScanner;
 import jakarta.annotation.Nonnull;
 
-import javax.swing.event.HyperlinkEvent;
 import java.io.File;
 import java.util.*;
 
@@ -277,8 +277,8 @@ public class GitConflictResolver {
     private class ResolveNotificationListener implements NotificationListener {
         @Override
         @RequiredUIAccess
-        public void hyperlinkUpdate(@Nonnull Notification notification, @Nonnull HyperlinkEvent event) {
-            if (event.getEventType() == HyperlinkEvent.EventType.ACTIVATED && event.getDescription().equals("resolve")) {
+        public void hyperlinkActivated(@Nonnull Notification notification, @Nonnull HyperlinkEvent event) {
+            if (event.getDescription().equals("resolve")) {
                 notification.expire();
                 myProject.getApplication().executeOnPooledThread((Runnable) GitConflictResolver.this::mergeNoProceed);
             }

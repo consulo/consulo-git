@@ -181,7 +181,7 @@ public class GitUpdateProcess {
         if (myCheckRebaseOverMergeProblem) {
             Collection<GitRepository> problematicRoots = findRootsRebasingOverMerge(updaters);
             if (!problematicRoots.isEmpty()) {
-                GitRebaseOverMergeProblem.Decision decision = GitRebaseOverMergeProblem.showDialog();
+                GitRebaseOverMergeProblem.Decision decision = GitRebaseOverMergeProblem.showDialog(myProject);
                 if (decision == GitRebaseOverMergeProblem.Decision.MERGE_INSTEAD) {
                     for (GitRepository repo : problematicRoots) {
                         VirtualFile root = repo.getRoot();

@@ -54,3 +54,15 @@ dialog.title.create.new.branch:
     text: Create New Branch
 dialog.title.rename.branch.0:
     text: Rename Branch {0}
+new.branch.dialog.error.branch.already.exists:
+    text: Branch name {0} already exists
+new.branch.dialog.error.branch.clashes.with.remote:
+    text: Branch name {0} conflicts with remote branch with the same name
+new.branch.dialog.error.branch.in.repository:
+    text: '{0} in repository {1}'
+new.branch.dialog.error.branch.name.empty:
+    text: Specify name for the new branch
+new.branch.dialog.error.branch.name.head:
+    text: HEAD is a reserved keyword
+new.branch.dialog.error.branch.name.invalid:
+    text: Branch name {0} is not valid

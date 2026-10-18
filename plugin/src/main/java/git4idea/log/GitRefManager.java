@@ -22,7 +22,7 @@ import jakarta.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.awt.*;
+import consulo.ui.color.ColorValue;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
@@ -332,10 +332,10 @@ public class GitRefManager implements VcsLogRefManager {
         return OTHER;
     }
 
-    private static record SimpleRefType(boolean isBranch, @Nonnull Color color, @Nonnull String typeName) implements VcsRefType {
+    private static record SimpleRefType(boolean isBranch, @Nonnull ColorValue color, @Nonnull String typeName) implements VcsRefType {
         @Nonnull
         @Override
-        public Color getBackgroundColor() {
+        public ColorValue getBackgroundColor() {
             return color;
         }
 
@@ -374,7 +374,7 @@ public class GitRefManager implements VcsLogRefManager {
 
         @Nonnull
         @Override
-        public List<Color> getColors() {
+        public List<ColorValue> getColors() {
             return Collections.singletonList(VcsLogStandardColors.Refs.TIP);
         }
     }
@@ -407,7 +407,7 @@ public class GitRefManager implements VcsLogRefManager {
 
         @Nonnull
         @Override
-        public List<Color> getColors() {
+        public List<ColorValue> getColors() {
             return Collections.singletonList(VcsLogStandardColors.Refs.BRANCH_REF);
         }
     }

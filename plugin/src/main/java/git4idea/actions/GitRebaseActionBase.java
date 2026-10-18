@@ -17,8 +17,8 @@ package git4idea.actions;
 
 import consulo.git.localize.GitLocalize;
 import consulo.project.Project;
+import consulo.ui.MessageBoxes;
 import consulo.ui.annotation.RequiredUIAccess;
-import consulo.ui.ex.awt.Messages;
 import consulo.versionControlSystem.VcsException;
 import consulo.virtualFileSystem.VirtualFile;
 import git4idea.GitUtil;
@@ -95,29 +95,23 @@ public abstract class GitRebaseActionBase extends GitRepositoryAction {
         GitRebaseLineListener.Result result = resultListener.getResult();
         switch (result.status) {
             case CONFLICT:
-                Messages.showErrorDialog(
-                    project,
-                    GitLocalize.rebaseResultConflict(result.current, result.total).get(),
-                    GitLocalize.rebaseResultConflictTitle().get()
-                );
+                MessageBoxes.okError(GitLocalize.rebaseResultConflict(result.current, result.total))
+                    .title(GitLocalize.rebaseResultConflictTitle())
+                    .showAsync(project);
                 break;
             case ERROR:
-                Messages.showErrorDialog(
-                    project,
-                    GitLocalize.rebaseResultError(result.current, result.total).get(),
-                    GitLocalize.rebaseResultErrorTitle().get()
-                );
+                MessageBoxes.okError(GitLocalize.rebaseResultError(result.current, result.total))
+                    .title(GitLocalize.rebaseResultErrorTitle())
+                    .showAsync(project);
                 break;
             case CANCELLED:
                 // we do not need to show a message if editing was cancelled.
                 exceptions.clear();
                 return;
             case EDIT:
-                Messages.showInfoMessage(
-                    project,
-                    GitLocalize.rebaseResultAmend(result.current, result.total).get(),
-                    GitLocalize.rebaseResultAmendTitle().get()
-                );
+                MessageBoxes.okInfo(GitLocalize.rebaseResultAmend(result.current, result.total))
+                    .title(GitLocalize.rebaseResultAmendTitle())
+                    .showAsync(project);
                 break;
         }
     }

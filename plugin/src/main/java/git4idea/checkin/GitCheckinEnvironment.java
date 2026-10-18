@@ -21,7 +21,8 @@ import consulo.annotation.component.ServiceImpl;
 import consulo.application.Application;
 import consulo.git.localize.GitLocalize;
 import consulo.application.Application;
-import consulo.language.editor.ui.awt.*;
+import consulo.language.editor.ui.EditorBox;
+import consulo.language.editor.ui.EditorBoxBuilderFactory;
 import consulo.language.editor.ui.textCompletion.ValuesCompletionProvider;
 import consulo.language.editor.ui.textCompletion.DefaultTextCompletionValueDescriptor;
 import consulo.language.editor.ui.textCompletion.TextCompletionProvider;
@@ -29,17 +30,16 @@ import consulo.localize.LocalizeValue;
 import consulo.platform.Platform;
 import consulo.platform.base.localize.CommonLocalize;
 import consulo.project.Project;
+import consulo.ui.CheckBox;
+import consulo.ui.Component;
 import consulo.ui.Label;
 import consulo.ui.annotation.RequiredUIAccess;
-import consulo.ui.ex.awt.GridBag;
-import consulo.ui.ex.awt.JBCheckBox;
-import consulo.ui.ex.awt.JBUI;
-import consulo.ui.ex.awtUnsafe.TargetAWT;
+import consulo.ui.layout.DockLayout;
+import consulo.ui.layout.VerticalLayout;
 import consulo.util.io.FileUtil;
 import consulo.util.lang.StringUtil;
 import consulo.util.lang.function.Functions;
 import consulo.util.lang.function.PairConsumer;
-import consulo.util.lang.xml.XmlStringUtil;
 import consulo.versionControlSystem.FilePath;
 import consulo.versionControlSystem.VcsException;
 import consulo.versionControlSystem.change.*;
@@ -78,9 +78,6 @@ import jakarta.inject.Singleton;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.swing.*;
-import java.awt.*;
-import java.awt.event.KeyEvent;
 import java.io.*;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
@@ -475,15 +472,12 @@ public class GitCheckinEnvironment implements CheckinEnvironment {
             files.addAll(realAdded);
             files.addAll(realRemoved);
             VcsChangesDialogFactory dialogFactory = project.getApplication().getInstance(VcsChangesDialogFactory.class);
-            boolean mergeAll = project.getUIAccess()
-                .giveAsync(() -> dialogFactory.selectFilePaths(project, files)
+            boolean mergeAll = DvcsUtil.showAndWait(project, () -> dialogFactory.selectFilePaths(project, files)
                     .title(GitLocalize.commitPartialMergeTitle())
                     .prompt(GitLocalize.commitPartialMergeMessage(partialOperation.getName()))
                     .okText(GitLocalize.buttonCommitAllFiles())
                     .cancelText(CommonLocalize.buttonCancel())
                     .showAsync())
-                .thenCompose(selection -> selection)
-                .join()
                 .isPresent();
             if (!mergeAll) {
                 return false;
@@ -753,45 +747,40 @@ public class GitCheckinEnvironment implements CheckinEnvironment {
         @Nonnull
         private final GitVcs myVcs;
         @Nonnull
-        private JPanel myPanel;
+        private final VerticalLayout myPanel;
         @Nonnull
-        private final EditorTextField myAuthorField;
+        private final EditorBox myAuthorField;
         @Nullable
         private Date myAuthorDate;
         @Nonnull
-        private AmendComponent myAmendComponent;
+        private final AmendComponent myAmendComponent;
         @Nonnull
-        private final JCheckBox mySignOffCheckbox;
+        private final CheckBox mySignOffCheckbox;
 
+        @RequiredUIAccess
         GitCheckinOptions(@Nonnull Project project, @Nonnull CheckinProjectPanel panel) {
             myVcs = assertNotNull(GitVcs.getInstance(project));
 
             myAuthorField = createTextField(project, getAuthors(project));
-            myAuthorField.setToolTipText(GitLocalize.commitAuthorTooltip().get());
+            myAuthorField.setToolTipText(GitLocalize.commitAuthorTooltip());
             Label authorLabel = Label.create(GitLocalize.commitAuthor());
-            authorLabel.setTarget(TargetAWT.wrap(myAuthorField));
+            authorLabel.setTarget(myAuthorField);
 
             myAmendComponent = new MyAmendComponent(project, getRepositoryManager(project), panel);
-            mySignOffCheckbox = new JBCheckBox("Sign-off commit", mySettings.shouldSignOffCommit());
-            mySignOffCheckbox.setMnemonic(KeyEvent.VK_G);
-            mySignOffCheckbox.setToolTipText(getToolTip(project, panel));
+            mySignOffCheckbox = CheckBox.create(GitLocalize.commitSignOff());
+            mySignOffCheckbox.setValue(mySettings.shouldSignOffCommit());
+            mySignOffCheckbox.setToolTipText(GitLocalize.commitSignOffTooltip(getSignature(project, panel)));
 
-            GridBag gb = new GridBag().
-                setDefaultAnchor(GridBagConstraints.WEST).
-                setDefaultInsets(JBUI.insets(2));
-            myPanel = new JPanel(new GridBagLayout());
-            myPanel.add(TargetAWT.to(authorLabel), gb.nextLine().next());
-            myPanel.add(myAuthorField, gb.next().fillCellHorizontally().weightx(1));
-            myPanel.add(mySignOffCheckbox, gb.nextLine().next().coverLine());
-            myPanel.add(myAmendComponent.getComponent(), gb.nextLine().next().coverLine());
+            myPanel = VerticalLayout.create();
+            myPanel.add(DockLayout.create().left(authorLabel).center(myAuthorField));
+            myPanel.add(mySignOffCheckbox);
+            myPanel.add(myAmendComponent.getComponent());
         }
 
         @Nonnull
-        private String getToolTip(@Nonnull Project project, @Nonnull CheckinProjectPanel panel) {
+        private String getSignature(@Nonnull Project project, @Nonnull CheckinProjectPanel panel) {
             VcsUser user = getFirstItem(mapNotNull(panel.getRoots(), it -> GitUserRegistry.getInstance(project).getUser(it)));
-            String signature = user != null ? XmlStringUtil.escapeText(VcsUserUtil.toExactString(user)) : "";
-            return "<html>Adds the following line at the end of the commit message:<br/>" +
-                "Signed-off by: " + signature + "</html>";
+            return user != null ? VcsUserUtil.toExactString(user) : "";
         }
 
         @Nonnull
@@ -804,12 +793,16 @@ public class GitCheckinEnvironment implements CheckinEnvironment {
         }
 
         @Nonnull
-        private EditorTextField createTextField(@Nonnull Project project, @Nonnull List<String> list) {
+        @RequiredUIAccess
+        private EditorBox createTextField(@Nonnull Project project, @Nonnull List<String> list) {
             TextCompletionProvider completionProvider = new ValuesCompletionProvider.ValuesCompletionProviderDumbAware<>(
                 new DefaultTextCompletionValueDescriptor.StringValueDescriptor(),
                 list
             );
-            return new TextFieldWithCompletion(project, completionProvider, "", true, true, true);
+            return project.getApplication().getInstance(EditorBoxBuilderFactory.class)
+                .create(project)
+                .completion(completionProvider)
+                .build();
         }
 
         private class MyAmendComponent extends AmendComponent {
@@ -852,14 +845,14 @@ public class GitCheckinEnvironment implements CheckinEnvironment {
         @RequiredUIAccess
         public void refresh() {
             myAmendComponent.refresh();
-            myAuthorField.setText(null);
+            myAuthorField.setValue("");
             myAuthorDate = null;
             reset();
         }
 
         @Override
         public void saveState() {
-            String author = myAuthorField.getText();
+            String author = myAuthorField.getValue();
             if (StringUtil.isEmptyOrSpaces(author)) {
                 myNextCommitAuthor = null;
             }
@@ -869,8 +862,8 @@ public class GitCheckinEnvironment implements CheckinEnvironment {
             }
             myNextCommitAmend = myAmendComponent.isAmend();
             myNextCommitAuthorDate = myAuthorDate;
-            mySettings.setSignOffCommit(mySignOffCheckbox.isSelected());
-            myNextCommitSignOff = mySignOffCheckbox.isSelected();
+            mySettings.setSignOffCommit(mySignOffCheckbox.getValueOrError());
+            myNextCommitSignOff = mySignOffCheckbox.getValueOrError();
         }
 
         @Override
@@ -884,17 +877,19 @@ public class GitCheckinEnvironment implements CheckinEnvironment {
         public void onChangeListSelected(LocalChangeList list) {
             if (list.getData() instanceof VcsFullCommitDetails commit) {
                 String author = VcsUserUtil.toExactString(commit.getAuthor());
-                myAuthorField.setText(author);
+                myAuthorField.setValue(author);
                 myAuthorDate = new Date(commit.getAuthorTime());
             }
             else {
-                myAuthorField.setText(null);
+                myAuthorField.setValue("");
                 myAuthorDate = null;
             }
         }
 
+        @Nonnull
         @Override
-        public JComponent getComponent() {
+        @RequiredUIAccess
+        public Component getUIComponent() {
             return myPanel;
         }
     }

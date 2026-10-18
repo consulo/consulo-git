@@ -42,7 +42,6 @@ import jakarta.annotation.Nullable;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
-import javax.swing.event.HyperlinkEvent;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -78,21 +77,19 @@ public class GitUntrackedFilesHelper {
                     : description
             )
             .hyperlinkListener((notification, event) -> {
-                if (event.getEventType() == HyperlinkEvent.EventType.ACTIVATED) {
-                    LocalizeValue dialogDesc = createUntrackedFilesOverwrittenDescription(operation, false);
-                    LocalizeValue title = LocalizeValue.localizeTODO("Untracked Files Preventing " + operation.capitalize());
-                    if (untrackedFiles.isEmpty()) {
-                        GitUtil.showPathsInDialog(project, absolutePaths, title, dialogDesc);
-                    }
-                    else {
-                        project.getApplication().getInstance(VcsChangesDialogFactory.class)
-                            .selectFiles(project, new ArrayList<>(untrackedFiles))
-                            .title(title)
-                            .prompt(dialogDesc.map(s -> StringUtil.stripHtml(s, true)))
-                            .okOnly()
-                            .deletable()
-                            .showAsync();
-                    }
+                LocalizeValue dialogDesc = createUntrackedFilesOverwrittenDescription(operation, false);
+                LocalizeValue title = LocalizeValue.localizeTODO("Untracked Files Preventing " + operation.capitalize());
+                if (untrackedFiles.isEmpty()) {
+                    GitUtil.showPathsInDialog(project, absolutePaths, title, dialogDesc);
+                }
+                else {
+                    project.getApplication().getInstance(VcsChangesDialogFactory.class)
+                        .selectFiles(project, new ArrayList<>(untrackedFiles))
+                        .title(title)
+                        .prompt(dialogDesc.map(s -> StringUtil.stripHtml(s, true)))
+                        .okOnly()
+                        .deletable()
+                        .showAsync();
                 }
             })
             .notify(project);

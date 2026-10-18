@@ -23,6 +23,7 @@ import consulo.project.ui.notification.Notification;
 import consulo.project.ui.notification.NotificationService;
 import consulo.project.ui.notification.event.NotificationListener;
 import consulo.ui.annotation.RequiredUIAccess;
+import consulo.ui.event.HyperlinkEvent;
 import consulo.ui.ex.awt.UIUtil;
 import consulo.util.lang.Pair;
 import consulo.versionControlSystem.VcsNotifier;
@@ -40,7 +41,6 @@ import git4idea.reset.GitResetMode;
 import git4idea.util.GitPreservingProcess;
 import jakarta.annotation.Nonnull;
 
-import javax.swing.event.HyperlinkEvent;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -418,8 +418,8 @@ class GitMergeOperation extends GitBranchOperation {
     private class DeleteMergedLocalBranchNotificationListener implements NotificationListener {
         @Override
         @RequiredUIAccess
-        public void hyperlinkUpdate(@Nonnull Notification notification, @Nonnull HyperlinkEvent event) {
-            if (event.getEventType() == HyperlinkEvent.EventType.ACTIVATED && event.getDescription().equalsIgnoreCase("delete")) {
+        public void hyperlinkActivated(@Nonnull Notification notification, @Nonnull HyperlinkEvent event) {
+            if (event.getDescription().equalsIgnoreCase("delete")) {
                 GitBrancher brancher = myProject.getInstance(GitBrancher.class);
                 brancher.deleteBranch(myBranchToMerge, new ArrayList<>(getRepositories()));
             }

@@ -15,57 +15,53 @@
  */
 package git4idea.ui;
 
+import consulo.disposer.Disposable;
 import consulo.project.Project;
+import consulo.ui.annotation.RequiredUIAccess;
 import consulo.ui.ex.awt.Splitter;
+import consulo.ui.ex.awtUnsafe.TargetAWT;
 import consulo.versionControlSystem.change.Change;
-import consulo.versionControlSystem.change.ChangesBrowser;
-import consulo.versionControlSystem.change.ChangesBrowserFactory;
+import consulo.versionControlSystem.ui.VcsChangesBrowser;
+import consulo.versionControlSystem.ui.VcsChangesDialogFactory;
 import git4idea.GitCommit;
 import jakarta.annotation.Nonnull;
 
 import javax.swing.*;
 import java.awt.*;
-import java.util.Collections;
 import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * List of commits at the left, the {@link ChangesBrowser} at the right.
+ * List of commits at the left, the {@link VcsChangesBrowser} at the right.
  * Select a commit to shows its changes in the changes browser.
  *
  * @author Kirill Likhodedov
  */
 public class GitCommitListWithDiffPanel extends JPanel {
-    private final ChangesBrowser<Change> myChangesBrowser;
+    private final VcsChangesBrowser myChangesBrowser;
     private final GitCommitListPanel myCommitListPanel;
 
-    public GitCommitListWithDiffPanel(@Nonnull Project project, @Nonnull List<GitCommit> commits) {
+    @RequiredUIAccess
+    public GitCommitListWithDiffPanel(@Nonnull Project project, @Nonnull List<GitCommit> commits, @Nonnull Disposable parentDisposable) {
         super(new BorderLayout());
 
         myCommitListPanel = new GitCommitListPanel(commits, null);
         myCommitListPanel.addListMultipleSelectionListener(new Consumer<List<Change>>() {
             @Override
             public void accept(List<Change> changes) {
-                myChangesBrowser.setChangesToDisplay(changes);
+                myChangesBrowser.setChanges(changes);
             }
         });
 
-        ChangesBrowserFactory browserFactory = project.getApplication().getInstance(ChangesBrowserFactory.class);
-        myChangesBrowser = browserFactory.createChangeBrowser(project,
-            null,
-            Collections.<Change>emptyList(),
-            null,
-            false,
-            true,
-            null,
-            ChangesBrowser.MyUseCase.LOCAL_CHANGES,
-            null);
+        myChangesBrowser = project.getApplication().getInstance(VcsChangesDialogFactory.class)
+            .changesBrowser(project)
+            .build(parentDisposable);
         myCommitListPanel.registerDiffAction(myChangesBrowser.getDiffAction());
 
         Splitter splitter = new Splitter(false, 0.7f);
         splitter.setHonorComponentsMinimumSize(false);
         splitter.setFirstComponent(myCommitListPanel);
-        splitter.setSecondComponent(myChangesBrowser.getComponent());
+        splitter.setSecondComponent((JComponent) TargetAWT.to(myChangesBrowser.getComponent()));
         add(splitter);
     }
 

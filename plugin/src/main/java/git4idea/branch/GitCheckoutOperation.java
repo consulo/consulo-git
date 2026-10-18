@@ -22,6 +22,7 @@ import consulo.project.Project;
 import consulo.project.ui.notification.Notification;
 import consulo.project.ui.notification.event.NotificationListener;
 import consulo.ui.annotation.RequiredUIAccess;
+import consulo.ui.event.HyperlinkEvent;
 import consulo.util.collection.ArrayUtil;
 import consulo.util.lang.Pair;
 import consulo.versionControlSystem.VcsNotifier;
@@ -37,7 +38,6 @@ import git4idea.util.GitPreservingProcess;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 
-import javax.swing.event.HyperlinkEvent;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -330,8 +330,8 @@ class GitCheckoutOperation extends GitBranchOperation {
     private class RollbackOperationNotificationListener implements NotificationListener {
         @Override
         @RequiredUIAccess
-        public void hyperlinkUpdate(@Nonnull Notification notification, @Nonnull HyperlinkEvent event) {
-            if (event.getEventType() == HyperlinkEvent.EventType.ACTIVATED && event.getDescription().equalsIgnoreCase("rollback")) {
+        public void hyperlinkActivated(@Nonnull Notification notification, @Nonnull HyperlinkEvent event) {
+            if (event.getDescription().equalsIgnoreCase("rollback")) {
                 rollback();
             }
         }

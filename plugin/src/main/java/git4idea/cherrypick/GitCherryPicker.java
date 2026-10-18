@@ -25,6 +25,7 @@ import consulo.project.ui.notification.Notification;
 import consulo.project.ui.notification.NotificationService;
 import consulo.project.ui.notification.event.NotificationListener;
 import consulo.ui.annotation.RequiredUIAccess;
+import consulo.ui.event.HyperlinkEvent;
 import consulo.util.collection.ArrayUtil;
 import consulo.util.collection.ContainerUtil;
 import consulo.util.lang.ObjectUtil;
@@ -61,7 +62,6 @@ import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import jakarta.inject.Inject;
 
-import javax.swing.event.HyperlinkEvent;
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
@@ -373,7 +373,7 @@ public class GitCherryPicker extends VcsCherryPicker {
                 try {
                     cancelCherryPick(repository);
                     Collection<Change> changes = commit.getCommit().getChanges();
-                    boolean commitNotCancelled = AbstractVcsHelper.getInstance(myProject).commitChanges(
+                    AbstractVcsHelper.getInstance(myProject).commitChanges(
                         changes,
                         changeList,
                         commitMessage,
@@ -391,12 +391,15 @@ public class GitCherryPicker extends VcsCherryPicker {
                                 sem.release();
                             }
                         }
-                    );
-
-                    if (!commitNotCancelled) {
-                        commitSucceeded.set(false);
-                        sem.release();
-                    }
+                    ).whenComplete((commitNotCancelled, error) -> {
+                        if (error != null) {
+                            LOG.error(error);
+                        }
+                        if (error != null || !commitNotCancelled) {
+                            commitSucceeded.set(false);
+                            sem.release();
+                        }
+                    });
                 }
                 catch (Throwable t) {
                     LOG.error(t);
@@ -721,8 +724,8 @@ public class GitCherryPicker extends VcsCherryPicker {
 
         @Override
         @RequiredUIAccess
-        public void hyperlinkUpdate(@Nonnull Notification notification, @Nonnull HyperlinkEvent event) {
-            if (event.getEventType() == HyperlinkEvent.EventType.ACTIVATED && "resolve".equals(event.getDescription())) {
+        public void hyperlinkActivated(@Nonnull Notification notification, @Nonnull HyperlinkEvent event) {
+            if ("resolve".equals(event.getDescription())) {
                 new CherryPickConflictResolver(myProject, myGit, myRoot, myHash, myAuthor, myMessage).mergeNoProceed();
             }
         }

@@ -15,13 +15,15 @@
  */
 package git4idea.ui.branch;
 
-import consulo.application.Application;
+import consulo.disposer.Disposable;
 import consulo.project.Project;
+import consulo.ui.annotation.RequiredUIAccess;
 import consulo.ui.ex.awt.JBLabel;
 import consulo.ui.ex.awt.UIUtil;
+import consulo.ui.ex.awtUnsafe.TargetAWT;
 import consulo.versionControlSystem.change.Change;
-import consulo.versionControlSystem.change.ChangesBrowser;
-import consulo.versionControlSystem.change.ChangesBrowserFactory;
+import consulo.versionControlSystem.ui.VcsChangesBrowser;
+import consulo.versionControlSystem.ui.VcsChangesDialogFactory;
 import git4idea.util.GitCommitCompareInfo;
 
 import javax.swing.*;
@@ -37,7 +39,14 @@ class GitCompareBranchesDiffPanel extends JPanel {
     private final String myCurrentBranchName;
     private final GitCommitCompareInfo myCompareInfo;
 
-    public GitCompareBranchesDiffPanel(Project project, String branchName, String currentBranchName, GitCommitCompareInfo compareInfo) {
+    @RequiredUIAccess
+    public GitCompareBranchesDiffPanel(
+        Project project,
+        String branchName,
+        String currentBranchName,
+        GitCommitCompareInfo compareInfo,
+        Disposable parentDisposable
+    ) {
         super();
 
         myProject = project;
@@ -47,7 +56,7 @@ class GitCompareBranchesDiffPanel extends JPanel {
 
         setLayout(new BorderLayout(UIUtil.DEFAULT_VGAP, UIUtil.DEFAULT_HGAP));
         add(createNorthPanel(), BorderLayout.NORTH);
-        add(createCenterPanel());
+        add(createCenterPanel(parentDisposable));
     }
 
     private JComponent createNorthPanel() {
@@ -62,21 +71,13 @@ class GitCompareBranchesDiffPanel extends JPanel {
         );
     }
 
-    private JComponent createCenterPanel() {
+    @RequiredUIAccess
+    private JComponent createCenterPanel(Disposable parentDisposable) {
         List<Change> diff = myCompareInfo.getTotalDiff();
-        ChangesBrowserFactory browserFactory = Application.get().getInstance(ChangesBrowserFactory.class);
-        ChangesBrowser<Change> changesBrowser = browserFactory.createChangeBrowser(
-            myProject,
-            null,
-            diff,
-            null,
-            false,
-            true,
-            null,
-            ChangesBrowser.MyUseCase.COMMITTED_CHANGES,
-            null
-        );
-        changesBrowser.setChangesToDisplay(diff);
-        return changesBrowser.getComponent();
+        VcsChangesBrowser changesBrowser = myProject.getApplication().getInstance(VcsChangesDialogFactory.class)
+            .changesBrowser(myProject)
+            .build(parentDisposable);
+        changesBrowser.setChanges(diff);
+        return (JComponent) TargetAWT.to(changesBrowser.getComponent());
     }
 }

@@ -31,6 +31,7 @@ import consulo.versionControlSystem.change.Change;
 import consulo.versionControlSystem.change.ChangeListManager;
 import consulo.versionControlSystem.change.ContentRevision;
 import consulo.versionControlSystem.change.LocalChangeList;
+import consulo.versionControlSystem.distributed.DvcsUtil;
 import consulo.versionControlSystem.ui.VcsChangesDialogFactory;
 import consulo.versionControlSystem.update.UpdatedFiles;
 import consulo.versionControlSystem.util.VcsUtil;
@@ -129,10 +130,7 @@ public class GitMergeUpdater extends GitUpdater {
                 "Your local changes to the following files would be overwritten by merge.<br/>" +
                     "Please, commit your changes or stash them before you can merge."
             );
-            myProject.getUIAccess()
-                .giveAsync(() -> dialogFactory.showChanges(myProject, changes).description(description).showAsync())
-                .thenCompose(closed -> closed)
-                .join();
+            DvcsUtil.showAndWait(myProject, () -> dialogFactory.showChanges(myProject, changes).description(description).showAsync());
             return GitUpdateResult.ERROR;
         }
         else if (untrackedFilesWouldBeOverwrittenByMergeDetector.wasMessageDetected()) {

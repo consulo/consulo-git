@@ -90,7 +90,7 @@ public class GitBranchIsNotFullyMergedDialog extends DialogWrapper
 		myRemovedBranch = removedBranch;
 
 		myInitialRepository = calcInitiallySelectedRepository();
-		myCommitListWithDiffPanel = new GitCommitListWithDiffPanel(myProject, new ArrayList<>(myCommits.get(myInitialRepository)));
+		myCommitListWithDiffPanel = new GitCommitListWithDiffPanel(myProject, new ArrayList<>(myCommits.get(myInitialRepository)), getDisposable());
 
 		init();
 

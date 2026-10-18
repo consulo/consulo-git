@@ -16,12 +16,11 @@
 package git4idea.history.wholeTree;
 
 import consulo.git.localize.GitLocalize;
-import consulo.application.Application;
 import consulo.project.Project;
+import consulo.ui.InputBoxBuilder;
+import consulo.ui.InputProblem;
+import consulo.ui.UIAccess;
 import consulo.ui.annotation.RequiredUIAccess;
-import consulo.ui.ex.InputValidator;
-import consulo.ui.ex.awt.Messages;
-import consulo.ui.ex.awt.UIUtil;
 import consulo.util.lang.StringUtil;
 import git4idea.branch.GitBrancher;
 import git4idea.repo.GitRepository;
@@ -47,29 +46,19 @@ public class GitCreateNewTag {
 
     @RequiredUIAccess
     public void execute() {
-        final String name = Messages.showInputDialog(
-            myProject,
-            GitLocalize.gitNewTagDialogTagNameLabel().get(),
-            GitLocalize.gitNewTagDialogTitle(myReference).get(),
-            UIUtil.getQuestionIcon(),
-            "",
-            new InputValidator() {
-                @Override
-                @RequiredUIAccess
-                public boolean checkInput(String inputString) {
-                    return !StringUtil.isEmpty(inputString) && !StringUtil.containsWhitespaces(inputString);
+        InputBoxBuilder.text()
+            .asQuestion()
+            .title(GitLocalize.gitNewTagDialogTitle(myReference))
+            .text(GitLocalize.gitNewTagDialogTagNameLabel())
+            .validator(value -> StringUtil.isEmpty(value) || StringUtil.containsWhitespaces(value)
+                ? InputProblem.error(GitLocalize.gitNewTagDialogTagNameInvalid())
+                : null)
+            .showAsync(myProject)
+            .whenCompleteAsync((name, error) -> {
+                if (name != null) {
+                    GitBrancher brancher = myProject.getInstance(GitBrancher.class);
+                    brancher.createNewTag(name, myReference, Collections.singletonList(myRepository), myCallInAwtAfterExecution);
                 }
-
-                @Override
-                @RequiredUIAccess
-                public boolean canClose(String inputString) {
-                    return !StringUtil.isEmpty(inputString) && !StringUtil.containsWhitespaces(inputString);
-                }
-            }
-        );
-        if (name != null) {
-            GitBrancher brancher = myProject.getInstance(GitBrancher.class);
-            brancher.createNewTag(name, myReference, Collections.singletonList(myRepository), myCallInAwtAfterExecution);
-        }
+            }, UIAccess.current());
     }
 }

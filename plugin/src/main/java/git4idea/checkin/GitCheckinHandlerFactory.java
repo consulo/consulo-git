@@ -16,27 +16,33 @@
 package git4idea.checkin;
 
 import consulo.annotation.component.ExtensionImpl;
+import consulo.application.dumb.DumbAware;
 import consulo.application.progress.ProgressIndicator;
-import consulo.application.progress.ProgressManager;
-import consulo.application.progress.Task;
 import consulo.git.localize.GitLocalize;
 import consulo.application.Application;
+import consulo.localize.LocalizeValue;
 import consulo.logging.Logger;
+import consulo.platform.base.localize.CommonLocalize;
 import consulo.project.Project;
+import consulo.ui.MessageBoxBuilder;
+import consulo.ui.MessageBoxes;
+import consulo.ui.MessageButtonRole;
 import consulo.ui.annotation.RequiredUIAccess;
-import consulo.ui.ex.awt.Messages;
-import consulo.ui.ex.awt.UIUtil;
 import consulo.util.lang.Couple;
 import consulo.util.lang.StringUtil;
-import consulo.util.lang.xml.XmlStringUtil;
 import consulo.versionControlSystem.FilePath;
 import consulo.versionControlSystem.ProjectLevelVcsManager;
 import consulo.versionControlSystem.VcsException;
+import consulo.versionControlSystem.change.Change;
 import consulo.versionControlSystem.change.ChangesUtil;
 import consulo.versionControlSystem.change.CommitExecutor;
 import consulo.versionControlSystem.checkin.CheckinHandler;
 import consulo.versionControlSystem.checkin.CheckinProjectPanel;
+import consulo.versionControlSystem.checkin.CommitCheck;
+import consulo.versionControlSystem.checkin.CommitInfo;
+import consulo.versionControlSystem.checkin.CommitProblem;
 import consulo.versionControlSystem.checkin.VcsCheckinHandlerFactory;
+import consulo.versionControlSystem.distributed.DvcsUtil;
 import consulo.virtualFileSystem.VirtualFile;
 import git4idea.GitUtil;
 import git4idea.GitVcs;
@@ -54,8 +60,8 @@ import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.BiConsumer;
 
 /**
  * Prohibits committing with an empty message, warns if committing into detached HEAD, checks if user name and correct CRLF attributes
@@ -77,86 +83,83 @@ public class GitCheckinHandlerFactory extends VcsCheckinHandlerFactory {
         return new MyCheckinHandler(panel);
     }
 
-    private class MyCheckinHandler extends CheckinHandler {
-        @Nonnull
-        private final CheckinProjectPanel myPanel;
+    private class MyCheckinHandler extends CheckinHandler implements CommitCheck, DumbAware {
         @Nonnull
         private final Project myProject;
-
+        @Nonnull
+        private List<Change> myChanges = List.of();
 
         public MyCheckinHandler(@Nonnull CheckinProjectPanel panel) {
-            myPanel = panel;
-            myProject = myPanel.getProject();
+            myProject = panel.getProject();
+        }
+
+        @Override
+        public ExecutionOrder getExecutionOrder() {
+            return ExecutionOrder.EARLY;
         }
 
         @Override
         @RequiredUIAccess
-        public ReturnResult beforeCheckin(@Nullable CommitExecutor executor, BiConsumer<Object, Object> additionalDataConsumer) {
-            if (emptyCommitMessage()) {
-                return ReturnResult.CANCEL;
+        public boolean isEnabled() {
+            return true;
+        }
+
+        @Nullable
+        @Override
+        public CommitProblem runCheck(CommitInfo commitInfo, ProgressIndicator indicator) {
+            if (commitInfo.getCommitMessage().trim().isEmpty()) {
+                return new GitCommitProblem(GitLocalize.gitCommitMessageEmpty(), ReturnResult.CANCEL);
+            }
+            if (!commitOrCommitAndPush(commitInfo.getExecutor())) {
+                return null;
             }
 
-            if (commitOrCommitAndPush(executor)) {
-                ReturnResult result = checkUserName();
-                if (result != ReturnResult.COMMIT) {
-                    return result;
-                }
-                result = warnAboutCrlfIfNeeded();
-                if (result != ReturnResult.COMMIT) {
-                    return result;
-                }
-                return warnAboutDetachedHeadIfNeeded();
+            myChanges = commitInfo.getCommittedChanges();
+            ReturnResult result = checkUserName();
+            if (result == ReturnResult.COMMIT) {
+                result = warnAboutCrlfIfNeeded(commitInfo.getCommittedVirtualFiles());
             }
-            return ReturnResult.COMMIT;
+            if (result == ReturnResult.COMMIT) {
+                result = warnAboutDetachedHeadIfNeeded();
+            }
+            return result == ReturnResult.COMMIT
+                ? null
+                : new GitCommitProblem(LocalizeValue.localizeTODO("Commit was cancelled by a Git pre-commit check"), result);
         }
 
         @Nonnull
-        private ReturnResult warnAboutCrlfIfNeeded() {
+        private ReturnResult warnAboutCrlfIfNeeded(@Nonnull Collection<VirtualFile> files) {
             GitVcsSettings settings = GitVcsSettings.getInstance(myProject);
             if (!settings.warnAboutCrlf()) {
                 return ReturnResult.COMMIT;
             }
 
-            final Git git = Application.get().getInstance(Git.class);
-
-            final Collection<VirtualFile> files =
-                myPanel.getVirtualFiles(); // deleted files aren't included, but for them we don't care about CRLFs.
-            final AtomicReference<GitCrlfProblemsDetector> crlfHelper = new AtomicReference<>();
-            ProgressManager.getInstance().run(
-                new Task.Modal(myProject, "Checking for line separator issues...", true) {
-                    @Override
-                    public void run(@Nonnull ProgressIndicator indicator) {
-                        crlfHelper.set(GitCrlfProblemsDetector.detect(
-                            GitCheckinHandlerFactory.MyCheckinHandler.this.myProject,
-                            git,
-                            files
-                        ));
-                    }
-                });
-
-            if (crlfHelper.get() == null) { // detection cancelled
-                return ReturnResult.CANCEL;
+            Git git = Application.get().getInstance(Git.class);
+            GitCrlfProblemsDetector crlfHelper = GitCrlfProblemsDetector.detect(myProject, git, files);
+            if (!crlfHelper.shouldWarn()) {
+                return ReturnResult.COMMIT;
             }
 
-            if (crlfHelper.get().shouldWarn()) {
+            AtomicReference<GitCrlfDialog> dialogRef = new AtomicReference<>();
+            Application application = myProject.getApplication();
+            application.invokeAndWait(() -> {
                 GitCrlfDialog dialog = new GitCrlfDialog(myProject);
-                UIUtil.invokeAndWaitIfNeeded((Runnable)dialog::show);
-                int decision = dialog.getExitCode();
-                if (decision == GitCrlfDialog.CANCEL) {
-                    return ReturnResult.CANCEL;
+                dialog.show();
+                dialogRef.set(dialog);
+            }, application.getAnyModalityState());
+            GitCrlfDialog dialog = dialogRef.get();
+            int decision = dialog.getExitCode();
+            if (decision == GitCrlfDialog.CANCEL) {
+                return ReturnResult.CANCEL;
+            }
+            if (decision == GitCrlfDialog.SET) {
+                Collection<VirtualFile> roots = getSelectedRoots();
+                if (!roots.isEmpty()) {
+                    setCoreAutoCrlfAttribute(roots.iterator().next());
                 }
-                else {
-                    if (decision == GitCrlfDialog.SET) {
-                        VirtualFile anyRoot = myPanel.getRoots().iterator().next(); // config will be set globally => any root will do.
-                        setCoreAutoCrlfAttribute(anyRoot);
-                    }
-                    else {
-                        if (dialog.dontWarnAgain()) {
-                            settings.setWarnAboutCrlf(false);
-                        }
-                    }
-                    return ReturnResult.COMMIT;
-                }
+            }
+            else if (dialog.dontWarnAgain()) {
+                settings.setWarnAboutCrlf(false);
             }
             return ReturnResult.COMMIT;
         }
@@ -171,9 +174,9 @@ public class GitCheckinHandlerFactory extends VcsCheckinHandlerFactory {
             }
         }
 
-        @RequiredUIAccess
+        @Nonnull
         private ReturnResult checkUserName() {
-            Project project = myPanel.getProject();
+            Project project = myProject;
             GitVcs vcs = GitVcs.getInstance(project);
             assert vcs != null;
 
@@ -208,14 +211,14 @@ public class GitCheckinHandlerFactory extends VcsCheckinHandlerFactory {
 
             GitVersion version = vcs.getVersion();
             if (System.getenv("HOME") == null && GitVersionSpecialty.DOESNT_DEFINE_HOME_ENV_VAR.existsIn(version)) {
-                Messages.showErrorDialog(
-                    project,
-                    "You are using Git " + version + " which doesn't define %HOME% environment variable properly.\n" +
-                        "Consider updating Git to a newer version " +
-                        "or define %HOME% to point to the place where the global .gitconfig is stored \n" +
-                        "(it is usually %USERPROFILE% or %HOMEDRIVE%%HOMEPATH%).",
-                    "HOME Variable Is Not Defined"
-                );
+                DvcsUtil.showAndWait(project, () -> MessageBoxes.okError(LocalizeValue.localizeTODO(
+                        "You are using Git " + version + " which doesn't define %HOME% environment variable properly.\n" +
+                            "Consider updating Git to a newer version " +
+                            "or define %HOME% to point to the place where the global .gitconfig is stored \n" +
+                            "(it is usually %USERPROFILE% or %HOMEDRIVE%%HOMEPATH%)."
+                    ))
+                    .title(LocalizeValue.localizeTODO("HOME Variable Is Not Defined"))
+                    .showAsync(project));
                 return ReturnResult.CANCEL;
             }
 
@@ -238,8 +241,14 @@ public class GitCheckinHandlerFactory extends VcsCheckinHandlerFactory {
                 }
             }
 
-            GitUserNameNotDefinedDialog dialog = new GitUserNameNotDefinedDialog(project, notDefined, affectedRoots, defined);
-            dialog.show();
+            AtomicReference<GitUserNameNotDefinedDialog> dialogRef = new AtomicReference<>();
+            Application application = project.getApplication();
+            application.invokeAndWait(() -> {
+                GitUserNameNotDefinedDialog userNameDialog = new GitUserNameNotDefinedDialog(project, notDefined, affectedRoots, defined);
+                userNameDialog.show();
+                dialogRef.set(userNameDialog);
+            }, application.getAnyModalityState());
+            GitUserNameNotDefinedDialog dialog = dialogRef.get();
             if (dialog.isOK()) {
                 try {
                     if (dialog.isGlobal()) {
@@ -268,7 +277,9 @@ public class GitCheckinHandlerFactory extends VcsCheckinHandlerFactory {
                 catch (VcsException e) {
                     String message = "Couldn't set user.name and user.email";
                     LOG.error(message, e);
-                    Messages.showErrorDialog(myPanel.getComponent(), message);
+                    DvcsUtil.showAndWait(project, () -> MessageBoxes.okError(LocalizeValue.localizeTODO(message))
+                        .title(CommonLocalize.titleError())
+                        .showAsync(project));
                     return ReturnResult.CANCEL;
                 }
                 return ReturnResult.COMMIT;
@@ -286,21 +297,7 @@ public class GitCheckinHandlerFactory extends VcsCheckinHandlerFactory {
             return Couple.of(name, email);
         }
 
-        @RequiredUIAccess
-        private boolean emptyCommitMessage() {
-            if (myPanel.getCommitMessage().trim().isEmpty()) {
-                Messages.showMessageDialog(
-                    myPanel.getComponent(),
-                    GitLocalize.gitCommitMessageEmpty().get(),
-                    GitLocalize.gitCommitMessageEmptyTitle().get(),
-                    UIUtil.getErrorIcon()
-                );
-                return true;
-            }
-            return false;
-        }
-
-        @RequiredUIAccess
+        @Nonnull
         private ReturnResult warnAboutDetachedHeadIfNeeded() {
             // Warning: commit on a detached HEAD
             DetachedRoot detachedRoot = getDetachedRoot();
@@ -327,20 +324,19 @@ public class GitCheckinHandlerFactory extends VcsCheckinHandlerFactory {
                     readMore("http://sitaramc.github.com/concepts/detached-head.html", "Read more about detached HEAD");
             }
 
-            int choice = Messages.showOkCancelDialog(
-                myPanel.getComponent(),
-                XmlStringUtil.wrapInHtml(message),
-                title,
-                "Cancel",
-                "Commit",
-                UIUtil.getWarningIcon()
-            );
-            if (choice == 1) {
-                return ReturnResult.COMMIT;
-            }
-            else {
-                return ReturnResult.CLOSE_WINDOW;
-            }
+            String finalTitle = title;
+            String finalMessage = message;
+            ReturnResult result = DvcsUtil.showAndWait(myProject, () -> MessageBoxBuilder.<ReturnResult>create()
+                .asWarning()
+                .richText()
+                .title(LocalizeValue.localizeTODO(finalTitle))
+                .text(LocalizeValue.localizeTODO(finalMessage))
+                .button(MessageButtonRole.CANCEL, ReturnResult.CLOSE_WINDOW)
+                .asDefaultButton()
+                .asExitButton()
+                .button(MessageButtonRole.OK, LocalizeValue.localizeTODO("Commit"), ReturnResult.COMMIT)
+                .showAsync(myProject));
+            return result == null ? ReturnResult.CLOSE_WINDOW : result;
         }
 
         private boolean commitOrCommitAndPush(@Nullable CommitExecutor executor) {
@@ -359,7 +355,7 @@ public class GitCheckinHandlerFactory extends VcsCheckinHandlerFactory {
          */
         @Nullable
         private DetachedRoot getDetachedRoot() {
-            GitRepositoryManager repositoryManager = GitUtil.getRepositoryManager(myPanel.getProject());
+            GitRepositoryManager repositoryManager = GitUtil.getRepositoryManager(myProject);
             for (VirtualFile root : getSelectedRoots()) {
                 GitRepository repository = repositoryManager.getRepositoryForRootQuick(root);
                 if (repository == null) {
@@ -376,7 +372,7 @@ public class GitCheckinHandlerFactory extends VcsCheckinHandlerFactory {
         private Collection<VirtualFile> getSelectedRoots() {
             ProjectLevelVcsManager vcsManager = ProjectLevelVcsManager.getInstance(myProject);
             Collection<VirtualFile> result = new HashSet<>();
-            for (FilePath path : ChangesUtil.getPaths(myPanel.getSelectedChanges())) {
+            for (FilePath path : ChangesUtil.getPaths(myChanges)) {
                 VirtualFile root = vcsManager.getVcsRootFor(path);
                 if (root != null) {
                     result.add(root);
@@ -393,6 +389,27 @@ public class GitCheckinHandlerFactory extends VcsCheckinHandlerFactory {
                 myRoot = root;
                 myRebase = rebase;
             }
+        }
+    }
+
+    private static class GitCommitProblem implements CommitProblem {
+        private final LocalizeValue myText;
+        private final CheckinHandler.ReturnResult myResult;
+
+        private GitCommitProblem(LocalizeValue text, CheckinHandler.ReturnResult result) {
+            myText = text;
+            myResult = result;
+        }
+
+        @Override
+        public LocalizeValue getText() {
+            return myText;
+        }
+
+        @Override
+        @RequiredUIAccess
+        public CompletableFuture<CheckinHandler.ReturnResult> showModalSolution(Project project, CommitInfo commitInfo) {
+            return CompletableFuture.completedFuture(myResult);
         }
     }
 }

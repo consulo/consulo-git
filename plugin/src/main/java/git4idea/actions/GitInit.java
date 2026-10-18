@@ -29,11 +29,11 @@ import consulo.localize.LocalizeValue;
 import consulo.project.Project;
 import consulo.project.ProjectManager;
 import consulo.project.ui.notification.NotificationService;
+import consulo.ui.MessageBoxes;
+import consulo.ui.UIAccess;
 import consulo.ui.annotation.RequiredUIAccess;
 import consulo.ui.ex.action.AnActionEvent;
 import consulo.ui.ex.action.DumbAwareAction;
-import consulo.ui.ex.awt.Messages;
-import consulo.ui.ex.awt.UIUtil;
 import consulo.util.lang.xml.XmlStringUtil;
 import consulo.versionControlSystem.ProjectLevelVcsManager;
 import consulo.versionControlSystem.VcsNotifier;
@@ -82,40 +82,48 @@ public class GitInit extends DumbAwareAction {
             project,
             baseDir,
             root -> {
-                //noinspection RequiredXAction
-                if (GitUtil.isUnderGit(root) && Messages.showYesNoDialog(
-                    project,
-                    GitLocalize.initWarningAlreadyUnderGit(XmlStringUtil.escapeText(root.getPresentableUrl())).get(),
-                    GitLocalize.initWarningTitle().get(),
-                    UIUtil.getWarningIcon()
-                ) != Messages.YES) {
+                if (!GitUtil.isUnderGit(root)) {
+                    init(project, root, finalBaseDir);
                     return;
                 }
-
-                GitCommandResult result = Application.get().getInstance(Git.class).init(project, root);
-                if (!result.success()) {
-                    GitVcs vcs = GitVcs.getInstance(project);
-                    if (vcs != null && vcs.getExecutableValidator().checkExecutableAndNotifyIfNeeded()) {
-                        NotificationService.getInstance().newError(VcsNotifier.IMPORTANT_ERROR_NOTIFICATION)
-                            .title(LocalizeValue.localizeTODO("Git init failed"))
-                            .content(result.getErrorOutputAsHtmlValue())
-                            .notify(project);
-                    }
-                    return;
-                }
-
-                if (project.isDefault()) {
-                    return;
-                }
-                final String path = root.equals(finalBaseDir) ? "" : root.getPath();
-                GitVcs.runInBackground(new Task.Backgroundable(project, GitLocalize.commonRefreshing()) {
-                    @Override
-                    public void run(@Nonnull ProgressIndicator indicator) {
-                        refreshAndConfigureVcsMappings(project, root, path);
-                    }
-                });
+                MessageBoxes.yesNo()
+                    .asWarning()
+                    .title(GitLocalize.initWarningTitle())
+                    .text(GitLocalize.initWarningAlreadyUnderGit(XmlStringUtil.escapeText(root.getPresentableUrl())))
+                    .showAsync(project)
+                    .whenCompleteAsync((yes, error) -> {
+                        if (Boolean.TRUE.equals(yes)) {
+                            init(project, root, finalBaseDir);
+                        }
+                    }, UIAccess.current());
             }
         );
+    }
+
+    @RequiredUIAccess
+    private static void init(Project project, VirtualFile root, VirtualFile finalBaseDir) {
+        GitCommandResult result = Application.get().getInstance(Git.class).init(project, root);
+        if (!result.success()) {
+            GitVcs vcs = GitVcs.getInstance(project);
+            if (vcs != null && vcs.getExecutableValidator().checkExecutableAndNotifyIfNeeded()) {
+                NotificationService.getInstance().newError(VcsNotifier.IMPORTANT_ERROR_NOTIFICATION)
+                    .title(LocalizeValue.localizeTODO("Git init failed"))
+                    .content(result.getErrorOutputAsHtmlValue())
+                    .notify(project);
+            }
+            return;
+        }
+
+        if (project.isDefault()) {
+            return;
+        }
+        final String path = root.equals(finalBaseDir) ? "" : root.getPath();
+        GitVcs.runInBackground(new Task.Backgroundable(project, GitLocalize.commonRefreshing()) {
+            @Override
+            public void run(@Nonnull ProgressIndicator indicator) {
+                refreshAndConfigureVcsMappings(project, root, path);
+            }
+        });
     }
 
     public static void refreshAndConfigureVcsMappings(Project project, VirtualFile root, String path) {

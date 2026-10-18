@@ -23,6 +23,7 @@ import consulo.project.ui.notification.Notification;
 import consulo.project.ui.notification.NotificationService;
 import consulo.project.ui.notification.event.NotificationListener;
 import consulo.ui.annotation.RequiredUIAccess;
+import consulo.ui.event.HyperlinkEvent;
 import consulo.versionControlSystem.VcsException;
 import consulo.versionControlSystem.VcsNotifier;
 import consulo.versionControlSystem.change.ChangeListManager;
@@ -34,7 +35,6 @@ import git4idea.merge.GitConflictResolver;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 
-import javax.swing.event.HyperlinkEvent;
 import java.util.Collection;
 
 /**
@@ -176,8 +176,8 @@ public abstract class GitChangesSaver {
     protected class ShowSavedChangesNotificationListener implements NotificationListener {
         @Override
         @RequiredUIAccess
-        public void hyperlinkUpdate(@Nonnull Notification notification, @Nonnull HyperlinkEvent event) {
-            if (event.getEventType() == HyperlinkEvent.EventType.ACTIVATED && event.getDescription().equals("saver")) {
+        public void hyperlinkActivated(@Nonnull Notification notification, @Nonnull HyperlinkEvent event) {
+            if (event.getDescription().equals("saver")) {
                 showSavedChanges();
             }
         }
