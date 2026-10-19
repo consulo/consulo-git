@@ -21,6 +21,7 @@ import consulo.document.DocumentReferenceManager;
 import consulo.localize.LocalizeValue;
 import consulo.logging.Logger;
 import consulo.project.Project;
+import consulo.ui.UIAccess;
 import consulo.ui.annotation.RequiredUIAccess;
 import consulo.undoRedo.ProjectUndoManager;
 import consulo.undoRedo.UndoManager;
@@ -40,6 +41,9 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 
 public class GitShelveUtils {
     private static final Logger LOG = Logger.getInstance(GitShelveUtils.class);
@@ -64,7 +68,7 @@ public class GitShelveUtils {
         LOG.info("Unshelving shelvedChangeList: " + shelvedChangeList);
         List<? extends ShelvedChange> changes = shelvedChangeList.getChanges(project);
         // we pass null as target change list for Patch Applier to do NOTHING with change lists
-        shelveManager.unshelveChangeList(
+        CompletableFuture<?> unshelve = shelveManager.unshelveChangeList(
             shelvedChangeList,
             changes,
             shelvedChangeList.getBinaryFiles(),
@@ -75,6 +79,17 @@ public class GitShelveUtils {
             leftConflictTitle.get(),
             rightConflictTitle.get()
         );
+        if (UIAccess.isUIThread()) {
+            unshelve.whenCompleteAsync((result, error) -> markUnshelvedFilesNonUndoable(project, changes), UIAccess.current());
+            return;
+        }
+
+        try {
+            unshelve.join();
+        }
+        catch (CompletionException | CancellationException e) {
+            LOG.warn(e);
+        }
         Application application = project.getApplication();
         application.invokeAndWait(() -> markUnshelvedFilesNonUndoable(project, changes), application.getDefaultModalityState());
     }

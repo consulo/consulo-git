@@ -84,13 +84,13 @@ class GitPushResultNotification extends Notification {
         }
         else {
             title = "Push successful";
-            type = NotificationType.INFORMATION;
+            type = NotificationType.SUCCESS;
         }
 
         String description = formDescription(pushResult.getResults(), multiRepoProject);
 
         NotificationGroup group =
-            type == NotificationType.INFORMATION ? VcsNotifier.STANDARD_NOTIFICATION : VcsNotifier.IMPORTANT_ERROR_NOTIFICATION;
+            type == NotificationType.SUCCESS ? VcsNotifier.STANDARD_NOTIFICATION : VcsNotifier.IMPORTANT_ERROR_NOTIFICATION;
 
         GitPushResultNotification notification = new GitPushResultNotification(
             NotificationService.getInstance().newOfType(group, type).title(LocalizeValue.of(title)).content(LocalizeValue.of(description))

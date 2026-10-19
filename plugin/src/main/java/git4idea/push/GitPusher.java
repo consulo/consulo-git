@@ -79,7 +79,7 @@ class GitPusher extends Pusher<GitRepository, GitPushSource, GitPushTarget> {
         List<GitPushResultNotification> existingNotifications =
             NotificationService.getInstance().getNotificationsOfType(GitPushResultNotification.class, myProject);
         for (GitPushResultNotification notification : existingNotifications) {
-            if (notification.getType() != NotificationType.INFORMATION) {
+            if (notification.getType() != NotificationType.SUCCESS) {
                 notification.expire();
             }
         }

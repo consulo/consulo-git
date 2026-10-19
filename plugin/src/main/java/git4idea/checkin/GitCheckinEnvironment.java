@@ -202,6 +202,9 @@ public class GitCheckinEnvironment implements CheckinEnvironment {
         @Nonnull Function<Object, Object> parametersHolder,
         Set<String> feedback
     ) {
+        boolean pushAfterCommit = Boolean.TRUE.equals(myNextCommitIsPushed);
+        myNextCommitIsPushed = null;
+
         List<VcsException> exceptions = new ArrayList<>();
         Map<VirtualFile, Collection<Change>> sortedChanges = sortChangesByGitRoot(changes, exceptions);
         if (sortedChanges.isEmpty()) {
@@ -281,7 +284,7 @@ public class GitCheckinEnvironment implements CheckinEnvironment {
                 }
             }
         }
-        if (myNextCommitIsPushed != null && myNextCommitIsPushed && exceptions.isEmpty()) {
+        if (pushAfterCommit && exceptions.isEmpty()) {
             GitRepositoryManager manager = getRepositoryManager(myProject);
             Collection<GitRepository> repositories = GitUtil.getRepositoriesFromRoots(manager, sortedChanges.keySet());
             List<GitRepository> preselectedRepositories = new ArrayList<>(repositories);

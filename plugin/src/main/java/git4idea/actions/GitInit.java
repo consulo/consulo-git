@@ -22,9 +22,10 @@ import consulo.application.progress.ProgressIndicator;
 import consulo.application.progress.Task;
 import consulo.fileChooser.FileChooserDescriptor;
 import consulo.fileChooser.FileChooserDescriptorFactory;
-import consulo.fileChooser.IdeaFileChooser;
+import consulo.fileChooser.FileChooser;
 import consulo.git.localize.GitLocalize;
 import consulo.application.Application;
+import consulo.application.util.concurrent.AppExecutorUtil;
 import consulo.localize.LocalizeValue;
 import consulo.project.Project;
 import consulo.project.ProjectManager;
@@ -34,6 +35,7 @@ import consulo.ui.UIAccess;
 import consulo.ui.annotation.RequiredUIAccess;
 import consulo.ui.ex.action.AnActionEvent;
 import consulo.ui.ex.action.DumbAwareAction;
+import consulo.util.lang.Pair;
 import consulo.util.lang.xml.XmlStringUtil;
 import consulo.versionControlSystem.ProjectLevelVcsManager;
 import consulo.versionControlSystem.VcsNotifier;
@@ -77,12 +79,18 @@ public class GitInit extends DumbAwareAction {
 
     @RequiredUIAccess
     private static void doInit(final Project project, FileChooserDescriptor fcd, VirtualFile baseDir, VirtualFile finalBaseDir) {
-        IdeaFileChooser.chooseFile(
-            fcd,
-            project,
-            baseDir,
-            root -> {
-                if (!GitUtil.isUnderGit(root)) {
+        UIAccess uiAccess = UIAccess.current();
+        FileChooser.chooseFile(fcd, project, baseDir)
+            .thenApplyAsync(
+                root -> root == null ? null : Pair.create(root, GitUtil.isUnderGit(root)),
+                AppExecutorUtil.getAppExecutorService()
+            )
+            .whenCompleteAsync((chosen, chooseError) -> {
+                if (chosen == null) {
+                    return;
+                }
+                VirtualFile root = chosen.getFirst();
+                if (!chosen.getSecond()) {
                     init(project, root, finalBaseDir);
                     return;
                 }
@@ -95,32 +103,30 @@ public class GitInit extends DumbAwareAction {
                         if (Boolean.TRUE.equals(yes)) {
                             init(project, root, finalBaseDir);
                         }
-                    }, UIAccess.current());
-            }
-        );
+                    }, uiAccess);
+            }, uiAccess);
     }
 
-    @RequiredUIAccess
     private static void init(Project project, VirtualFile root, VirtualFile finalBaseDir) {
-        GitCommandResult result = Application.get().getInstance(Git.class).init(project, root);
-        if (!result.success()) {
-            GitVcs vcs = GitVcs.getInstance(project);
-            if (vcs != null && vcs.getExecutableValidator().checkExecutableAndNotifyIfNeeded()) {
-                NotificationService.getInstance().newError(VcsNotifier.IMPORTANT_ERROR_NOTIFICATION)
-                    .title(LocalizeValue.localizeTODO("Git init failed"))
-                    .content(result.getErrorOutputAsHtmlValue())
-                    .notify(project);
-            }
-            return;
-        }
-
-        if (project.isDefault()) {
-            return;
-        }
-        final String path = root.equals(finalBaseDir) ? "" : root.getPath();
+        String path = root.equals(finalBaseDir) ? "" : root.getPath();
         GitVcs.runInBackground(new Task.Backgroundable(project, GitLocalize.commonRefreshing()) {
             @Override
             public void run(@Nonnull ProgressIndicator indicator) {
+                GitCommandResult result = Application.get().getInstance(Git.class).init(project, root);
+                if (!result.success()) {
+                    GitVcs vcs = GitVcs.getInstance(project);
+                    if (vcs != null && vcs.getExecutableValidator().checkExecutableAndNotifyIfNeeded()) {
+                        NotificationService.getInstance().newError(VcsNotifier.IMPORTANT_ERROR_NOTIFICATION)
+                            .title(LocalizeValue.localizeTODO("Git init failed"))
+                            .content(result.getErrorOutputAsHtmlValue())
+                            .notify(project);
+                    }
+                    return;
+                }
+
+                if (project.isDefault()) {
+                    return;
+                }
                 refreshAndConfigureVcsMappings(project, root, path);
             }
         });
