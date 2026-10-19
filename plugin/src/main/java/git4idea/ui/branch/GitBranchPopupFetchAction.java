@@ -16,6 +16,10 @@
  */
 package git4idea.ui.branch;
 
+import consulo.annotation.component.ActionImpl;
+import consulo.annotation.component.ActionParentRef;
+import consulo.annotation.component.ActionRef;
+import consulo.annotation.component.ActionRefAnchor;
 import consulo.git.icon.GitIconGroup;
 import git4idea.actions.GitFetch;
 
@@ -30,6 +34,14 @@ import git4idea.actions.GitFetch;
  *
  * @author VISTALL
  */
+@ActionImpl(
+    id = "Git.Log.Branches.Fetch",
+    parents = @ActionParentRef(
+        value = @ActionRef(id = "Dvcs.Log.Branches.Toolbar"),
+        anchor = ActionRefAnchor.AFTER,
+        relatedToAction = @ActionRef(id = "Dvcs.Log.Branches.Checkout")
+    )
+)
 public class GitBranchPopupFetchAction extends GitFetch {
     public GitBranchPopupFetchAction() {
         getTemplatePresentation().setIcon(GitIconGroup.fetch());

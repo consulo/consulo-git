@@ -96,9 +96,9 @@ public class GitBranchesTreePopupStep extends DvcsBranchesTreePopupStepBase {
 
     @Override
     public PopupStep onChosen(Object selectedValue, boolean finalChoice) {
-        DvcsRef ref = asRef(selectedValue);
+        DvcsRef ref = DvcsBranchesTreeModel.asRef(selectedValue);
         if (ref instanceof GitRefAdapter adapter) {
-            ActionGroup group = createRefActionGroup(adapter.reference());
+            ActionGroup group = createRefActionGroup(myProject, myGitRepository.repository(), adapter.reference());
             if (group != null) {
                 return createActionsSubStep(group);
             }
@@ -116,26 +116,14 @@ public class GitBranchesTreePopupStep extends DvcsBranchesTreePopupStepBase {
     }
 
     @Nullable
-    private static DvcsRef asRef(Object selectedValue) {
-        if (selectedValue instanceof DvcsRef ref) {
-            return ref;
-        }
-        if (selectedValue instanceof DvcsBranchesTreeModel.RefUnderRepository refUnderRepository) {
-            return refUnderRepository.ref();
-        }
-        return null;
-    }
-
-    @Nullable
-    private ActionGroup createRefActionGroup(@Nullable GitReference reference) {
+    public static ActionGroup createRefActionGroup(Project project, GitRepository repository, @Nullable GitReference reference) {
         if (!(reference instanceof GitBranch branch)) {
             return null;
         }
-        GitRepository repository = myGitRepository.repository();
         List<GitRepository> repositories = List.of(repository);
         return branch.isRemote()
-            ? new GitBranchPopupActions.RemoteBranchActions(myProject, repositories, branch.getName(), repository)
-            : new GitBranchPopupActions.LocalBranchActions(myProject, repositories, branch.getName(), repository);
+            ? new GitBranchPopupActions.RemoteBranchActions(project, repositories, branch.getName(), repository)
+            : new GitBranchPopupActions.LocalBranchActions(project, repositories, branch.getName(), repository);
     }
 
     private PopupStep createActionsSubStep(ActionGroup group) {

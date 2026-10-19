@@ -38,7 +38,6 @@ import consulo.ui.layout.DockLayout;
 import consulo.ui.layout.VerticalLayout;
 import consulo.util.io.FileUtil;
 import consulo.util.lang.StringUtil;
-import consulo.util.lang.function.Functions;
 import consulo.util.lang.function.PairConsumer;
 import consulo.versionControlSystem.FilePath;
 import consulo.versionControlSystem.VcsException;
@@ -84,7 +83,6 @@ import java.nio.file.Files;
 import java.text.SimpleDateFormat;
 import java.util.List;
 import java.util.*;
-import java.util.function.Function;
 import java.util.function.Predicate;
 
 import static consulo.util.collection.ContainerUtil.*;
@@ -113,7 +111,6 @@ public class GitCheckinEnvironment implements CheckinEnvironment {
 
     private String myNextCommitAuthor = null; // The author for the next commit
     private boolean myNextCommitAmend; // If true, the next commit is amended
-    private Boolean myNextCommitIsPushed = null; // The push option of the next commit
     private Date myNextCommitAuthorDate;
     private boolean myNextCommitSignOff;
 
@@ -199,12 +196,9 @@ public class GitCheckinEnvironment implements CheckinEnvironment {
     public List<VcsException> commit(
         @Nonnull List<Change> changes,
         @Nonnull String message,
-        @Nonnull Function<Object, Object> parametersHolder,
+        @Nonnull CommitContext commitContext,
         Set<String> feedback
     ) {
-        boolean pushAfterCommit = Boolean.TRUE.equals(myNextCommitIsPushed);
-        myNextCommitIsPushed = null;
-
         List<VcsException> exceptions = new ArrayList<>();
         Map<VirtualFile, Collection<Change>> sortedChanges = sortChangesByGitRoot(changes, exceptions);
         if (sortedChanges.isEmpty()) {
@@ -284,7 +278,7 @@ public class GitCheckinEnvironment implements CheckinEnvironment {
                 }
             }
         }
-        if (pushAfterCommit && exceptions.isEmpty()) {
+        if (GitCommitAndPushExecutor.isPushAfterCommit(commitContext) && exceptions.isEmpty()) {
             GitRepositoryManager manager = getRepositoryManager(myProject);
             Collection<GitRepository> repositories = GitUtil.getRepositoriesFromRoots(manager, sortedChanges.keySet());
             List<GitRepository> preselectedRepositories = new ArrayList<>(repositories);
@@ -405,10 +399,6 @@ public class GitCheckinEnvironment implements CheckinEnvironment {
         return new VcsException(msg.trim(), original.getCause());
     }
 
-    @Override
-    public List<VcsException> commit(List<Change> changes, String preparedComment) {
-        return commit(changes, preparedComment, Functions.constant(null), null);
-    }
 
     /**
      * Preform a merge commit
@@ -742,7 +732,6 @@ public class GitCheckinEnvironment implements CheckinEnvironment {
     public void reset() {
         myNextCommitAmend = false;
         myNextCommitAuthor = null;
-        myNextCommitIsPushed = null;
         myNextCommitAuthorDate = null;
     }
 
@@ -897,7 +886,4 @@ public class GitCheckinEnvironment implements CheckinEnvironment {
         }
     }
 
-    public void setNextCommitIsPushed(Boolean nextCommitIsPushed) {
-        myNextCommitIsPushed = nextCommitIsPushed;
-    }
 }

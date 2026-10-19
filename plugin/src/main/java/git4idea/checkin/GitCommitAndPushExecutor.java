@@ -16,6 +16,8 @@
 package git4idea.checkin;
 
 import consulo.localize.LocalizeValue;
+import consulo.util.dataholder.Key;
+import consulo.versionControlSystem.change.CommitContext;
 import consulo.versionControlSystem.change.CommitExecutor;
 import consulo.versionControlSystem.change.CommitSession;
 import jakarta.annotation.Nonnull;
@@ -24,10 +26,10 @@ import jakarta.annotation.Nonnull;
  * @author yole
  */
 public class GitCommitAndPushExecutor implements CommitExecutor {
-    private final GitCheckinEnvironment myCheckinEnvironment;
+    private static final Key<Boolean> IS_PUSH_AFTER_COMMIT_KEY = Key.create("Git.Commit.IsPushAfterCommit");
 
-    public GitCommitAndPushExecutor(GitCheckinEnvironment checkinEnvironment) {
-        myCheckinEnvironment = checkinEnvironment;
+    static boolean isPushAfterCommit(CommitContext commitContext) {
+        return commitContext.getExecutorProperty(IS_PUSH_AFTER_COMMIT_KEY, Boolean.FALSE);
     }
 
     @Nonnull
@@ -38,8 +40,8 @@ public class GitCommitAndPushExecutor implements CommitExecutor {
 
     @Nonnull
     @Override
-    public CommitSession createCommitSession() {
-        myCheckinEnvironment.setNextCommitIsPushed(true);
+    public CommitSession createCommitSession(@Nonnull CommitContext commitContext) {
+        commitContext.putExecutorProperty(IS_PUSH_AFTER_COMMIT_KEY, Boolean.TRUE);
         return CommitSession.VCS_COMMIT;
     }
 }

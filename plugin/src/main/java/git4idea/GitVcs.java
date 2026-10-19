@@ -164,7 +164,7 @@ public class GitVcs extends AbstractVcs<CommittedChangeList> {
         myCommittedChangeListProvider = new GitCommittedChangeListProvider(myProject);
         myOutgoingChangesProvider = new GitOutgoingChangesProvider(myProject);
         myTreeDiffProvider = new GitTreeDiffProvider(myProject);
-        myCommitAndPushExecutor = myCheckinEnvironment != null ? new GitCommitAndPushExecutor(myCheckinEnvironment) : null;
+        myCommitAndPushExecutor = myCheckinEnvironment != null ? new GitCommitAndPushExecutor() : null;
         myExecutableValidator = new GitExecutableValidator(myProject);
         myNotificationService = notificationService;
     }
