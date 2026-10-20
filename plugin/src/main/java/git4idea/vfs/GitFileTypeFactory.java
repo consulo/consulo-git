@@ -20,6 +20,10 @@ import consulo.language.plain.PlainTextFileType;
 import consulo.virtualFileSystem.fileType.FileNameMatcherFactory;
 import consulo.virtualFileSystem.fileType.FileTypeConsumer;
 import consulo.virtualFileSystem.fileType.FileTypeFactory;
+import git4idea.ignore.lang.GitExcludeFileType;
+import git4idea.ignore.lang.GitExcludeLanguage;
+import git4idea.ignore.lang.GitIgnoreFileType;
+import git4idea.ignore.lang.GitIgnoreLanguage;
 import jakarta.annotation.Nonnull;
 import jakarta.inject.Inject;
 
@@ -37,10 +41,16 @@ public class GitFileTypeFactory extends FileTypeFactory {
 
     @Override
     public void createFileTypes(@Nonnull FileTypeConsumer consumer) {
+        consumer.consume(PlainTextFileType.INSTANCE, myFileNameMatcherFactory.createExactFileNameMatcher(".gitmodules"));
+
         consumer.consume(
-            PlainTextFileType.INSTANCE,
-            myFileNameMatcherFactory.createExactFileNameMatcher(".gitignore"),
-            myFileNameMatcherFactory.createExactFileNameMatcher(".gitmodules")
+            GitIgnoreFileType.INSTANCE,
+            myFileNameMatcherFactory.createExactFileNameMatcher(GitIgnoreLanguage.INSTANCE.getFilename())
+        );
+        consumer.consume(GitIgnoreFileType.INSTANCE, GitIgnoreLanguage.INSTANCE.getExtension());
+        consumer.consume(
+            GitExcludeFileType.INSTANCE,
+            myFileNameMatcherFactory.createExactFileNameMatcher(GitExcludeLanguage.INSTANCE.getFilename())
         );
     }
 }

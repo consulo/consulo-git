@@ -46,6 +46,7 @@ import consulo.virtualFileSystem.util.VirtualFileUtil;
 import git4idea.GitUtil;
 import git4idea.GitVcs;
 import git4idea.commands.Git;
+import git4idea.ignore.GitIgnoreInStoreDirGenerator;
 import git4idea.commands.GitCommandResult;
 import jakarta.annotation.Nonnull;
 
@@ -128,6 +129,9 @@ public class GitInit extends DumbAwareAction {
                     return;
                 }
                 refreshAndConfigureVcsMappings(project, root, path);
+                GitUtil.generateGitignoreFileIfNeeded(project, root);
+                // make sure .consulo/.gitignore is created before adding files
+                GitIgnoreInStoreDirGenerator.getInstance(project).generateGitignoreInStoreDirIfNeededSync();
             }
         });
     }

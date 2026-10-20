@@ -9,6 +9,8 @@ module com.intellij.git {
     requires consulo.version.control.system.log.api;
     requires consulo.version.control.system.distributed.api;
     requires consulo.language.editor.ui.api;
+    requires consulo.language.impl;
+    requires consulo.language.ignore.api;
     requires consulo.execution.api;
     requires consulo.configurable.api;
     requires consulo.ui.ex.api;

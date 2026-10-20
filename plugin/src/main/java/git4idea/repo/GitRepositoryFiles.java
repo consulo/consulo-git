@@ -37,6 +37,8 @@ import java.util.Set;
 public class GitRepositoryFiles {
     private static final Logger LOG = Logger.getInstance(GitRepositoryFiles.class);
 
+    public static final String GITIGNORE = ".gitignore";
+
     private static final String CHERRY_PICK_HEAD = "CHERRY_PICK_HEAD";
     private static final String COMMIT_EDITMSG = "COMMIT_EDITMSG";
     private static final String CONFIG = "config";
@@ -317,6 +319,11 @@ public class GitRepositoryFiles {
 
     public boolean isCommitMessageFile(@Nonnull String file) {
         return file.equals(myCommitMessagePath);
+    }
+
+    @Nonnull
+    public File getExcludeFile() {
+        return file(myExcludePath);
     }
 
     /**

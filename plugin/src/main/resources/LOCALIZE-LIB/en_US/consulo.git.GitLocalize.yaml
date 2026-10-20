@@ -1,5 +1,9 @@
 action.Annotate.with.Blame.text:
     text: A_nnotate with Git Blame
+git.add.to.exclude.file.action.description:
+    text: Add entries to .git/info/exclude
+git.add.to.exclude.file.action.text:
+    text: .git/info/exclude
 git.branches.popup.search.field.empty.text:
     text: Search for branches{0}{1}
 git.branches.popup.search.field.actions.empty.text:
@@ -429,6 +433,10 @@ git.new.tag.dialog.tag.name.label:
     text: Enter the name of new tag
 git.new.tag.dialog.title:
     text: Create New Tag On {0}
+git.open.exclude.file.action.description:
+    text: Open .git/info/exclude in editor
+git.open.exclude.file.action.text:
+    text: Open .git/info/exclude
 git.push.active.close:
     text: Close
 git.running:
@@ -571,6 +579,8 @@ merging.branch:
     text: Merging branch {0}
 merging.title:
     text: Merging changes to {0}
+notification.ignore.file.generation.error.text.files.progress.title:
+    text: Could not generate .gitignore file
 paths.affected.title:
     text: Paths affected in commit {0}
 progress.title.moving.files:

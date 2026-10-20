@@ -39,6 +39,7 @@ import consulo.versionControlSystem.distributed.repository.Repository;
 import consulo.versionControlSystem.distributed.repository.VcsRepositoryManager;
 import consulo.versionControlSystem.root.VcsRoot;
 import consulo.versionControlSystem.util.VcsFileUtil;
+import consulo.versionControlSystem.util.VcsImplUtil;
 import consulo.versionControlSystem.util.VcsUtil;
 import consulo.versionControlSystem.versionBrowser.CommittedChangeList;
 import consulo.versionControlSystem.virtualFileSystem.AbstractVcsVirtualFile;
@@ -219,6 +220,52 @@ public class GitUtil {
             }
         }
         throw new AssertionError("Shouldn't get here. Couldn't read " + file);
+    }
+
+    public static void generateGitignoreFileIfNeeded(@Nonnull Project project, @Nonnull VirtualFile ignoreFileRoot) {
+        VcsImplUtil.generateIgnoreFileIfNeeded(project, GitVcs.getInstance(project), ignoreFileRoot);
+    }
+
+    @Nonnull
+    public static Map<GitRepository, List<VirtualFile>> sortFilesByRepositoryIgnoringMissing(
+        @Nonnull Project project,
+        @Nonnull Collection<? extends VirtualFile> virtualFiles
+    ) {
+        try {
+            return sortFilesByRepository(project, virtualFiles, true);
+        }
+        catch (VcsException e) {
+            LOG.error(e.getMessage(), new IllegalArgumentException(e));
+            return Collections.emptyMap();
+        }
+    }
+
+    @Nonnull
+    private static Map<GitRepository, List<VirtualFile>> sortFilesByRepository(
+        @Nonnull Project project,
+        @Nonnull Collection<? extends VirtualFile> virtualFiles,
+        boolean ignoreNonGit
+    ) throws VcsException {
+        GitRepositoryManager manager = GitRepositoryManager.getInstance(project);
+
+        Map<GitRepository, List<VirtualFile>> result = new HashMap<>();
+        for (VirtualFile file : virtualFiles) {
+            // directory is reported only when it is a submodule or a mistakenly non-ignored nested root
+            // => it should be treated in the context of super-root
+            VirtualFile actualFile = file.isDirectory() ? file.getParent() : file;
+
+            GitRepository repository = manager.getRepositoryForFile(actualFile);
+            if (repository == null) {
+                if (ignoreNonGit) {
+                    continue;
+                }
+                throw new GitRepositoryNotFoundException(file);
+            }
+
+            List<VirtualFile> files = result.computeIfAbsent(repository, key -> new ArrayList<>());
+            files.add(file);
+        }
+        return result;
     }
 
     /**
