@@ -16,11 +16,13 @@
 package git4idea.repo;
 
 import consulo.util.collection.HashingStrategy;
+import consulo.util.collection.Maps;
 import consulo.util.collection.Sets;
 import consulo.versionControlSystem.distributed.repository.Repository;
 import consulo.versionControlSystem.log.Hash;
 import git4idea.GitBranch;
 import git4idea.GitLocalBranch;
+import git4idea.GitReference;
 import git4idea.GitRemoteBranch;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
@@ -41,6 +43,18 @@ public record GitRepoInfo(
     @Nonnull Collection<GitSubmoduleInfo> submodules,
     @Nonnull GitHooksInfo hooksInfo
 ) {
+    public Map<String, GitBranchTrackInfo> branchTrackInfosMap() {
+        Map<String, GitBranchTrackInfo> map = Maps.newHashMap(GitReference.BRANCH_NAME_HASHING_STRATEGY);
+        for (GitBranchTrackInfo info : branchTrackInfos) {
+            map.put(info.localBranch().getName(), info);
+        }
+        return map;
+    }
+
+    public boolean isOnBranch() {
+        return currentBranch != null && state != Repository.State.DETACHED && state != Repository.State.REBASING;
+    }
+
     @Deprecated
     @Nullable
     public GitLocalBranch getCurrentBranch() {

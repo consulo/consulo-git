@@ -15,6 +15,8 @@
  */
 package git4idea.commands;
 
+import consulo.externalProcessAuthHelper.AuthenticationGate;
+import consulo.externalProcessAuthHelper.AuthenticationMode;
 import consulo.annotation.component.ServiceImpl;
 import consulo.logging.Logger;
 import consulo.project.Project;
@@ -543,9 +545,25 @@ public class GitImpl implements Git {
                                 @Nonnull final GitRemote remote,
                                 @Nonnull final List<GitLineHandlerListener> listeners,
                                 final String... params) {
+    return fetch(repository, remote, listeners, null, null, params);
+  }
+
+  @Nonnull
+  public GitCommandResult fetch(@Nonnull final GitRepository repository,
+                                @Nonnull final GitRemote remote,
+                                @Nonnull final List<GitLineHandlerListener> listeners,
+                                @Nullable AuthenticationGate authenticationGate,
+                                @Nullable AuthenticationMode authenticationMode,
+                                final String... params) {
     return runCommand(() ->
                       {
                         final GitLineHandler h = new GitLineHandler(repository.getProject(), repository.getRoot(), GitCommand.FETCH);
+                        if (authenticationGate != null) {
+                          h.setAuthenticationGate(authenticationGate);
+                        }
+                        if (authenticationMode != null) {
+                          h.setIgnoreAuthenticationMode(authenticationMode);
+                        }
                         h.setSilent(false);
                         h.setStdoutSuppressed(false);
                         h.setUrls(remote.getUrls());

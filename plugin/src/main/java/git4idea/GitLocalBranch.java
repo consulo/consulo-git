@@ -15,46 +15,21 @@
  */
 package git4idea;
 
+import git4idea.branch.GitBranchUtil;
 import git4idea.repo.GitBranchTrackInfo;
 import git4idea.repo.GitRepository;
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
- * @author Kirill Likhodedov
+ * Consider using {@link GitStandardLocalBranch} for new code
  */
-public class GitLocalBranch extends GitBranch {
-    public GitLocalBranch(@Nonnull String name) {
+public class GitLocalBranch extends GitStandardLocalBranch {
+    public GitLocalBranch(String name) {
         super(name);
     }
 
-    @Override
-    public boolean isRemote() {
-        return false;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        return super.equals(o);
-    }
-
-    @Override
-    public int hashCode() {
-        return super.hashCode();
-    }
-
-    @Override
-    public String toString() {
-        return super.toString();
-    }
-
-    @Nullable
-    public GitRemoteBranch findTrackedBranch(@Nonnull GitRepository repository) {
-        for (GitBranchTrackInfo info : repository.getBranchTrackInfos()) {
-            if (info.localBranch().equals(this)) {
-                return info.remoteBranch();
-            }
-        }
-        return null;
+    public @Nullable GitRemoteBranch findTrackedBranch(GitRepository repository) {
+        GitBranchTrackInfo info = GitBranchUtil.getTrackInfoForBranch(repository, this);
+        return info == null ? null : info.remoteBranch();
     }
 }

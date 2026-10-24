@@ -1,5 +1,6 @@
+// Copyright 2000-2023 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 /*
- * Copyright 2000-2013 JetBrains s.r.o.
+ * Copyright 2013-2026 consulo.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,26 +17,28 @@
 package git4idea.commands;
 
 import consulo.annotation.component.ServiceImpl;
+import consulo.externalProcessAuthHelper.AuthenticationGate;
+import consulo.externalProcessAuthHelper.AuthenticationMode;
 import consulo.project.Project;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
-import jakarta.annotation.Nonnull;
+import java.nio.file.Path;
 import java.util.Collection;
 
-/**
- * @author Kirill Likhodedov
- */
 @Singleton
 @ServiceImpl
-class GitHttpAuthServiceImpl extends GitHttpAuthService {
-  @Inject
-  GitHttpAuthServiceImpl() {
-  }
+public class GitHttpAuthServiceImpl extends GitHttpAuthService {
+    @Inject
+    public GitHttpAuthServiceImpl() {
+    }
 
-  @Override
-  @Nonnull
-  public GitHttpAuthenticator createAuthenticator(@Nonnull Project project, @Nonnull GitCommand command, @Nonnull Collection<String> urls) {
-    return new GitHttpGuiAuthenticator(project, command, urls);
-  }
+    @Override
+    public GitHttpAuthenticator createAuthenticator(Project project,
+                                                    Collection<String> urls,
+                                                    Path workingDirectory,
+                                                    AuthenticationGate authenticationGate,
+                                                    AuthenticationMode authenticationMode) {
+        return new GitHttpGuiAuthenticator(project, urls, workingDirectory, authenticationGate, authenticationMode);
+    }
 }

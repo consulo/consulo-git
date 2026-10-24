@@ -16,6 +16,8 @@
 package git4idea.config;
 
 import consulo.platform.Platform;
+import consulo.project.Project;
+import git4idea.GitVcs;
 import jakarta.annotation.Nonnull;
 
 /**
@@ -193,6 +195,13 @@ public enum GitVersionSpecialty {
         }
     },
 
+    INCOMING_OUTGOING_BRANCH_INFO {
+        @Override
+        public boolean existsIn(@Nonnull GitVersion version) {
+            return version.isLaterOrEqual(new GitVersion(2, 9, 0, 0));
+        }
+    },
+
     LF_SEPARATORS_IN_STDIN {
         @Override
         public boolean existsIn(@Nonnull GitVersion version) {
@@ -202,4 +211,12 @@ public enum GitVersionSpecialty {
     };
 
     public abstract boolean existsIn(@Nonnull GitVersion version);
+
+    /**
+     * Check version of configured git executable.
+     */
+    public boolean existsIn(@Nonnull Project project) {
+        GitVcs vcs = GitVcs.getInstance(project);
+        return existsIn(vcs == null ? GitVersion.NULL : vcs.getVersion());
+    }
 }

@@ -55,6 +55,7 @@ import git4idea.history.browser.SymbolicRefsI;
 import git4idea.history.wholeTree.AbstractHash;
 import git4idea.log.GitLogProvider;
 import git4idea.log.GitRefManager;
+import git4idea.repo.GitRepository;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import org.slf4j.Logger;
@@ -1191,6 +1192,20 @@ public class GitHistoryUtils {
             path = change.getBeforeRevision().getFile();
         }
         return path;
+    }
+
+    @Nullable
+    public static String getNumberOfCommitsBetween(@Nonnull GitRepository repository, @Nonnull String from, @Nonnull String to) {
+        GitLineHandler handler = new GitLineHandler(repository.getProject(), repository.getRoot(), GitCommand.REV_LIST);
+        handler.addParameters("--count", from + ".." + to);
+        handler.setSilent(true);
+        try {
+            return Git.getInstance().runCommand(handler).getOutputOrThrow().trim();
+        }
+        catch (VcsException e) {
+            LOG.debug(e.getMessage());
+            return null;
+        }
     }
 
     @Nullable

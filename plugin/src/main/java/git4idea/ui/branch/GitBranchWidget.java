@@ -21,19 +21,26 @@ import consulo.project.ui.wm.StatusBarWidgetFactory;
 import consulo.ui.ex.action.ActionManager;
 import consulo.ui.ex.popup.ListPopup;
 import consulo.versionControlSystem.distributed.DvcsUtil;
+import consulo.versionControlSystem.distributed.branch.DvcsInOutCountersInProject;
+import consulo.versionControlSystem.distributed.branch.DvcsSyncSettings;
 import consulo.versionControlSystem.distributed.ui.DvcsStatusWidget;
 import consulo.versionControlSystem.distributed.ui.branch.popup.DvcsBranchesTreePopupFactory;
 import consulo.virtualFileSystem.VirtualFile;
+import git4idea.GitLocalBranch;
 import git4idea.GitUtil;
 import git4idea.GitVcs;
+import git4idea.branch.GitBranchIncomingOutgoingManager;
 import git4idea.branch.GitBranchUtil;
 import git4idea.config.GitVcsSettings;
 import git4idea.repo.GitRepository;
 import git4idea.repo.GitRepositoryChangeListener;
+import git4idea.repo.GitRepositoryManager;
 import git4idea.ui.branch.popup.GitBranchesTreePopupModel;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -75,6 +82,21 @@ public class GitBranchWidget extends DvcsStatusWidget<GitRepository> {
     protected ListPopup getPopup(@Nonnull Project project, @Nonnull GitRepository repository) {
         return DvcsBranchesTreePopupFactory.getInstance(project)
             .createTreePopup(new GitBranchesTreePopupModel(ActionManager.getInstance(), repository, project));
+    }
+
+    @Override
+    protected DvcsInOutCountersInProject getInOutCounters(GitRepository repository) {
+        GitLocalBranch currentBranch = repository.getCurrentBranch();
+        if (currentBranch == null) {
+            return DvcsInOutCountersInProject.EMPTY;
+        }
+        Project project = repository.getProject();
+        GitRepositoryManager repositoryManager = GitRepositoryManager.getInstance(project);
+        boolean moreThanOneRoot = repositoryManager.moreThanOneRoot();
+        boolean doNotSyncRepos = mySettings.getSyncSetting() == DvcsSyncSettings.Value.DONT_SYNC;
+        Collection<GitRepository> indicatorRepos =
+            moreThanOneRoot && !doNotSyncRepos ? repositoryManager.getRepositories() : List.of(repository);
+        return GitBranchIncomingOutgoingManager.getInstance(project).getIncomingOutgoingState(indicatorRepos, currentBranch);
     }
 
     @Override

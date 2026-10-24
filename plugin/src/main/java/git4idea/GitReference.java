@@ -21,12 +21,16 @@ import consulo.util.lang.StringUtil;
 import consulo.virtualFileSystem.util.FilePathHashingStrategy;
 import jakarta.annotation.Nonnull;
 
+import java.util.Comparator;
+
 /**
  * The base class for named git references, like branches and tags.
  */
 public abstract class GitReference implements Comparable<GitReference> {
 
   public static final HashingStrategy<String> BRANCH_NAME_HASHING_STRATEGY = FilePathHashingStrategy.create();
+
+  public static final Comparator<String> REFS_NAMES_COMPARATOR = StringUtil::naturalCompare;
 
   @Nonnull
   protected final String myName;

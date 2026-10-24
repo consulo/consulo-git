@@ -1,5 +1,6 @@
+// Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 /*
- * Copyright 2000-2016 JetBrains s.r.o.
+ * Copyright 2013-2026 consulo.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,13 +18,18 @@ package git4idea.commands;
 
 import consulo.annotation.component.ComponentScope;
 import consulo.annotation.component.ServiceAPI;
+import consulo.component.ProcessCanceledException;
+import consulo.disposer.Disposable;
+import consulo.externalProcessAuthHelper.AuthenticationGate;
+import consulo.externalProcessAuthHelper.AuthenticationMode;
+import consulo.externalProcessAuthHelper.ExternalProcessHandlerService;
 import consulo.project.Project;
-import org.jetbrains.git4idea.rt.http.GitAskPassApp;
-import org.jetbrains.git4idea.rt.http.GitAskPassXmlRpcHandler;
-import org.jetbrains.git4idea.ssh.GitXmlRpcHandlerService;
-import org.jetbrains.git4idea.util.ScriptGenerator;
+import consulo.util.lang.StringUtil;
+import git4idea.http.GitAskPassApp;
+import git4idea.http.GitAskPassAppHandler;
+import org.jspecify.annotations.Nullable;
 
-import jakarta.annotation.Nonnull;
+import java.nio.file.Path;
 import java.util.Collection;
 import java.util.UUID;
 
@@ -31,45 +37,62 @@ import java.util.UUID;
  * Provides the authentication mechanism for Git HTTP connections.
  */
 @ServiceAPI(ComponentScope.APPLICATION)
-public abstract class GitHttpAuthService extends GitXmlRpcHandlerService<GitHttpAuthenticator> {
-
-  protected GitHttpAuthService() {
-    super("intellij-git-askpass", GitAskPassXmlRpcHandler.HANDLER_NAME, GitAskPassApp.class);
-  }
-
-  @Override
-  protected void customizeScriptGenerator(@Nonnull ScriptGenerator generator) {
-  }
-
-  @Nonnull
-  @Override
-  protected Object createRpcRequestHandlerDelegate() {
-    return new InternalRequestHandlerDelegate();
-  }
-
-  /**
-   * Creates new {@link GitHttpAuthenticator} that will be requested to handle username and password requests from Git.
-   */
-  @Nonnull
-  public abstract GitHttpAuthenticator createAuthenticator(@Nonnull Project project,
-                                                           @Nonnull GitCommand command,
-                                                           @Nonnull Collection<String> urls);
-
-  /**
-   * Internal handler implementation class, it is made public to be accessible via XML RPC.
-   */
-  public class InternalRequestHandlerDelegate implements GitAskPassXmlRpcHandler {
-    @Nonnull
-    @Override
-    public String askUsername(String token, @Nonnull String url) {
-      return getHandler(UUID.fromString(token)).askUsername(url);
+public abstract class GitHttpAuthService extends ExternalProcessHandlerService<GitAskPassAppHandler> {
+    protected GitHttpAuthService() {
+        super("intellij-git-askpass", GitAskPassApp.class);
     }
 
-    @Nonnull
-    @Override
-    public String askPassword(String token, @Nonnull String url) {
-      return getHandler(UUID.fromString(token)).askPassword(url);
-    }
-  }
+    /**
+     * Creates new {@link GitHttpAuthenticator} that will be requested to handle username and password requests from Git.
+     */
+    public abstract GitHttpAuthenticator createAuthenticator(
+        Project project,
+        Collection<String> urls,
+        Path workingDirectory,
+        AuthenticationGate authenticationGate,
+        AuthenticationMode authenticationMode
+    );
 
+    @Override
+    protected @Nullable String handleRequest(GitAskPassAppHandler handler, String requestBody) {
+        return handler.handleInput(requestBody);
+    }
+
+    public UUID registerHandler(GitHttpAuthenticator authenticator, Disposable disposable) {
+        return registerHandler(new AuthAppHandler(authenticator), disposable);
+    }
+
+    private static class AuthAppHandler implements GitAskPassAppHandler {
+        private final GitHttpAuthenticator myAuthenticator;
+
+        AuthAppHandler(GitHttpAuthenticator authenticator) {
+            myAuthenticator = authenticator;
+        }
+
+        @Override
+        public @Nullable String handleInput(String arg) {
+            boolean usernameNeeded = StringUtil.startsWithIgnoreCase(arg, "username");
+            String[] split = arg.split(" ");
+            String url = split.length > 2 ? parseUrl(split[2]) : "";
+            try {
+                return usernameNeeded ? myAuthenticator.askUsername(url) : myAuthenticator.askPassword(url);
+            }
+            catch (ProcessCanceledException e) {
+                return null;
+            }
+        }
+
+        private static String parseUrl(String url) {
+            // un-quote and remove the trailing colon
+            int start = 0;
+            while (start < url.length() && url.charAt(start) == '\'') {
+                start++;
+            }
+            int end = url.length();
+            while (end > start && (url.charAt(end - 1) == '\'' || url.charAt(end - 1) == ':')) {
+                end--;
+            }
+            return url.substring(start, end);
+        }
+    }
 }

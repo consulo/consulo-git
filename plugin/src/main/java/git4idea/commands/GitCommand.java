@@ -36,6 +36,11 @@ import java.lang.Runnable;
  * </p>
  */
 public class GitCommand {
+    public static final String GIT_ASK_PASS_ENV = "GIT_ASKPASS";
+    public static final String GIT_SSH_ASK_PASS_ENV = "SSH_ASKPASS";
+    public static final String SSH_ASKPASS_REQUIRE_ENV = "SSH_ASKPASS_REQUIRE";
+    public static final String DISPLAY_ENV = "DISPLAY";
+
     public static final GitCommand ADD = write("add");
     public static final GitCommand BLAME = read("blame");
     public static final GitCommand BRANCH = read("branch");

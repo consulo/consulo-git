@@ -4,12 +4,13 @@
  */
 module com.intellij.git.rt {
     requires static jakarta.annotation;
+    requires consulo.external.process.auth.helper.rt;
     
     requires trilead.ssh2;
     requires xmlrpc.common;
     requires xmlrpc.client;
 
     exports org.jetbrains.git4idea.rt;
-    exports org.jetbrains.git4idea.rt.http;
+    exports git4idea.http;
     exports org.jetbrains.git4idea.rt.ssh;
 }

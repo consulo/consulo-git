@@ -16,6 +16,7 @@ module com.intellij.git {
     requires consulo.ui.ex.api;
     requires consulo.ui.ex.awt.api;
     requires consulo.http.api;
+    requires consulo.external.process.auth.helper;
     requires consulo.process.api;
     requires consulo.builtin.web.server.api;
     requires consulo.credential.storage.api;

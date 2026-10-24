@@ -421,6 +421,8 @@ git.executable.notification.title:
     text: Can't start Git
 git.executable.version.is:
     text: Git version is {0}
+git.fetch.progress:
+    text: Fetching…
 git.light.status.bar.display.name:
     text: Git
 git.light.status.bar.text:
@@ -523,6 +525,10 @@ init.warning.title:
     text: Git Init
 initializing.title:
     text: Initializing repository…
+label.credential.store.key.http.password:
+    text: Git HTTP
+login.dialog.label.login.to.url:
+    text: 'Log In to {0}'
 merge.add.log.information:
     text: Add &log information
 merge.add.log.information.tooltip:
@@ -581,6 +587,10 @@ merging.title:
     text: Merging changes to {0}
 notification.ignore.file.generation.error.text.files.progress.title:
     text: Could not generate .gitignore file
+notification.title.fetch.failure:
+    text: Fetch failed
+notification.title.fetch.success:
+    text: Fetch successful
 paths.affected.title:
     text: Paths affected in commit {0}
 progress.title.moving.files:

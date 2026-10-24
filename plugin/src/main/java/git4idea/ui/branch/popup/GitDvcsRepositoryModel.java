@@ -18,18 +18,22 @@ package git4idea.ui.branch.popup;
 import consulo.ui.image.Image;
 import consulo.versionControlSystem.FilePath;
 import consulo.versionControlSystem.distributed.DvcsUtil;
+import consulo.versionControlSystem.distributed.branch.DvcsInOutCountersInRepo;
 import consulo.versionControlSystem.distributed.ui.branch.popup.DvcsRef;
 import consulo.versionControlSystem.distributed.ui.branch.popup.DvcsRepositoryModel;
 import consulo.versionControlSystem.util.VcsUtil;
 import git4idea.GitBranch;
 import git4idea.GitLocalBranch;
 import git4idea.GitReference;
+import git4idea.branch.GitBranchIncomingOutgoingManager;
 import git4idea.branch.GitBranchType;
 import git4idea.branch.GitBranchUtil;
 import git4idea.repo.GitBranchTrackInfo;
 import git4idea.repo.GitRepository;
 import git4idea.ui.branch.GitBranchManager;
 import org.jspecify.annotations.Nullable;
+
+import java.time.Instant;
 
 /**
  * {@link DvcsRepositoryModel} adapter over a real {@link GitRepository}.
@@ -71,6 +75,22 @@ public record GitDvcsRepositoryModel(GitRepository repository, GitBranchManager 
         }
         GitBranchTrackInfo trackInfo = GitBranchUtil.getTrackInfoForBranch(repository, localBranch);
         return trackInfo != null ? trackInfo.remoteBranch().getName() : null;
+    }
+
+    @Nullable
+    @Override
+    public DvcsInOutCountersInRepo getInOutCounters(DvcsRef ref) {
+        GitReference reference = unwrap(ref);
+        if (!(reference instanceof GitLocalBranch localBranch)) {
+            return null;
+        }
+        return GitBranchIncomingOutgoingManager.getInstance(repository.getProject()).getIncomingOutgoingCounters(repository, localBranch);
+    }
+
+    @Nullable
+    @Override
+    public Instant getLastFetchTime() {
+        return GitBranchIncomingOutgoingManager.getInstance(repository.getProject()).getLastFetchTime();
     }
 
     @Override

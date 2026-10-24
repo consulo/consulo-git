@@ -16,6 +16,15 @@
 package git4idea.commands;
 
 import consulo.component.ProcessCanceledException;
+import consulo.disposer.Disposable;
+import consulo.disposer.Disposer;
+import consulo.externalProcessAuthHelper.AuthenticationGate;
+import consulo.externalProcessAuthHelper.AuthenticationMode;
+import consulo.externalProcessAuthHelper.ExternalProcessHandlerService;
+import consulo.externalProcessAuthHelper.NativeSshAuthService;
+import consulo.externalProcessAuthHelper.NativeSshGuiAuthenticator;
+import consulo.externalProcessAuthHelper.PassthroughAuthenticationGate;
+import consulo.externalProcessAuthHelper.ScriptGeneratorImpl;
 import consulo.container.plugin.PluginManager;
 import consulo.http.HttpProxyManager;
 import consulo.application.Application;
@@ -31,6 +40,7 @@ import consulo.util.dataholder.Key;
 import consulo.util.io.FileUtil;
 import consulo.util.lang.ObjectUtil;
 import consulo.util.lang.StringUtil;
+import consulo.util.lang.function.ThrowableConsumer;
 import consulo.versionControlSystem.FilePath;
 import consulo.versionControlSystem.ProcessEventListener;
 import consulo.versionControlSystem.VcsException;
@@ -44,9 +54,10 @@ import git4idea.config.GitExecutableManager;
 import git4idea.config.GitVcsApplicationSettings;
 import git4idea.config.GitVcsSettings;
 import git4idea.config.GitVersionSpecialty;
+import git4idea.http.GitAskPassAppHandler;
+import externalApp.nativessh.NativeSshAskPassAppHandler;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
-import org.jetbrains.git4idea.rt.http.GitAskPassXmlRpcHandler;
 import org.jetbrains.git4idea.rt.ssh.GitSSHHandler;
 import org.jetbrains.git4idea.ssh.GitXmlRpcSshService;
 
@@ -56,7 +67,6 @@ import java.io.OutputStream;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
-import java.util.function.Predicate;
 
 import static git4idea.commands.GitCommand.LockingPolicy.WRITE;
 import static java.util.Collections.singletonList;
@@ -89,7 +99,14 @@ public abstract class GitHandler {
     // the flag indicating that environment has been cleaned up, by default is true because there is nothing to clean
     private UUID mySshHandler;
     private UUID myHttpHandler;
-    private Predicate<OutputStream> myInputProcessor; // The processor for stdin
+    private UUID myNativeSshHandler;
+    @Nullable
+    private Disposable myAuthDisposable;
+    private AuthenticationMode myIgnoreAuthenticationRequest = AuthenticationMode.FULL;
+    @Nullable
+    private AuthenticationGate myAuthenticationGate;
+    @Nullable
+    private ThrowableConsumer<? super OutputStream, IOException> myInputProcessor; // The processor for stdin
 
     // if true process might be cancelled
     // note that access is safe because it accessed in unsynchronized block only after process is started, and it does not change after that
@@ -191,6 +208,15 @@ public abstract class GitHandler {
      */
     public void addError(VcsException ex) {
         myErrors.add(ex);
+    }
+
+    /**
+     * Set processor for standard input. This is a place where input to the git application could be generated.
+     *
+     * @param inputProcessor the processor
+     */
+    public void setInputProcessor(@Nullable ThrowableConsumer<? super OutputStream, IOException> inputProcessor) {
+        myInputProcessor = inputProcessor;
     }
 
     public void addLastOutput(String line) {
@@ -438,6 +464,7 @@ public abstract class GitHandler {
                         break;
                     case NATIVE_SSH:
                         setupHttpAuthenticator();
+                        setupNativeSshAuthenticator();
                         break;
                     case PUTTY:
                         setupPuttyAuthenticator();
@@ -474,15 +501,78 @@ public abstract class GitHandler {
 
     private void setupHttpAuthenticator() throws IOException {
         GitHttpAuthService service = Application.get().getInstance(GitHttpAuthService.class);
-        myEnv.put(GitAskPassXmlRpcHandler.GIT_ASK_PASS_ENV, service.getScriptPath().getPath());
-        GitHttpAuthenticator httpAuthenticator = service.createAuthenticator(myProject, myCommand, ObjectUtil.assertNotNull(myUrls));
-        myHttpHandler = service.registerHandler(httpAuthenticator, myProject);
+        myEnv.put(GitCommand.GIT_ASK_PASS_ENV, getCallbackScriptPath(service));
+        GitHttpAuthenticator httpAuthenticator = service.createAuthenticator(
+            myProject,
+            ObjectUtil.assertNotNull(myUrls),
+            myWorkingDirectory.toPath(),
+            getAuthenticationGateOrPassthrough(),
+            myIgnoreAuthenticationRequest
+        );
+        myHttpHandler = service.registerHandler(httpAuthenticator, getAuthDisposable());
         myEnvironmentCleanedUp = false;
-        myEnv.put(GitAskPassXmlRpcHandler.GIT_ASK_PASS_HANDLER_ENV, myHttpHandler.toString());
-        int port = service.getXmlRcpPort();
-        myEnv.put(GitAskPassXmlRpcHandler.GIT_ASK_PASS_PORT_ENV, Integer.toString(port));
+        myEnv.put(GitAskPassAppHandler.IJ_ASK_PASS_HANDLER_ENV, myHttpHandler.toString());
+        int port = service.getIdePort();
+        myEnv.put(GitAskPassAppHandler.IJ_ASK_PASS_PORT_ENV, Integer.toString(port));
         LOG.debug(String.format("handler=%s, port=%s", myHttpHandler, port));
         addAuthListener(httpAuthenticator);
+    }
+
+    private void setupNativeSshAuthenticator() throws IOException {
+        NativeSshAuthService service = NativeSshAuthService.getInstance();
+
+        boolean doNotRememberPasswords = ObjectUtil.assertNotNull(myUrls).size() > 1;
+        NativeSshGuiAuthenticator authenticator =
+            new NativeSshGuiAuthenticator(myProject, getAuthenticationGateOrPassthrough(), myIgnoreAuthenticationRequest, doNotRememberPasswords);
+
+        myNativeSshHandler = service.registerHandler(authenticator, getAuthDisposable());
+        myEnvironmentCleanedUp = false;
+        int port = service.getIdePort();
+
+        myEnv.put(GitCommand.GIT_SSH_ASK_PASS_ENV, getCallbackScriptPath(service));
+        myEnv.put(NativeSshAskPassAppHandler.IJ_SSH_ASK_PASS_HANDLER_ENV, myNativeSshHandler.toString());
+        myEnv.put(NativeSshAskPassAppHandler.IJ_SSH_ASK_PASS_PORT_ENV, Integer.toString(port));
+
+        myEnv.put(GitCommand.SSH_ASKPASS_REQUIRE_ENV, "force");
+        // SSH_ASKPASS_REQUIRE is supported by openssh 8.4+, prior versions ignore SSH_ASKPASS if DISPLAY variable is not set
+        String displayEnv = StringUtil.nullize(System.getenv(GitCommand.DISPLAY_ENV));
+        myEnv.put(GitCommand.DISPLAY_ENV, StringUtil.notNullize(displayEnv, ":0.0"));
+    }
+
+    private static String getCallbackScriptPath(ExternalProcessHandlerService<?> service) throws IOException {
+        return service.getCallbackScriptPath("local", new ScriptGeneratorImpl(), Platform.current().os().isWindows()).getPath();
+    }
+
+    private AuthenticationGate getAuthenticationGateOrPassthrough() {
+        AuthenticationGate gate = myAuthenticationGate;
+        return gate != null ? gate : PassthroughAuthenticationGate.getInstance();
+    }
+
+    private Disposable getAuthDisposable() {
+        Disposable disposable = myAuthDisposable;
+        if (disposable == null) {
+            disposable = Disposable.newDisposable("GitHandler authentication");
+            Disposer.register(myProject, disposable);
+            myAuthDisposable = disposable;
+        }
+        return disposable;
+    }
+
+    public AuthenticationMode getIgnoreAuthenticationMode() {
+        return myIgnoreAuthenticationRequest;
+    }
+
+    public void setIgnoreAuthenticationMode(AuthenticationMode authenticationMode) {
+        myIgnoreAuthenticationRequest = authenticationMode;
+    }
+
+    @Nullable
+    public AuthenticationGate getAuthenticationGate() {
+        return myAuthenticationGate;
+    }
+
+    public void setAuthenticationGate(AuthenticationGate authenticationGate) {
+        myAuthenticationGate = authenticationGate;
     }
 
     private void setupPuttyAuthenticator() {
@@ -632,8 +722,10 @@ public abstract class GitHandler {
         if (mySshHandler != null) {
             Application.get().getInstance(GitXmlRpcSshService.class).unregisterHandler(mySshHandler);
         }
-        if (myHttpHandler != null) {
-            Application.get().getInstance(GitHttpAuthService.class).unregisterHandler(myHttpHandler);
+        Disposable authDisposable = myAuthDisposable;
+        if (authDisposable != null) {
+            myAuthDisposable = null;
+            Disposer.dispose(authDisposable);
         }
         myEnvironmentCleanedUp = true;
     }
@@ -645,8 +737,11 @@ public abstract class GitHandler {
         checkStarted();
         try {
             if (myInputProcessor != null && myProcess != null) {
-                myInputProcessor.test(myProcess.getOutputStream());
+                myInputProcessor.consume(myProcess.getOutputStream());
             }
+        }
+        catch (IOException e) {
+            addError(new VcsException(e));
         }
         finally {
             waitForProcess();

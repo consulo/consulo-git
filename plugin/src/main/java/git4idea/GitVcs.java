@@ -58,6 +58,7 @@ import consulo.virtualFileSystem.VirtualFile;
 import consulo.virtualFileSystem.util.VirtualFileUtil;
 import git4idea.annotate.GitAnnotationProvider;
 import git4idea.annotate.GitRepositoryForAnnotationsListener;
+import git4idea.branch.GitBranchIncomingOutgoingManager;
 import git4idea.changes.GitCommittedChangeListProvider;
 import git4idea.changes.GitOutgoingChangesProvider;
 import git4idea.checkin.GitCheckinEnvironment;
@@ -313,6 +314,7 @@ public class GitVcs extends AbstractVcs<CommittedChangeList> {
             myRepositoryForAnnotationsListener = new GitRepositoryForAnnotationsListener(myProject);
         }
         GitUserRegistry.getInstance(myProject).activate();
+        GitBranchIncomingOutgoingManager.getInstance(myProject).activate();
     }
 
     private void checkExecutableAndVersion() {

@@ -58,6 +58,7 @@ import java.util.*;
 public class GitVcsSettings implements PersistentStateComponent<GitVcsSettings.State>, DvcsSyncSettings {
     private static final int PREVIOUS_COMMIT_AUTHORS_LIMIT = 16; // Limit for previous commit authors
 
+    private final Project myProject;
     private final GitVcsApplicationSettings myAppSettings;
     private State myState = new State();
 
@@ -91,6 +92,7 @@ public class GitVcsSettings implements PersistentStateComponent<GitVcsSettings.S
         public boolean FORCE_PUSH_ALLOWED = false;
         public GitPushTagMode PUSH_TAGS = null;
         public boolean SIGN_OFF_COMMIT = false;
+        public GitIncomingRemoteCheckStrategy INCOMING_COMMITS_CHECK_STRATEGY = GitIncomingRemoteCheckStrategy.LS_REMOTE;
 
         @AbstractCollection(surroundWithTag = false)
         @Tag("push-targets")
@@ -103,7 +105,8 @@ public class GitVcsSettings implements PersistentStateComponent<GitVcsSettings.S
     }
 
     @Inject
-    public GitVcsSettings(GitVcsApplicationSettings appSettings) {
+    public GitVcsSettings(Project project, GitVcsApplicationSettings appSettings) {
+        myProject = project;
         myAppSettings = appSettings;
     }
 
@@ -279,6 +282,25 @@ public class GitVcsSettings implements PersistentStateComponent<GitVcsSettings.S
 
     public void setSignOffCommit(boolean state) {
         myState.SIGN_OFF_COMMIT = state;
+    }
+
+    @Nonnull
+    public GitIncomingRemoteCheckStrategy getIncomingCommitsCheckStrategy() {
+        return ObjectUtil.notNull(myState.INCOMING_COMMITS_CHECK_STRATEGY, GitIncomingRemoteCheckStrategy.LS_REMOTE);
+    }
+
+    public void setAutoFetch(boolean value) {
+        setIncomingCommitsCheckStrategy(value ? GitIncomingRemoteCheckStrategy.FETCH : GitIncomingRemoteCheckStrategy.LS_REMOTE);
+    }
+
+    public void setCheckRemote(boolean value) {
+        setIncomingCommitsCheckStrategy(value ? GitIncomingRemoteCheckStrategy.LS_REMOTE : GitIncomingRemoteCheckStrategy.NONE);
+    }
+
+    public void setIncomingCommitsCheckStrategy(@Nullable GitIncomingRemoteCheckStrategy strategy) {
+        GitIncomingRemoteCheckStrategy strategyToSet = strategy != null ? strategy : GitIncomingRemoteCheckStrategy.LS_REMOTE;
+        myState.INCOMING_COMMITS_CHECK_STRATEGY = strategyToSet;
+        myProject.getMessageBus().syncPublisher(GitVcsSettingsListener.class).incomingCommitsCheckStrategyChanged(strategyToSet);
     }
 
 
