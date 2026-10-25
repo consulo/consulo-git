@@ -16,16 +16,78 @@
  */
 package git4idea.ui.branch;
 
+import consulo.git.localize.GitBranchesLocalize;
+import consulo.localize.LocalizeValue;
+import consulo.project.Project;
+import consulo.ui.annotation.RequiredUIAccess;
 import git4idea.GitLocalBranch;
 import git4idea.GitReference;
+import git4idea.branch.GitBranchOperationType;
 import git4idea.branch.GitBranchUtil;
+import git4idea.branch.GitNewBranchDialog;
 import git4idea.repo.GitBranchTrackInfo;
 import git4idea.repo.GitRepository;
+import org.jspecify.annotations.Nullable;
 
+import java.util.Collection;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 public final class GitBranchActionsUtil {
     private GitBranchActionsUtil() {
+    }
+
+    @RequiredUIAccess
+    public static CompletableFuture<?> createOrCheckoutNewBranch(Project project, Collection<GitRepository> repositories, String startPoint) {
+        return createOrCheckoutNewBranch(project, repositories, startPoint, GitBranchesLocalize.dialogTitleCreateNewBranch(), null);
+    }
+
+    @RequiredUIAccess
+    public static CompletableFuture<?> createOrCheckoutNewBranch(Project project,
+                                                                 Collection<GitRepository> repositories,
+                                                                 String startPoint,
+                                                                 LocalizeValue title,
+                                                                 @Nullable String initialName) {
+        GitNewBranchDialog dialog = new GitNewBranchDialog(
+            project,
+            repositories,
+            title,
+            initialName,
+            true,
+            true,
+            false,
+            false,
+            true,
+            GitBranchOperationType.CREATE
+        );
+        return dialog.showAndGetOptions().thenComposeAsync(options -> {
+            if (options == null) {
+                return CompletableFuture.completedFuture(null);
+            }
+            return new GitBranchCheckoutOperation(project, options.repositories()).perform(startPoint, options);
+        }, project.getUIAccess());
+    }
+
+    /**
+     * Calculate initial branch name for the "New branch" actions.
+     * <p>
+     * Calculation use the following rules:
+     * <ul>
+     * <li>For selected remote branch - use the corresponding local name</li>
+     * <li>For selected local branch - use the same name as the selected branch</li>
+     * </ul>
+     */
+    public static String calculateNewBranchInitialName(String branchName, boolean isRemote) {
+        if (branchName.isEmpty()) {
+            throw new IllegalArgumentException("Given branch name cannot be empty");
+        }
+
+        if (!isRemote) {
+            return branchName;
+        }
+
+        int slash = branchName.indexOf('/');
+        return slash < 0 ? branchName : branchName.substring(slash + 1);
     }
 
     public static boolean hasTrackingConflicts(Map<GitRepository, GitLocalBranch> conflictingLocalBranches, String remoteBranchName) {

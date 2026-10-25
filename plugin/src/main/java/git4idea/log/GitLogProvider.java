@@ -481,39 +481,97 @@ public class GitLogProvider implements VcsLogProvider {
         @Nonnull VcsLogFilterCollection filterCollection,
         int maxCount
     ) throws VcsException {
-        if (!isRepositoryReady(root)) {
-            return Collections.emptyList();
+        VcsLogRangeFilter rangeFilter = filterCollection.getRangeFilter();
+        if (rangeFilter == null) {
+            return getCommitsMatchingFilter(root, filterCollection, null, maxCount);
         }
 
-        List<String> filterParameters = new ArrayList<>();
+        /*
+          We expect a "branch + range" combined filter to display the union of commits reachable from the branch,
+          and commits belonging to the range. But Git intersects results for such parameters.
+          => to solve this, we make a query for branch filters, and then separate queries for each of the ranges.
+        */
+        Set<TimedVcsCommit> commits = new LinkedHashSet<>();
+        VcsLogFilterCollection modifiedFilterCollection = filterCollection;
+        if (filterCollection.getBranchFilter() != null) {
+            commits.addAll(getCommitsMatchingFilter(root, filterCollection, null, maxCount));
+            modifiedFilterCollection = withoutBranchFilter(filterCollection);
+        }
+        for (VcsLogRangeFilter.RefRange range : rangeFilter.getRanges()) {
+            commits.addAll(getCommitsMatchingFilter(root, modifiedFilterCollection, range, maxCount));
+        }
+        return new ArrayList<>(commits);
+    }
 
+    private VcsLogFilterCollection withoutBranchFilter(VcsLogFilterCollection filterCollection) {
+        List<VcsLogFilter> filters = new ArrayList<>();
+        addIfNotNull(filters, filterCollection.getUserFilter());
+        addIfNotNull(filters, filterCollection.getDateFilter());
+        addIfNotNull(filters, filterCollection.getTextFilter());
+        addIfNotNull(filters, filterCollection.getStructureFilter());
+        addIfNotNull(filters, filterCollection.getRootFilter());
+        addIfNotNull(filters, filterCollection.getRangeFilter());
+        return myProject.getInstance(VcsLogObjectsFactory.class).createFilterCollection(filters);
+    }
+
+    private static void addIfNotNull(List<VcsLogFilter> filters, @Nullable VcsLogFilter filter) {
+        if (filter != null) {
+            filters.add(filter);
+        }
+    }
+
+    private static List<String> getBranchLikeFilterParameters(
+        GitRepository repository,
+        VcsLogFilterCollection filterCollection,
+        @Nullable VcsLogRangeFilter.RefRange range
+    ) {
         VcsLogBranchFilter branchFilter = filterCollection.getBranchFilter();
-        if (branchFilter != null) {
-            GitRepository repository = getRepository(root);
-            assert repository != null : "repository is null for root " + root + " but was previously reported as 'ready'";
+        if (branchFilter == null && range == null) {
+            return GitHistoryUtils.LOG_ALL;
+        }
 
+        List<String> result = new ArrayList<>();
+
+        if (branchFilter != null) {
             Collection<GitBranch> branches = ContainerUtil.newArrayList(ContainerUtil.concat(
                 repository.getBranches().getLocalBranches(),
                 repository.getBranches().getRemoteBranches()
             ));
             Collection<String> branchNames = GitBranchUtil.convertBranchesToNames(branches);
-            Collection<String> predefinedNames = ContainerUtil.list("HEAD");
+            Collection<String> predefinedNames = ContainerUtil.list(GitUtil.HEAD);
 
-            boolean atLeastOneBranchExists = false;
             for (String branchName : ContainerUtil.concat(branchNames, predefinedNames)) {
                 if (branchFilter.matches(branchName)) {
-                    filterParameters.add(branchName);
-                    atLeastOneBranchExists = true;
+                    result.add(branchName);
                 }
             }
+        }
 
-            if (!atLeastOneBranchExists) { // no such branches in this repository => filter matches nothing
-                return Collections.emptyList();
-            }
+        if (range != null) {
+            result.add(range.exclusiveRef() + ".." + range.inclusiveRef());
         }
-        else {
-            filterParameters.addAll(GitHistoryUtils.LOG_ALL);
+
+        return result;
+    }
+
+    private List<TimedVcsCommit> getCommitsMatchingFilter(
+        VirtualFile root,
+        VcsLogFilterCollection filterCollection,
+        @Nullable VcsLogRangeFilter.RefRange range,
+        int maxCount
+    ) throws VcsException {
+        if (!isRepositoryReady(root)) {
+            return Collections.emptyList();
         }
+
+        GitRepository repository = getRepository(root);
+        assert repository != null : "repository is null for root " + root + " but was previously reported as 'ready'";
+
+        List<String> branchLikeFilterParameters = getBranchLikeFilterParameters(repository, filterCollection, range);
+        if (branchLikeFilterParameters.isEmpty()) { // no such branches in this repository => filter matches nothing
+            return Collections.emptyList();
+        }
+        List<String> filterParameters = new ArrayList<>(branchLikeFilterParameters);
 
         if (filterCollection.getDateFilter() != null) {
             // assuming there is only one date filter, until filter expressions are defined

@@ -73,6 +73,12 @@ public interface GitRepository extends Repository {
     @Nonnull
     GitUntrackedFilesHolder getUntrackedFilesHolder();
 
+    @Nonnull
+    GitRepositoryTagsHolder getTagsHolder();
+
+    @Nonnull
+    GitWorkingTreeHolder getWorkingTreeHolder();
+
 
     @Nonnull
     GitRepoInfo getInfo();

@@ -30,6 +30,7 @@ import jakarta.inject.Singleton;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import java.util.List;
+import java.util.Map;
 
 /**
  * @author Kirill Likhodedov
@@ -102,6 +103,48 @@ class GitBrancherImpl implements GitBrancher {
   }
 
   @Override
+  public void checkoutNewBranchStartingFrom(@Nonnull String newBranchName,
+                                            @Nonnull String startPoint,
+                                            boolean overwriteIfNeeded,
+                                            @Nonnull List<GitRepository> repositories,
+                                            @Nullable Runnable callInAwtLater) {
+    new CommonBackgroundTask(myProject, String.format("Checking out %s from %s", newBranchName, startPoint), callInAwtLater) {
+      @Override
+      public void execute(@Nonnull ProgressIndicator indicator) {
+        newWorker(indicator).checkoutNewBranchStartingFrom(newBranchName, startPoint, overwriteIfNeeded, repositories);
+      }
+    }.runInBackground();
+  }
+
+  @Override
+  public void createBranch(@Nonnull String name, @Nonnull Map<GitRepository, String> startPoints) {
+    createBranch(name, startPoints, null);
+  }
+
+  @Override
+  public void createBranch(@Nonnull String name, @Nonnull Map<GitRepository, String> startPoints, @Nullable Runnable callInAwtLater) {
+    createBranch(name, startPoints, false, callInAwtLater);
+  }
+
+  @Override
+  public void createBranch(@Nonnull String name, @Nonnull Map<GitRepository, String> startPoints, boolean force) {
+    createBranch(name, startPoints, force, null);
+  }
+
+  @Override
+  public void createBranch(@Nonnull String name,
+                           @Nonnull Map<GitRepository, String> startPoints,
+                           boolean force,
+                           @Nullable Runnable callInAwtLater) {
+    new CommonBackgroundTask(myProject, "Creating branch " + name, callInAwtLater) {
+      @Override
+      public void execute(@Nonnull ProgressIndicator indicator) {
+        newWorker(indicator).createBranch(name, startPoints, force);
+      }
+    }.runInBackground();
+  }
+
+  @Override
   public void deleteBranch(@Nonnull final String branchName, @Nonnull final List<GitRepository> repositories) {
     new CommonBackgroundTask(myProject, "Deleting " + branchName, null) {
       @Override
@@ -152,6 +195,16 @@ class GitBrancherImpl implements GitBrancher {
       @Override
       void execute(@Nonnull ProgressIndicator indicator) {
         newWorker(indicator).rebase(repositories, branchName);
+      }
+    }.runInBackground();
+  }
+
+  @Override
+  public void rebase(@Nonnull List<GitRepository> repositories, @Nonnull String upstream, @Nonnull String branchName) {
+    new CommonBackgroundTask(myProject, "Rebasing " + branchName + " onto " + upstream, null) {
+      @Override
+      void execute(@Nonnull ProgressIndicator indicator) {
+        newWorker(indicator).rebase(repositories, upstream, branchName);
       }
     }.runInBackground();
   }

@@ -32,6 +32,7 @@ import jakarta.annotation.Nullable;
 
 import java.io.File;
 import java.util.Collection;
+import java.util.Objects;
 
 import static consulo.util.lang.ObjectUtil.assertNotNull;
 import static consulo.versionControlSystem.distributed.DvcsUtil.getShortRepositoryName;
@@ -41,6 +42,8 @@ public class GitRepositoryImpl extends RepositoryImpl implements GitRepository {
     private final GitVcs myVcs;
     @Nonnull
     private final GitRepositoryReader myReader;
+    private final GitWorkingTreeHolderImpl myWorkingTreeHolder;
+    private final GitRepositoryTagsHolderImpl myTagsHolder;
     @Nonnull
     private final VirtualFile myGitDir;
     @Nonnull
@@ -65,6 +68,9 @@ public class GitRepositoryImpl extends RepositoryImpl implements GitRepository {
         myRepositoryFiles = GitRepositoryFiles.getInstance(gitDir);
         myReader = new GitRepositoryReader(myRepositoryFiles);
         myInfo = readRepoInfo();
+        myTagsHolder = new GitRepositoryTagsHolderImpl(this);
+        myWorkingTreeHolder = new GitWorkingTreeHolderImpl(this);
+        myWorkingTreeHolder.updateState();
         if (!light) {
             myUntrackedFilesHolder = new GitUntrackedFilesHolder(this, myRepositoryFiles);
             Disposer.register(this, myUntrackedFilesHolder);
@@ -91,6 +97,7 @@ public class GitRepositoryImpl extends RepositoryImpl implements GitRepository {
             repository.getUntrackedFilesHolder().setupVfsListener(project);
             repository.setupUpdater();
             notifyListenersAsync(repository);
+            repository.myTagsHolder.scheduleReload();
         }
         return repository;
     }
@@ -120,6 +127,18 @@ public class GitRepositoryImpl extends RepositoryImpl implements GitRepository {
             throw new IllegalStateException("Using untracked files holder with light git repository instance " + this);
         }
         return myUntrackedFilesHolder;
+    }
+
+    @Nonnull
+    @Override
+    public GitRepositoryTagsHolder getTagsHolder() {
+        return myTagsHolder;
+    }
+
+    @Nonnull
+    @Override
+    public GitWorkingTreeHolder getWorkingTreeHolder() {
+        return myWorkingTreeHolder;
     }
 
     @Nonnull
@@ -212,6 +231,9 @@ public class GitRepositoryImpl extends RepositoryImpl implements GitRepository {
     public void update() {
         GitRepoInfo previousInfo = myInfo;
         myInfo = readRepoInfo();
+        if (!Objects.equals(previousInfo.currentBranch(), myInfo.currentBranch())) {
+            myWorkingTreeHolder.updateState();
+        }
         notifyIfRepoChanged(this, previousInfo, myInfo);
     }
 
@@ -260,6 +282,8 @@ public class GitRepositoryImpl extends RepositoryImpl implements GitRepository {
             Project project = repository.getProject();
             if (!project.isDisposed()) {
                 project.getMessageBus().syncPublisher(GitRepositoryChangeListener.class).repositoryChanged(repository);
+                project.getApplication().getMessageBus().syncPublisher(GitRepositoryUpdateListener.class)
+                    .repositoryUpdated(project, repository.getRoot());
             }
         });
     }

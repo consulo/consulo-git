@@ -641,6 +641,37 @@ public class GitHistoryUtils {
         handlerListener.reportErrors();
     }
 
+    public static void loadTimedCommits(
+        @Nonnull Project project,
+        @Nonnull VirtualFile root,
+        @Nonnull Consumer<TimedVcsCommit> commitConsumer,
+        @Nonnull String... parameters
+    ) throws VcsException {
+        readCommits(project, root, Arrays.asList(parameters), user -> {
+        }, ref -> {
+        }, commitConsumer);
+    }
+
+    /**
+     * Collect commit information in a form of {@link TimedVcsCommit} (containing hash, parents and commit time)
+     * in the repository using `git log` command.
+     *
+     * @param project    context project
+     * @param root       git repository root
+     * @param parameters additional parameters for `git log` command
+     * @throws VcsException if there is a problem with running git
+     */
+    @Nonnull
+    public static List<? extends TimedVcsCommit> collectTimedCommits(
+        @Nonnull Project project,
+        @Nonnull VirtualFile root,
+        @Nonnull String... parameters
+    ) throws VcsException {
+        List<TimedVcsCommit> commits = new ArrayList<>();
+        loadTimedCommits(project, root, commits::add, parameters);
+        return commits;
+    }
+
     public static void readCommits(
         @Nonnull Project project,
         @Nonnull VirtualFile root,

@@ -12,6 +12,7 @@ import git4idea.repo.GitRepository;
 import git4idea.ui.branch.GitBranchManager;
 import git4idea.ui.branch.GitBranchPopupActions;
 import git4idea.ui.branch.GitBranchPopupFetchAction;
+import git4idea.workingTrees.actions.GitCreateWorkingTreeAction;
 import jakarta.annotation.Nullable;
 
 import java.util.List;
@@ -86,6 +87,7 @@ public class GitBranchesTreePopupModel extends DvcsBranchesTreePopupModel<GitRep
     @Override
     public void appendFirstPopupActions(Consumer<AnAction> consumer) {
         consumer.accept(new GitBranchPopupActions.GitNewBranchAction(myProject, List.of(myRepository)));
+        consumer.accept(new GitCreateWorkingTreeAction(myRepository, null, true));
         consumer.accept(new GitBranchPopupActions.CheckoutRevisionActions(myProject, List.of(myRepository)));
     }
 }

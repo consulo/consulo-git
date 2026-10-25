@@ -307,6 +307,11 @@ public abstract class GitHandler {
         addParameters(Arrays.asList(parameters));
     }
 
+    public void addAbsoluteFile(@Nonnull File file) {
+        checkNotStarted();
+        myCommandLine.addParameter(file.getAbsolutePath());
+    }
+
     /**
      * Add parameters from the list
      *

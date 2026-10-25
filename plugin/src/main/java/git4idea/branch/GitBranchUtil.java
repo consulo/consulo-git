@@ -16,11 +16,9 @@
 package git4idea.branch;
 
 import consulo.fileEditor.FileEditorManager;
-import consulo.git.localize.GitLocalize;
 import consulo.localize.LocalizeValue;
 import consulo.logging.Logger;
 import consulo.project.Project;
-import consulo.ui.InputBoxBuilder;
 import consulo.ui.annotation.RequiredUIAccess;
 import consulo.util.collection.ContainerUtil;
 import consulo.versionControlSystem.VcsException;
@@ -36,7 +34,6 @@ import git4idea.repo.GitConfig;
 import git4idea.repo.GitRemote;
 import git4idea.repo.GitRepository;
 import git4idea.ui.branch.GitMultiRootBranchConfig;
-import git4idea.validators.GitNewBranchNameValidator;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 
@@ -259,23 +256,30 @@ public class GitBranchUtil {
     }
 
     /**
-     * Shows a message dialog to enter the name of new branch.
+     * <p>Shows a message dialog to enter the name of new branch.</p>
+     * <p>Optionally allows to not checkout this branch, and just create it.</p>
      *
-     * @return name of new branch; the result fails if user has cancelled the dialog.
+     * @return the name of the new branch and whether it should be checked out, or {@code null} if user has cancelled the dialog.
      */
-    @Nonnull
     @RequiredUIAccess
-    public static CompletableFuture<String> getNewBranchNameFromUser(
+    public static CompletableFuture<@org.jspecify.annotations.Nullable GitNewBranchOptions> getNewBranchNameFromUser(
         @Nonnull Project project,
         @Nonnull Collection<GitRepository> repositories,
-        @Nonnull LocalizeValue dialogTitle
+        @Nonnull LocalizeValue dialogTitle,
+        @Nullable String initialName
     ) {
-        return InputBoxBuilder.text()
-            .asQuestion()
-            .title(dialogTitle)
-            .text(GitLocalize.dialogMessageEnterTheNameOfNewBranch())
-            .validator(GitNewBranchNameValidator.newInstance(repositories))
-            .showAsync(project);
+        return getNewBranchNameFromUser(project, repositories, dialogTitle, initialName, false);
+    }
+
+    @RequiredUIAccess
+    public static CompletableFuture<@org.jspecify.annotations.Nullable GitNewBranchOptions> getNewBranchNameFromUser(
+        @Nonnull Project project,
+        @Nonnull Collection<GitRepository> repositories,
+        @Nonnull LocalizeValue dialogTitle,
+        @Nullable String initialName,
+        boolean showTrackingOption
+    ) {
+        return new GitNewBranchDialog(project, repositories, dialogTitle, initialName, true, false, showTrackingOption).showAndGetOptions();
     }
 
     /**

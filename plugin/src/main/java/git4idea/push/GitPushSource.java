@@ -20,14 +20,14 @@ import consulo.versionControlSystem.distributed.push.PushSource;
 import git4idea.GitLocalBranch;
 import jakarta.annotation.Nonnull;
 
-abstract class GitPushSource implements PushSource {
+public abstract class GitPushSource implements PushSource {
     @Nonnull
-    static GitPushSource create(@Nonnull GitLocalBranch branch) {
+    public static GitPushSource create(@Nonnull GitLocalBranch branch) {
         return new OnBranch(branch);
     }
 
     @Nonnull
-    static GitPushSource create(@Nonnull String revision) {
+    public static GitPushSource create(@Nonnull String revision) {
         return new DetachedHead(revision);
     }
 

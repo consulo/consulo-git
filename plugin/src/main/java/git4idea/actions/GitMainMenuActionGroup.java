@@ -13,6 +13,8 @@ import consulo.versionControlSystem.AbstractVcs;
 import consulo.versionControlSystem.ProjectLevelVcsManager;
 import git4idea.GitVcs;
 import git4idea.ui.branch.GitBranchesAction;
+import git4idea.workingTrees.actions.GitCreateWorkingTreeAction;
+import git4idea.workingTrees.actions.ShowWorkingTreesAction;
 import jakarta.annotation.Nonnull;
 
 import java.util.Objects;
@@ -37,6 +39,9 @@ import java.util.Objects;
         @ActionRef(type = GitCreateNewBranchAction.class),
         @ActionRef(type = GitTag.class),
         @ActionRef(type = GitResetHead.class),
+        @ActionRef(type = AnSeparator.class),
+        @ActionRef(type = GitCreateWorkingTreeAction.class),
+        @ActionRef(type = ShowWorkingTreesAction.class),
         @ActionRef(type = AnSeparator.class),
         @ActionRef(id = "Vcs.Show.Log"),
         @ActionRef(type = MainMenuPatchGroup.class),

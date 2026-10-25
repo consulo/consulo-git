@@ -44,6 +44,7 @@ public class GitCommand {
     public static final GitCommand ADD = write("add");
     public static final GitCommand BLAME = read("blame");
     public static final GitCommand BRANCH = read("branch");
+    public static final GitCommand CAT_FILE = read("cat-file");
     public static final GitCommand CHECKOUT = write("checkout");
     public static final GitCommand CHECK_ATTR = read("check-attr");
     public static final GitCommand CHECK_IGNORE = read("check-ignore");
@@ -53,6 +54,7 @@ public class GitCommand {
     public static final GitCommand CHERRY_PICK = write("cherry-pick");
     public static final GitCommand CLONE = write("clone");
     public static final GitCommand DIFF = read("diff");
+    public static final GitCommand FOR_EACH_REF = read("for-each-ref");
     public static final GitCommand FETCH = read("fetch");  // fetch is a read-command, because it doesn't modify the index
     public static final GitCommand INIT = write("init");
     public static final GitCommand LOG = read("log");
@@ -69,6 +71,7 @@ public class GitCommand {
     public static final GitCommand RESET = write("reset");
     public static final GitCommand REV_LIST = read("rev-list");
     public static final GitCommand REV_PARSE = read("rev-parse");
+    public static final GitCommand WORKTREE = read("worktree");
     public static final GitCommand RM = write("rm");
     public static final GitCommand SHOW = read("show");
     public static final GitCommand STASH = write("stash");

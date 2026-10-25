@@ -83,6 +83,11 @@ public final class GitBranchesCollection {
   }
 
   @Nullable
+  public GitRemoteBranch findRemoteBranch(@Nonnull String name) {
+    return findByName(myRemoteBranches.keySet(), name);
+  }
+
+  @Nullable
   public GitBranch findBranchByName(@Nonnull String name) {
     GitLocalBranch branch = findByName(myLocalBranches.keySet(), name);
     return branch != null ? branch : findByName(myRemoteBranches.keySet(), name);

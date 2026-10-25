@@ -21,16 +21,19 @@ import consulo.application.Application;
 import consulo.project.Project;
 import consulo.versionControlSystem.FilePath;
 import consulo.versionControlSystem.VcsException;
+import consulo.versionControlSystem.log.Hash;
 import consulo.virtualFileSystem.VirtualFile;
+import git4idea.GitReference;
+import git4idea.GitWorkingTree;
 import git4idea.branch.GitRebaseParams;
 import git4idea.repo.GitRemote;
 import git4idea.repo.GitRepository;
 import git4idea.reset.GitResetMode;
-
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 
 import java.io.File;
+import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
@@ -122,6 +125,18 @@ public interface Git {
     );
 
     @Nonnull
+    GitCommandResult checkout(
+        @Nonnull GitRepository repository,
+        @Nonnull String reference,
+        @Nullable String newBranch,
+        boolean force,
+        boolean detach,
+        boolean withReset,
+        boolean ignoreOtherWorktrees,
+        @Nonnull GitLineHandlerListener... listeners
+    );
+
+    @Nonnull
     GitCommandResult checkoutNewBranch(
         @Nonnull GitRepository repository,
         @Nonnull String branchName,
@@ -153,6 +168,9 @@ public interface Git {
      */
     @Nonnull
     GitCommandResult branchCreate(@Nonnull GitRepository repository, @Nonnull String branchName, @Nonnull String startPoint);
+
+    @Nonnull
+    GitCommandResult branchCreate(@Nonnull GitRepository repository, @Nonnull String branchName, @Nonnull String startPoint, boolean force);
 
     @Nonnull
     GitCommandResult renameBranch(
@@ -266,4 +284,43 @@ public interface Git {
 
     @Nonnull
     GitCommandResult rebaseSkip(@Nonnull GitRepository repository, @Nonnull GitLineHandlerListener... listeners);
+
+    @Nullable
+    Hash resolveReference(@Nonnull GitRepository repository, @Nonnull String reference);
+
+    @Nonnull
+    GitCommandResult deleteWorkingTree(@Nonnull GitRepository repository, @Nonnull GitWorkingTree tree);
+
+    /**
+     * Use it when you don't have a project or no open project owns the main worktree. Otherwise, use {@link #deleteWorkingTree}.
+     * Runs {@code git worktree remove --force} for {@code tree} without a project.
+     * <p>
+     * The command runs in {@code mainWorktreePath} with the application-level Git executable.
+     * The {@code --force} flag also deletes the uncommitted changes in {@code tree}.
+     *
+     * @param mainWorktreePath the root of the main worktree of the repository that owns {@code tree}
+     * @param tree             the linked worktree to delete
+     * @return the result of the git command
+     */
+    @Nonnull
+    GitCommandResult deleteWorkingTreeWithoutProject(@Nonnull Path mainWorktreePath, @Nonnull GitWorkingTree tree);
+
+    @Nonnull
+    List<GitWorkingTree> listWorktrees(@Nonnull GitRepository repository) throws VcsException;
+
+    @Nonnull
+    GitCommandResult createWorkingTree(@Nonnull GitRepository repository,
+                                       @Nonnull FilePath workingTreePath,
+                                       @Nonnull GitReference sourceRef,
+                                       @Nullable String newBranchName,
+                                       boolean force);
+
+    @Nonnull
+    GitCommandResult pruneWorktrees(@Nonnull GitRepository repository);
+
+    @Nonnull
+    GitCommandResult lockWorkingTree(@Nonnull GitRepository repository, @Nonnull GitWorkingTree tree);
+
+    @Nonnull
+    GitCommandResult unlockWorkingTree(@Nonnull GitRepository repository, @Nonnull GitWorkingTree tree);
 }

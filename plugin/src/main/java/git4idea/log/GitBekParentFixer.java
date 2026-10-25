@@ -152,6 +152,12 @@ class GitBekParentFixer {
                 return null;
             }
 
+            @Nullable
+            @Override
+            public VcsLogRangeFilter getRangeFilter() {
+                return null;
+            }
+
             @Override
             public boolean isEmpty() {
                 return false;

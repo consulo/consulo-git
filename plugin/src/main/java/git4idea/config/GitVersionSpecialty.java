@@ -202,6 +202,20 @@ public enum GitVersionSpecialty {
         }
     },
 
+    STATUS_SUPPORTS_IGNORED_MODES {
+        @Override
+        public boolean existsIn(@Nonnull GitVersion version) {
+            return version.isLaterOrEqual(new GitVersion(2, 16, 0, 0));
+        }
+    },
+
+    STATUS_SUPPORTS_NO_RENAMES {
+        @Override
+        public boolean existsIn(@Nonnull GitVersion version) {
+            return version.isLaterOrEqual(new GitVersion(2, 18, 0, 0));
+        }
+    },
+
     LF_SEPARATORS_IN_STDIN {
         @Override
         public boolean existsIn(@Nonnull GitVersion version) {

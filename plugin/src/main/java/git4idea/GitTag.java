@@ -18,10 +18,10 @@ package git4idea;
 import consulo.project.Project;
 import consulo.versionControlSystem.VcsException;
 import consulo.virtualFileSystem.VirtualFile;
+import git4idea.branch.GitBranchUtil;
 import git4idea.commands.GitCommand;
 import git4idea.commands.GitSimpleHandler;
 import jakarta.annotation.Nonnull;
-
 import jakarta.annotation.Nullable;
 
 import java.util.ArrayList;
@@ -43,7 +43,7 @@ public class GitTag extends GitReference {
      * @param name the used name
      */
     public GitTag(@Nonnull String name) {
-        super(name);
+        super(GitBranchUtil.stripRefsPrefix(name));
     }
 
     /**

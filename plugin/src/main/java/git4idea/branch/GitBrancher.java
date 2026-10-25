@@ -17,12 +17,14 @@ package git4idea.branch;
 
 import consulo.annotation.component.ComponentScope;
 import consulo.annotation.component.ServiceAPI;
+import consulo.project.Project;
 import git4idea.repo.GitRepository;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import javax.swing.*;
 import java.util.List;
+import java.util.Map;
 
 /**
  * <p>Executes various operations on Git branches: checkout, create new branch, merge, delete, compare.</p>
@@ -34,6 +36,9 @@ import java.util.List;
  */
 @ServiceAPI(ComponentScope.PROJECT)
 public interface GitBrancher {
+  static GitBrancher getInstance(@Nonnull Project project) {
+    return project.getInstance(GitBrancher.class);
+  }
 
   /**
    * <p>Checks out a new branch in background.
@@ -95,6 +100,62 @@ public interface GitBrancher {
                                      @Nullable Runnable callInAwtLater);
 
   /**
+   * Creates and checks out a new local branch starting from the given reference:
+   * {@code git checkout -b <branchname> <start-point>}. <br/>
+   * Provides the "smart checkout" procedure the same as in {@link #checkout(String, boolean, List, Runnable)}.
+   *
+   * @param newBranchName     the name of the new local branch.
+   * @param startPoint        the reference to checkout.
+   * @param overwriteIfNeeded reset existing branch to {@code startPoint} if needed.
+   * @param repositories      repositories to operate on.
+   * @param callInAwtLater    the Runnable that should be called after execution of the method (both successful and unsuccessful).
+   */
+  void checkoutNewBranchStartingFrom(@Nonnull String newBranchName,
+                                     @Nonnull String startPoint,
+                                     boolean overwriteIfNeeded,
+                                     @Nonnull List<GitRepository> repositories,
+                                     @Nullable Runnable callInAwtLater);
+
+  /**
+   * Creates new branch without checking it out.
+   *
+   * @param name           name of the new branch.
+   * @param startPoints    position (commit hash) where the branch should be created, for each repository.
+   */
+  void createBranch(@Nonnull String name, @Nonnull Map<GitRepository, String> startPoints);
+
+  /**
+   * Creates new branch without checking it out.
+   *
+   * @param name           name of the new branch.
+   * @param startPoints    position (commit hash) where the branch should be created, for each repository.
+   *                       Such position can be indicated by any valid Git reference (commit hash, branch name, etc.)
+   * @param callInAwtLater the Runnable that should be called after execution of the method (both successful and unsuccessful).
+   */
+  void createBranch(@Nonnull String name, @Nonnull Map<GitRepository, String> startPoints, @Nullable Runnable callInAwtLater);
+
+  /**
+   * Creates new branch without checking it out.
+   *
+   * @param name           name of the new branch.
+   * @param startPoints    position (commit hash) where the branch should be created, for each repository.
+   *                       Such position can be indicated by any valid Git reference (commit hash, branch name, etc.)
+   * @param force          create and overwrite existing if needed
+   */
+  void createBranch(@Nonnull String name, @Nonnull Map<GitRepository, String> startPoints, boolean force);
+
+  /**
+   * Creates new branch without checking it out.
+   *
+   * @param name           name of the new branch.
+   * @param startPoints    position (commit hash) where the branch should be created, for each repository.
+   *                       Such position can be indicated by any valid Git reference (commit hash, branch name, etc.)
+   * @param force          create and overwrite existing if needed
+   * @param callInAwtLater the Runnable that should be called after execution of the method (both successful and unsuccessful).
+   */
+  void createBranch(@Nonnull String name, @Nonnull Map<GitRepository, String> startPoints, boolean force, @Nullable Runnable callInAwtLater);
+
+  /**
    * <p>Deletes the branch with the specified name.</p>
    * <p>{@code git branch -d <name>}</p>
    * <p>If the branch can't be deleted, because it is unmerged neither to the HEAD nor to its upstream,
@@ -146,6 +207,11 @@ public interface GitBrancher {
   /**
    * Call {@code git rebase <current branch> <branchName>} for each of the given repositories.
    */
+  /**
+   * Call {@code git rebase <upstream> <branchName>} for each of the given repositories
+   */
+  void rebase(@Nonnull List<GitRepository> repositories, @Nonnull String upstream, @Nonnull String branchName);
+
   void rebaseOnCurrent(@Nonnull List<GitRepository> repositories, @Nonnull String branchName);
 
   /**

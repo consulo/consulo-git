@@ -139,7 +139,8 @@ final class GitRepositoryUpdater implements Disposable, BulkFileListener {
         if (headChanged || configChanged || branchFileChanged || packedRefsChanged || rebaseFileChanged || mergeFileChanged) {
             myUpdateQueue.add(DUMMY_UPDATE_OBJECT);
         }
-        else if (tagChanged) {
+        if (tagChanged || packedRefsChanged) {
+            myRepository.getTagsHolder().scheduleReload();
             myRepository.getProject().getMessageBus().syncPublisher(GitRepositoryChangeListener.class).repositoryChanged(myRepository);
         }
     }

@@ -1,7 +1,5 @@
 action.checkout.as.new.branch.text:
     text: Checkout as New Branch
-action.checkout.as.new.local.branch.text:
-    text: Checkout as New Local Branch
 action.checkout.tag.or.revision.impossible.description:
     text: Checkout is not possible before the first commit
 action.checkout.tag.or.revision.text:
@@ -20,12 +18,16 @@ action.compare.text:
     text: Compare
 action.delete.text:
     text: Delete
+action.git.new.branch.dialog.title:
+    text: Create Branch from {0}
 action.local.branches.in.repo.text:
     text: Local Branches in {0}
 action.local.branches.text:
     text: Local Branches
 action.merge.text:
     text: Merge
+action.new.branch.from.text:
+    text: New Branch from ''{0}''…
 action.rebase.onto.text:
     text: Rebase onto
 action.remote.branches.in.repo.text:
@@ -38,31 +40,85 @@ action.repositories.text:
     text: Repositories
 action.tags.in.repo.text:
     text: Tags in {0}
+branches.checking.existing.commits.process:
+    text: Checking existing commits…
+branches.checkout.local:
+    text: Checkout Local Branch
+branches.checkout.local.has.more.commits:
+    text: Local branch ''{0}'' has commits that do not exist in ''{1}''. Rebase ''{0}'' onto ''{1}'', or checkout ''{0}''?
+branches.checkout.s:
+    text: Checkout {0}
+branches.checkout.with.reset.local.has.more.commits:
+    text: Local branch ''{0}'' has commits that do not exist in ''{1}''. Rebase ''{0}'' onto ''{1}'', or drop local commits?
+branches.create.local.has.more.commits:
+    text: Local branch ''{0}'' has commits that do not exist in ''{1}''. Do you want to create a branch in other repositories?
+branches.create.with.reset.local.has.more.commits:
+    text: Local branch ''{0}'' has commits that do not exist in ''{1}''. Do you want to drop local commits?
+branches.drop.local.commits:
+    text: Drop Local Commits
+checkout.0:
+    text: Checkout {0}
+checkout.and.rebase:
+    text: Rebase onto Remote
+common.suffix.in.one.repository:
+    text: in {0}
+common.suffix.in.several.repositories:
+    text: in {0} repositories
+create.branch.operation.branch.created:
+    text: Branch {0} was created
+create.branch.operation.could.not.create.new.branch:
+    text: Could not create new branch {0}
+create.branch.operation.deleted.branch:
+    text: Deleted {0}
+create.branch.operation.error.during.rollback:
+    text: Error during rollback
+create.branch.operation.however.the.branch.was.created.in.the.following.repositories:
+    text: 'However, the branch was created in the following {0,choice,1#repository|2#repositories}:'
+create.branch.operation.name:
+    text: create branch
+create.branch.operation.rollback.successful:
+    text: Rollback successful
+create.branch.operation.you.may.rollback.not.to.let.branches.diverge:
+    text: You may rollback (delete {0}) not to let branches diverge.
 dialog.message.enter.reference.branch.tag.name.or.commit.hash:
     text: 'Enter reference (branch, tag) name or commit hash:'
-dialog.message.new.branch.name:
-    text: 'New branch name:'
-dialog.message.new.name.for.the.branch.0:
-    text: 'New name for the branch ''''{0}'''':'
 dialog.title.checkout:
     text: Checkout
-dialog.title.checkout.new.branch.from.0:
-    text: Checkout New Branch From {0}
-dialog.title.checkout.remote.branch:
-    text: Checkout Remote Branch
 dialog.title.create.new.branch:
     text: Create New Branch
 dialog.title.rename.branch.0:
     text: Rename Branch {0}
+new.branch.dialog.branch.root.all.override.warning:
+    text: The roots will be on different branches. Some branch operations will not be executed on all roots simultaneously.
+new.branch.dialog.checkout.branch.checkbox:
+    text: _Checkout branch
 new.branch.dialog.error.branch.already.exists:
     text: Branch name {0} already exists
 new.branch.dialog.error.branch.clashes.with.remote:
     text: Branch name {0} conflicts with remote branch with the same name
-new.branch.dialog.error.branch.in.repository:
-    text: '{0} in repository {1}'
+new.branch.dialog.error.branch.clashes.with.directory:
+    text: Branch name {0} conflicts with local branch directory with the same name
 new.branch.dialog.error.branch.name.empty:
     text: Specify name for the new branch
 new.branch.dialog.error.branch.name.head:
     text: HEAD is a reserved keyword
 new.branch.dialog.error.branch.name.invalid:
     text: Branch name {0} is not valid
+new.branch.dialog.operation.checkout.description:
+    text: Checkout existing branches, and create new branches in other repositories
+new.branch.dialog.operation.checkout.name:
+    text: Checkout
+new.branch.dialog.operation.create.description:
+    text: Create new branches in other repositories
+new.branch.dialog.operation.create.name:
+    text: Create
+new.branch.dialog.operation.rename.name:
+    text: Rename
+new.branch.dialog.overwrite.existing.branch.checkbox:
+    text: Ove_rwrite existing branch
+new.branch.dialog.overwrite.existing.branch.warning:
+    text: Change the name or overwrite existing branch
+new.branch.dialog.set.tracking.branch.checkbox:
+    text: Set _tracking branch
+new.branch.dialog.unset.upstream.branch.checkbox:
+    text: Unset ups_tream branch

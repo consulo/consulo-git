@@ -15,22 +15,29 @@
  */
 package git4idea.commands;
 
+import consulo.annotation.component.ServiceImpl;
 import consulo.externalProcessAuthHelper.AuthenticationGate;
 import consulo.externalProcessAuthHelper.AuthenticationMode;
-import consulo.annotation.component.ServiceImpl;
 import consulo.logging.Logger;
 import consulo.project.Project;
+import consulo.project.ProjectManager;
 import consulo.util.collection.ContainerUtil;
 import consulo.util.dataholder.Key;
 import consulo.util.lang.ObjectUtil;
 import consulo.util.lang.StringUtil;
 import consulo.versionControlSystem.FilePath;
 import consulo.versionControlSystem.VcsException;
+import consulo.versionControlSystem.log.Hash;
+import consulo.versionControlSystem.log.base.HashImpl;
 import consulo.versionControlSystem.util.VcsFileUtil;
 import consulo.versionControlSystem.util.VcsUtil;
 import consulo.virtualFileSystem.VirtualFile;
 import consulo.virtualFileSystem.util.VirtualFileUtil;
+import git4idea.GitBranch;
+import git4idea.GitReference;
+import git4idea.GitUtil;
 import git4idea.GitVcs;
+import git4idea.GitWorkingTree;
 import git4idea.branch.GitRebaseParams;
 import git4idea.config.GitVersionSpecialty;
 import git4idea.rebase.GitInteractiveRebaseEditorHandler;
@@ -39,11 +46,13 @@ import git4idea.rebase.GitRebaseResumeMode;
 import git4idea.repo.GitRemote;
 import git4idea.repo.GitRepository;
 import git4idea.reset.GitResetMode;
-import jakarta.inject.Singleton;
-
+import git4idea.workingTrees.GitWorktreeListParser;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import jakarta.inject.Singleton;
+
 import java.io.File;
+import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -275,17 +284,39 @@ public class GitImpl implements Git {
                                    boolean force,
                                    boolean detach,
                                    @Nonnull GitLineHandlerListener... listeners) {
+    return checkout(repository, reference, newBranch, force, detach, false, false, listeners);
+  }
+
+  /**
+   * {@code git checkout <reference>} <br/>
+   * {@code git checkout -b <newBranch> <reference>} <br/>
+   * or withReset<br/>
+   * {@code git checkout -B <newBranch> <reference>}
+   */
+  @Nonnull
+  @Override
+  public GitCommandResult checkout(@Nonnull GitRepository repository,
+                                   @Nonnull String reference,
+                                   @Nullable String newBranch,
+                                   boolean force,
+                                   boolean detach,
+                                   boolean withReset,
+                                   boolean ignoreOtherWorktrees,
+                                   @Nonnull GitLineHandlerListener... listeners) {
     final GitLineHandler h = new GitLineHandler(repository.getProject(), repository.getRoot(), GitCommand.CHECKOUT);
     h.setSilent(false);
     h.setStdoutSuppressed(false);
     if (force) {
       h.addParameters("--force");
     }
+    if (ignoreOtherWorktrees) {
+      h.addParameters("--ignore-other-worktrees");
+    }
     if (newBranch == null) { // simply checkout
       h.addParameters(detach ? reference + "^0" : reference); // we could use `--detach` here, but it is supported only since 1.7.5.
     }
     else { // checkout reference as new branch
-      h.addParameters("-b", newBranch, reference);
+      h.addParameters(withReset ? "-B" : "-b", newBranch, reference);
     }
     h.endOptions();
     for (GitLineHandlerListener listener : listeners) {
@@ -366,8 +397,21 @@ public class GitImpl implements Git {
   @Override
   @Nonnull
   public GitCommandResult branchCreate(@Nonnull GitRepository repository, @Nonnull String branchName, @Nonnull String startPoint) {
+    return branchCreate(repository, branchName, startPoint, false);
+  }
+
+  @Override
+  @Nonnull
+  public GitCommandResult branchCreate(@Nonnull GitRepository repository,
+                                       @Nonnull String branchName,
+                                       @Nonnull String startPoint,
+                                       boolean force) {
     final GitLineHandler h = new GitLineHandler(repository.getProject(), repository.getRoot(), GitCommand.BRANCH);
+    h.setSilent(false);
     h.setStdoutSuppressed(false);
+    if (force) {
+      h.addParameters("-f");
+    }
     h.addParameters(branchName);
     h.addParameters(startPoint);
     return run(h);
@@ -803,6 +847,126 @@ public class GitImpl implements Git {
   @Nonnull
   private static GitCommandResult run(@Nonnull GitLineHandler handler) {
     return run(() -> handler);
+  }
+
+  @Override
+  @Nonnull
+  public GitCommandResult deleteWorkingTree(@Nonnull GitRepository repository, @Nonnull GitWorkingTree tree) {
+    GitLineHandler handler = new GitLineHandler(repository.getProject(), repository.getRoot(), GitCommand.WORKTREE);
+    handler.setSilent(false);
+    handler.setStdoutSuppressed(false);
+    handler.setStderrSuppressed(false);
+    handler.addParameters("remove");
+    handler.addAbsoluteFile(tree.getPath().getIOFile());
+    handler.addParameters("--force");
+    return runCommand(handler);
+  }
+
+  @Override
+  @Nonnull
+  public GitCommandResult deleteWorkingTreeWithoutProject(@Nonnull Path mainWorktreePath, @Nonnull GitWorkingTree tree) {
+    Project defaultProject = ProjectManager.getInstance().getDefaultProject();
+    GitLineHandler handler = new GitLineHandler(defaultProject, mainWorktreePath.toFile(), GitCommand.WORKTREE);
+    handler.setSilent(false);
+    handler.setStdoutSuppressed(false);
+    handler.setStderrSuppressed(false);
+    handler.addParameters("remove");
+    handler.addAbsoluteFile(tree.getPath().getIOFile());
+    handler.addParameters("--force");
+    return runCommand(handler);
+  }
+
+  @Override
+  @Nonnull
+  public List<GitWorkingTree> listWorktrees(@Nonnull GitRepository repository) throws VcsException {
+    GitLineHandler handler = new GitLineHandler(repository.getProject(), repository.getRoot(), GitCommand.WORKTREE);
+    handler.addParameters("list");
+    handler.addParameters("--porcelain");
+
+    GitCommandResult result = runCommand(handler);
+    result.throwOnError();
+    return new GitWorktreeListParser(repository.getRoot().toNioPath(),
+                                     repository.getRepositoryFiles().getWorktreeGitDir().toNioPath())
+      .parseOrEmpty(result.getOutput());
+  }
+
+  @Override
+  @Nonnull
+  public GitCommandResult createWorkingTree(@Nonnull GitRepository repository,
+                                            @Nonnull FilePath workingTreePath,
+                                            @Nonnull GitReference sourceRef,
+                                            @Nullable String newBranchName,
+                                            boolean force) {
+    GitLineHandler handler = new GitLineHandler(repository.getProject(), repository.getRoot(), GitCommand.WORKTREE);
+    handler.setSilent(false);
+    handler.setStdoutSuppressed(false);
+    handler.setStderrSuppressed(false);
+    handler.addParameters("add");
+    if (force) {
+      handler.addParameters("--force");
+    }
+    if (newBranchName != null) {
+      handler.addParameters("-b", newBranchName);
+    }
+    handler.addAbsoluteFile(workingTreePath.getIOFile());
+    handler.addParameters(sourceRef instanceof GitBranch ? sourceRef.getName() : sourceRef.getFullName());
+    return runCommand(handler);
+  }
+
+  @Override
+  @Nonnull
+  public GitCommandResult pruneWorktrees(@Nonnull GitRepository repository) {
+    GitLineHandler handler = new GitLineHandler(repository.getProject(), repository.getRoot(), GitCommand.WORKTREE);
+    handler.addParameters("prune");
+    return runCommand(handler);
+  }
+
+  @Override
+  @Nonnull
+  public GitCommandResult lockWorkingTree(@Nonnull GitRepository repository, @Nonnull GitWorkingTree tree) {
+    GitLineHandler handler = new GitLineHandler(repository.getProject(), repository.getRoot(), GitCommand.WORKTREE);
+    handler.setSilent(false);
+    handler.setStdoutSuppressed(false);
+    handler.setStderrSuppressed(false);
+    handler.addParameters("lock");
+    handler.addAbsoluteFile(tree.getPath().getIOFile());
+    return runCommand(handler);
+  }
+
+  @Override
+  @Nonnull
+  public GitCommandResult unlockWorkingTree(@Nonnull GitRepository repository, @Nonnull GitWorkingTree tree) {
+    GitLineHandler handler = new GitLineHandler(repository.getProject(), repository.getRoot(), GitCommand.WORKTREE);
+    handler.setSilent(false);
+    handler.setStdoutSuppressed(false);
+    handler.setStderrSuppressed(false);
+    handler.addParameters("unlock");
+    handler.addAbsoluteFile(tree.getPath().getIOFile());
+    return runCommand(handler);
+  }
+
+  @Override
+  @Nullable
+  public Hash resolveReference(@Nonnull GitRepository repository, @Nonnull String ref) {
+    VirtualFile root = repository.getRoot();
+    GitLineHandler handler = new GitLineHandler(repository.getProject(), root, GitCommand.REV_PARSE);
+    handler.addParameters("--verify");
+    handler.addParameters(ref + "^{commit}");
+    GitCommandResult result = runCommand(handler);
+    String output = result.getOutputAsJoinedString();
+    if (result.success()) {
+      if (GitUtil.isHashString(output)) {
+        return HashImpl.build(output);
+      }
+      else {
+        LOG.error("Invalid output for git rev-parse " + ref + " in " + root + ": " + output);
+        return null;
+      }
+    }
+    else {
+      LOG.debug("Reference [" + ref + "] is unknown to Git in " + root);
+      return null;
+    }
   }
 
   @Override

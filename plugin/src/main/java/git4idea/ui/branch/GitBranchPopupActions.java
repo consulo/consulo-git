@@ -24,18 +24,25 @@ import consulo.ui.annotation.RequiredUIAccess;
 import consulo.ui.ex.action.*;
 import consulo.util.collection.ContainerUtil;
 import consulo.versionControlSystem.distributed.DvcsUtil;
+import consulo.versionControlSystem.distributed.MultiRootBranches;
 import consulo.versionControlSystem.distributed.branch.BranchActionGroup;
 import consulo.versionControlSystem.distributed.branch.BranchActionUtil;
 import consulo.versionControlSystem.distributed.branch.NewBranchAction;
 import consulo.versionControlSystem.distributed.branch.PopupElementWithAdditionalInfo;
 import consulo.versionControlSystem.distributed.repository.Repository;
-import git4idea.branch.GitBranchUtil;
+import git4idea.GitLocalBranch;
+import git4idea.GitRemoteBranch;
+import git4idea.GitUtil;
+import git4idea.branch.GitBranchOperationType;
 import git4idea.branch.GitBrancher;
+import git4idea.branch.GitNewBranchDialog;
 import git4idea.repo.GitRepository;
-import git4idea.validators.GitNewBranchNameValidator;
+import git4idea.workingTrees.actions.GitCreateWorkingTreeAction;
+import git4idea.workingTrees.actions.GitOpenExistingWorkingTreeForLocalBranchAction;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import static git4idea.GitStatisticsCollectorKt.reportUsage;
@@ -61,6 +68,7 @@ public class GitBranchPopupActions {
         List<GitRepository> repositoryList = List.of(myRepository);
 
         popupGroup.add(new GitNewBranchAction(myProject, repositoryList));
+        popupGroup.add(new GitCreateWorkingTreeAction(myRepository, null, true));
         popupGroup.add(new CheckoutRevisionActions(myProject, repositoryList));
 
         if (toInsert != null) {
@@ -124,14 +132,14 @@ public class GitBranchPopupActions {
         @Override
         @RequiredUIAccess
         public void actionPerformed(@Nonnull AnActionEvent e) {
-            GitBranchUtil.getNewBranchNameFromUser(myProject, myRepositories, GitBranchesLocalize.dialogTitleCreateNewBranch())
-                .whenCompleteAsync((name, error) -> {
-                    if (name != null) {
-                        GitBrancher brancher = myProject.getInstance(GitBrancher.class);
-                        brancher.checkoutNewBranch(name, myRepositories);
-                        reportUsage("git.branch.create.new");
-                    }
-                }, UIAccess.current());
+            GitBranchActionsUtil.createOrCheckoutNewBranch(
+                myProject,
+                myRepositories,
+                GitUtil.HEAD,
+                GitBranchesLocalize.dialogTitleCreateNewBranch(),
+                MultiRootBranches.getCommonCurrentBranch(myRepositories)
+            );
+            reportUsage("git.branch.create.new");
         }
     }
 
@@ -301,16 +309,25 @@ public class GitBranchPopupActions {
         @Nonnull
         @Override
         public AnAction[] getChildren(@Nullable AnActionEvent e) {
-            return new AnAction[]{
-                new CheckoutAction(),
-                new CheckoutAsNewBranch(),
-                new CompareAction(),
-                new RebaseAction(),
-                new CheckoutWithRebaseAction(),
-                new MergeAction(true),
-                new RenameBranchAction(),
-                new DeleteAction()
-            };
+            GitLocalBranch branch = mySelectedRepository.getBranches().findLocalBranch(myBranchName);
+            List<AnAction> actions = new ArrayList<>();
+            actions.add(new CheckoutAction());
+            if (branch != null) {
+                actions.add(new GitOpenExistingWorkingTreeForLocalBranchAction(myRepositories, branch));
+            }
+            actions.add(new CheckoutAsNewBranch());
+            actions.add(new CompareAction());
+            actions.add(new RebaseAction());
+            actions.add(new CheckoutWithRebaseAction());
+            actions.add(new MergeAction(true));
+            if (branch != null && myRepositories.size() == 1) {
+                actions.add(AnSeparator.create());
+                actions.add(new GitCreateWorkingTreeAction(mySelectedRepository, branch, false));
+                actions.add(AnSeparator.create());
+            }
+            actions.add(new RenameBranchAction());
+            actions.add(new DeleteAction());
+            return actions.toArray(AnAction.EMPTY_ARRAY);
         }
 
         @Override
@@ -346,16 +363,13 @@ public class GitBranchPopupActions {
             @Override
             @RequiredUIAccess
             public void actionPerformed(@Nonnull AnActionEvent e) {
-                InputBoxBuilder.text()
-                    .title(GitBranchesLocalize.dialogTitleCheckoutNewBranchFrom0(myBranchName))
-                    .text(GitBranchesLocalize.dialogMessageNewBranchName())
-                    .validator(GitNewBranchNameValidator.newInstance(myRepositories))
-                    .showAsync(myProject)
-                    .whenCompleteAsync((name, error) -> {
-                        if (name != null) {
-                            myBrancher.checkoutNewBranchStartingFrom(name, myBranchName, myRepositories, null);
-                        }
-                    }, UIAccess.current());
+                GitBranchActionsUtil.createOrCheckoutNewBranch(
+                    myProject,
+                    myRepositories,
+                    myBranchName + "^0",
+                    GitBranchesLocalize.actionGitNewBranchDialogTitle(myBranchName),
+                    GitBranchActionsUtil.calculateNewBranchInitialName(myBranchName, false)
+                );
                 reportUsage("git.checkout.as.new.branch");
             }
         }
@@ -368,18 +382,23 @@ public class GitBranchPopupActions {
             @Override
             @RequiredUIAccess
             public void actionPerformed(@Nonnull AnActionEvent e) {
-                InputBoxBuilder.text()
-                    .title(GitBranchesLocalize.dialogTitleRenameBranch0(myBranchName))
-                    .text(GitBranchesLocalize.dialogMessageNewNameForTheBranch0(myBranchName))
-                    .value(myBranchName)
-                    .validator(GitNewBranchNameValidator.newInstance(myRepositories))
-                    .showAsync(myProject)
-                    .whenCompleteAsync((newName, error) -> {
-                        if (newName != null) {
-                            myBrancher.renameBranch(myBranchName, newName, myRepositories);
-                            reportUsage("git.branch.rename");
-                        }
-                    }, UIAccess.current());
+                new GitNewBranchDialog(
+                    myProject,
+                    myRepositories,
+                    GitBranchesLocalize.dialogTitleRenameBranch0(myBranchName),
+                    myBranchName,
+                    false,
+                    false,
+                    false,
+                    false,
+                    false,
+                    GitBranchOperationType.RENAME
+                ).showAndGetOptions().whenCompleteAsync((options, error) -> {
+                    if (options != null) {
+                        myBrancher.renameBranch(myBranchName, options.name(), new ArrayList<>(options.repositories()));
+                        reportUsage("git.branch.rename");
+                    }
+                }, UIAccess.current());
             }
         }
 
@@ -420,43 +439,51 @@ public class GitBranchPopupActions {
         @Nonnull
         @Override
         public AnAction[] getChildren(@Nullable AnActionEvent e) {
-            return new AnAction[]{
-                new CheckoutRemoteBranchAction(),
-                new CompareAction(),
-                new RebaseAction(),
-                new MergeAction(false),
-                new RemoteDeleteAction()
-            };
+            GitRemoteBranch branch = mySelectedRepository.getBranches().findRemoteBranch(myBranchName);
+            List<AnAction> actions = new ArrayList<>();
+            actions.add(new CheckoutRemoteBranchAction());
+            actions.add(new NewBranchFromRemoteAction());
+            actions.add(new CompareAction());
+            actions.add(new RebaseAction());
+            actions.add(new MergeAction(false));
+            if (branch != null && myRepositories.size() == 1) {
+                actions.add(AnSeparator.create());
+                actions.add(new GitCreateWorkingTreeAction(mySelectedRepository, branch, false));
+                actions.add(AnSeparator.create());
+            }
+            actions.add(new RemoteDeleteAction());
+            return actions.toArray(AnAction.EMPTY_ARRAY);
         }
 
         private class CheckoutRemoteBranchAction extends DumbAwareAction {
             public CheckoutRemoteBranchAction() {
-                super(GitBranchesLocalize.actionCheckoutAsNewLocalBranchText());
+                super(GitBranchesLocalize.actionCheckoutText());
             }
 
             @Override
             @RequiredUIAccess
             public void actionPerformed(@Nonnull AnActionEvent e) {
-                InputBoxBuilder.text()
-                    .title(GitBranchesLocalize.dialogTitleCheckoutRemoteBranch())
-                    .text(GitBranchesLocalize.dialogMessageNewBranchName())
-                    .value(guessBranchName())
-                    .validator(GitNewBranchNameValidator.newInstance(myRepositories))
-                    .showAsync(myProject)
-                    .whenCompleteAsync((name, error) -> {
-                        if (name != null) {
-                            myBrancher.checkoutNewBranchStartingFrom(name, myBranchName, myRepositories, null);
-                            reportUsage("git.branch.checkout.remote");
-                        }
-                    }, UIAccess.current());
+                GitRemoteBranchCheckoutUtil.checkoutRemoteBranch(myProject, myRepositories, myBranchName);
+                reportUsage("git.branch.checkout.remote");
+            }
+        }
+
+        private class NewBranchFromRemoteAction extends DumbAwareAction {
+            public NewBranchFromRemoteAction() {
+                super(GitBranchesLocalize.actionNewBranchFromText(myBranchName));
             }
 
-            private String guessBranchName() {
-                // TODO: check if we already have a branch with that name;
-                // TODO: check if that branch tracks this remote branch. Show different messages
-                int slashPosition = myBranchName.indexOf("/");
-                // if no slash is found (for example, in the case of git-svn remote branches), propose the whole name.
-                return myBranchName.substring(slashPosition + 1);
+            @Override
+            @RequiredUIAccess
+            public void actionPerformed(@Nonnull AnActionEvent e) {
+                GitBranchActionsUtil.createOrCheckoutNewBranch(
+                    myProject,
+                    myRepositories,
+                    myBranchName,
+                    GitBranchesLocalize.actionGitNewBranchDialogTitle(myBranchName),
+                    GitBranchActionsUtil.calculateNewBranchInitialName(myBranchName, true)
+                );
+                reportUsage("git.branch.new.from.remote");
             }
         }
 

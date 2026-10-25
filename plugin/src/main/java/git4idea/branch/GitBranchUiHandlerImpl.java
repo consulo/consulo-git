@@ -17,6 +17,7 @@ package git4idea.branch;
 
 import consulo.application.Application;
 import consulo.application.progress.ProgressIndicator;
+import consulo.git.localize.GitLocalize;
 import consulo.disposer.Disposable;
 import consulo.disposer.Disposer;
 import consulo.localize.LocalizeValue;
@@ -47,7 +48,9 @@ import javax.swing.*;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class GitBranchUiHandlerImpl implements GitBranchUiHandler {
     @Nonnull
@@ -163,25 +166,30 @@ public class GitBranchUiHandlerImpl implements GitBranchUiHandler {
         @Nonnull String operation,
         @Nullable String forceButtonTitle
     ) {
-        Disposable browserDisposable = Disposable.newDisposable("Git smart operation files");
-        try {
-            JComponent fileBrowser;
-            if (!changes.isEmpty()) {
-                VcsChangesBrowser browser = project.getApplication().getInstance(VcsChangesDialogFactory.class)
-                    .changesBrowser(project)
-                    .withRollback()
-                    .build(browserDisposable);
-                browser.setChanges(changes);
-                fileBrowser = (JComponent) TargetAWT.to(browser.getComponent());
+        AtomicInteger answer = new AtomicInteger();
+        Application application = myProject.getApplication();
+        application.invokeAndWait(() -> {
+            Disposable browserDisposable = Disposable.newDisposable("Git smart operation files");
+            try {
+                JComponent fileBrowser;
+                if (!changes.isEmpty()) {
+                    VcsChangesBrowser browser = project.getApplication().getInstance(VcsChangesDialogFactory.class)
+                        .changesBrowser(project)
+                        .withRollback()
+                        .build(browserDisposable);
+                    browser.setChanges(changes);
+                    fileBrowser = (JComponent) TargetAWT.to(browser.getComponent());
+                }
+                else {
+                    fileBrowser = new GitSimplePathsBrowser(project, paths, browserDisposable);
+                }
+                answer.set(GitSmartOperationDialog.showAndGetAnswer(myProject, fileBrowser, operation, forceButtonTitle));
             }
-            else {
-                fileBrowser = new GitSimplePathsBrowser(project, paths, browserDisposable);
+            finally {
+                Disposer.dispose(browserDisposable);
             }
-            return GitSmartOperationDialog.showAndGetAnswer(myProject, fileBrowser, operation, forceButtonTitle);
-        }
-        finally {
-            Disposer.dispose(browserDisposable);
-        }
+        }, application.getDefaultModalityState());
+        return answer.get();
     }
 
     @Override
@@ -204,6 +212,23 @@ public class GitBranchUiHandlerImpl implements GitBranchUiHandler {
             application.getDefaultModalityState()
         );
         return restore.get();
+    }
+
+    @Nonnull
+    @Override
+    public CheckoutInOtherWorktreeDecision showCheckoutBranchInOtherWorktreeDialog(@Nonnull String branchName,
+                                                                                @Nullable String worktreePath) {
+        CheckoutInOtherWorktreeDecision decision = CompletableFuture.supplyAsync(
+                () -> GitCheckoutInOtherWorktreeDialogs.buildAndShow(
+                    myProject, branchName, worktreePath,
+                    GitLocalize.branchUiHandlerCheckoutBranchInOtherWorktreeCheckoutAnyway(),
+                    CheckoutInOtherWorktreeButtonSet.PROCEED_OPEN_EXISTING_OR_CANCEL
+                ),
+                myProject.getUIAccess()
+            )
+            .thenCompose(future -> future)
+            .join();
+        return decision == null ? CheckoutInOtherWorktreeDecision.CANCEL : decision;
     }
 
     @Nonnull

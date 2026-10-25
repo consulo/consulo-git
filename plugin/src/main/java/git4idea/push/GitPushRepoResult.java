@@ -34,8 +34,8 @@ import java.util.List;
  *
  * @see GitPushNativeResult
  */
-class GitPushRepoResult {
-    enum Type {
+public class GitPushRepoResult {
+    public enum Type {
         SUCCESS,
         NEW_BRANCH,
         UP_TO_DATE,
@@ -148,16 +148,20 @@ class GitPushRepoResult {
     }
 
     @Nonnull
-    Type getType() {
+    public boolean isSuccessful() {
+        return myType != Type.ERROR && myType != Type.REJECTED_NO_FF && myType != Type.REJECTED_OTHER;
+    }
+
+    public Type getType() {
         return myType;
     }
 
     @Nullable
-    GitUpdateResult getUpdateResult() {
+    public GitUpdateResult getUpdateResult() {
         return myUpdateResult;
     }
 
-    int getNumberOfPushedCommits() {
+    public int getNumberOfPushedCommits() {
         return myCommits;
     }
 
@@ -165,7 +169,7 @@ class GitPushRepoResult {
      * Returns the branch we were pushing from, in the full-name format, e.g. {@code refs/heads/master}.
      */
     @Nonnull
-    String getSourceBranch() {
+    public String getSourceBranch() {
         return mySourceBranch;
     }
 
@@ -173,17 +177,17 @@ class GitPushRepoResult {
      * Returns the branch we were pushing to, in the full-name format, e.g. {@code refs/remotes/origin/master}.
      */
     @Nonnull
-    String getTargetBranch() {
+    public String getTargetBranch() {
         return myTargetBranch;
     }
 
     @Nullable
-    String getError() {
+    public String getError() {
         return myError;
     }
 
     @Nonnull
-    List<String> getPushedTags() {
+    public List<String> getPushedTags() {
         return myPushedTags;
     }
 

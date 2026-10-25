@@ -1233,3 +1233,359 @@ vfs.listener.delete.single.title:
     text: Delete File from Git
 vfs.listener.delete.title:
     text: Delete Files from Git
+local.changes.save.policy.stash:
+    text: Stash
+local.changes.save.policy.shelve:
+    text: Shelve
+push.failed.error.message:
+    text: 'Push failed: {0}'
+notification.title.worktree.creation.failed:
+    text: Worktree creation failed
+notification.title.worktree.include.file.write.failed:
+    text: Could not update .worktreeinclude
+notification.content.worktree.include.file.write.failed:
+    text: The IDE could not write the .worktreeinclude file at {0}. See the IDE log for details.
+notification.title.worktree.config.copy.failed:
+    text: Config copy failed
+notification.content.worktree.config.copy.failed.files:
+    text: "The IDE could not copy {0} {0,choice,1#file|2#files}:\n{1}"
+notification.content.worktree.config.copy.failed.unexpected:
+    text: An unexpected error stopped the IDE from copying the project configuration into the worktree at {0}.
+notification.title.worktree.additional.config.copy.failed:
+    text: Additional config copy failed
+notification.content.worktree.additional.config.copy.failed:
+    text: The IDE could not copy some additional configuration into the worktree at {0}.
+notification.title.worktree.additional.settings.failed:
+    text: Additional worktree settings failed
+notification.content.worktree.additional.settings.failed:
+    text: The IDE could not apply some additional settings to the worktree at {0}.
+notification.title.worktree.trust.failed:
+    text: Could not mark the worktree as trusted
+notification.content.worktree.trust.failed:
+    text: The IDE could not mark the worktree at {0} as trusted.
+notification.title.worktree.setup.script.failed:
+    text: Setup script failed
+notification.content.worktree.setup.script.failed:
+    text: The setup script {0} failed. See the IDE log for details.
+notification.title.worktree.created:
+    text: Worktree created
+notification.content.worktree.created:
+    text: The worktree for ''{0}'' is at {1}.
+notification.title.worktree.open.project.failed:
+    text: Could not open the worktree project
+notification.content.worktree.open.project.failed:
+    text: The IDE could not open the project at {0}.
+working.tree.dialog.branch.already.checked.out.confirm.create.anyway:
+    text: Create Anyway
+progress.title.creating.worktree:
+    text: Creating worktree
+progress.text.worktree.copying.settings:
+    text: Copying project settings…
+progress.text.worktree.running.setup.script:
+    text: Running the setup script…
+progress.text.worktree.opening.project:
+    text: Opening project…
+Git.WorkingTrees.delete.worktree.success.message:
+    text: Deleted worktree `{0}`
+Git.WorkingTrees.delete.worktrees.failure.notification.title:
+    text: Worktree deletion failed
+Git.WorkingTrees.open.directory.not.found:
+    text: Worktree directory `{0}` no longer exists
+progress.title.deleting.worktree:
+    text: Deleting worktree…
+progress.title.deleting.worktrees:
+    text: Deleting worktrees
+Git.WorkingTrees.dialog.delete.worktree.title:
+    text: Delete Worktree
+Git.WorkingTrees.delete.worktrees.worktree.opened.close.or.cancel:
+    text: "Worktree {0} is currently opened in {1}.\nDo you want to close it first?"
+Git.WorkingTrees.delete.worktrees.button.close.delete:
+    text: Close and Delete
+Git.WorkingTrees.delete.worktrees.button.do.not.delete:
+    text: Do Not Delete
+Git.WorkingTrees.delete.worktrees.success.message:
+    text: "Deleted {0} {0,choice,1#worktree|2#worktrees}"
+Git.WorkingTrees.dialog.inuse.title:
+    text: Worktree Deletion Failed
+Git.WorkingTrees.dialog.inuse.message:
+    text: Could not delete “{0}”. Please close all processes that may be locking files in this directory, then try again.
+Git.WorkingTrees.dialog.inuse.button.try.again:
+    text: Try Again
+progress.title.pruning.worktrees:
+    text: Pruning worktrees…
+Git.WorkingTrees.prune.worktrees.failure.notification.title:
+    text: Failed to prune worktrees
+Git.WorkingTrees.prune.worktree.success.message:
+    text: Successfully pruned worktrees
+progress.title.locking.worktree:
+    text: Locking worktree…
+Git.WorkingTrees.lock.worktree.failure.notification.title:
+    text: Failed to lock worktree
+Git.WorkingTrees.lock.worktree.success.message:
+    text: Successfully locked worktree `{0}`
+progress.title.unlocking.worktree:
+    text: Unlocking worktree…
+Git.WorkingTrees.unlock.worktree.failure.notification.title:
+    text: Failed to unlock worktree
+Git.WorkingTrees.unlock.worktree.success.message:
+    text: Successfully unlocked worktree `{0}`
+working.tree.dialog.worktree.include.header.comment:
+    text: "# The IDE fills the .worktreeinclude file with a suggestion. Review each line and edit it."
+working.tree.dialog.worktree.include.idea.settings.comment:
+    text: "# Local IDE project settings."
+working.tree.dialog.worktree.include.close.comment:
+    text: "# Close this file to return to the New Worktree dialog."
+working.tree.dialog.title:
+    text: New Worktree
+working.tree.dialog.button.ok:
+    text: Create and Open Worktree
+working.tree.dialog.button.ok.create.only:
+    text: Create Worktree
+working.tree.dialog.submodule.info:
+    text: This repository is a Git submodule. The new worktree will not replace the submodule in the parent repository.
+working.tree.dialog.label.repository:
+    text: "Repository:"
+working.tree.dialog.label.existing.branch:
+    text: "From branch:"
+working.tree.dialog.checkbox.new.branch:
+    text: "New branch:"
+working.tree.dialog.label.name:
+    text: "Project name:"
+working.tree.dialog.label.location:
+    text: "Location:"
+working.tree.dialog.label.location.file.chooser.title:
+    text: Worktree Location
+working.tree.dialog.branch.validation.already.checked.out.in.working.tree:
+    text: Selected branch is already checked out in another worktree
+working.tree.dialog.location.validation.select.branch:
+    text: Select a branch to create the worktree
+working.tree.dialog.branch.validation.provide.explicit.local.branch.name:
+    text: A name for the branch in the worktree must be provided explicitly
+working.tree.dialog.branch.validation.default.exists:
+    text: Local branch {0} already exists, provide explicit name for the branch in the worktree
+working.tree.dialog.branch.validation.already.exists:
+    text: Local branch {0} already exists
+working.tree.dialog.name.validation.invalid.format:
+    text: Name should contain only letters, digits, spaces, '_', '-', '.' characters
+working.tree.dialog.location.validation.progress:
+    text: Checking Worktree Path…
+working.tree.dialog.label.location.comment:
+    text: "The worktree will be created in: {0}"
+working.tree.dialog.existing.branch.combo.box.empty.text:
+    text: Select branch
+working.tree.dialog.location.validation.empty:
+    text: Provide a location for the worktree
+working.tree.dialog.location.validation.invalid.path:
+    text: Invalid directory path
+working.tree.dialog.location.validation.is.not.empty:
+    text: "''{0}'' is not empty"
+working.tree.dialog.location.validation.is.a.file:
+    text: "''{0}'' is a file"
+working.tree.dialog.location.validation.not.writable:
+    text: "''{0}'' is not writable"
+working.tree.dialog.location.validation.not.a.directory:
+    text: "''{0}'' is not a directory"
+working.tree.dialog.group.copy.project.config:
+    text: Copy local project setup
+working.tree.dialog.checkbox.worktree.include:
+    text: Copy files listed in .worktreeinclude
+working.tree.dialog.worktree.include.comment:
+    text: List one file pattern per line, using .gitignore syntax.
+working.tree.dialog.button.worktree.include.create:
+    text: Create
+working.tree.dialog.button.worktree.include.add.idea.settings:
+    text: Add Idea Settings
+working.tree.dialog.button.worktree.include.edit:
+    text: Edit
+working.tree.dialog.category.summary:
+    text: "{0} of {1} settings on"
+working.tree.dialog.worktree.include.checking.idea.config:
+    text: Checking Project Settings…
+working.tree.dialog.checkbox.setup.script:
+    text: Run setup script
+working.tree.dialog.label.setup.script:
+    text: "Script:"
+working.tree.dialog.label.setup.script.file.chooser.title:
+    text: Setup Script
+working.tree.dialog.setup.script.comment:
+    text: The IDE runs the script once, with the new worktree path as the argument, before it opens the project. The worktree stays even if the script fails.
+working.tree.dialog.setup.script.validation.empty:
+    text: Provide a path to the setup script
+working.tree.dialog.setup.script.validation.not.absolute:
+    text: Provide an absolute path to the setup script
+working.tree.dialog.setup.script.validation.not.a.file:
+    text: The setup script does not exist
+action.Git.CreateNewWorkingTree.text:
+    text: New Worktree…
+action.Git.CreateNewWorkingTree.description:
+    text: Create a new Git worktree from the current repository
+action.Git.CreateNewWorkingTree.from.branch.text:
+    text: New Worktree from ''{0}''…
+action.Git.CreateNewWorkingTree.from.tag.description:
+    text: Create a new Git worktree from the ''{0}'' tag of the current repository
+action.Git.CreateNewWorkingTree.from.branch.description:
+    text: Create a new Git worktree from the ''{0}'' branch of the current repository
+action.open.worktree.for.a.branch.text:
+    text: Open Worktree…
+action.open.worktree.for.a.branch.choose.title:
+    text: Choose Worktree to Open
+toolwindow.working.trees.worktree.kind.submodule.hint:
+    text: Submodule
+toolwindow.working.trees.tab.detached.working.tree.branch.text:
+    text: <detached>
+toolwindow.working.trees.worktree.kind.main:
+    text: Main worktree
+toolwindow.working.trees.worktree.kind.linked:
+    text: Linked worktree
+toolwindow.working.trees.worktree.status.locked:
+    text: Locked
+toolwindow.working.trees.worktree.status.prunable:
+    text: Prunable
+toolwindow.working.trees.submodule.relink.warning:
+    text: Submodule — the worktree is a standalone checkout and is not linked back into the parent repository in place of the original submodule directory.
+toolwindow.working.trees.tab.name:
+    text: Worktrees
+toolwindow.working.trees.tab.empty.text:
+    text: No linked worktrees
+toolwindow.working.trees.tab.empty.text.create.working.tree:
+    text: Create worktree…
+toolwindow.working.trees.tab.empty.what.git.worktree:
+    text: What is a Git worktree
+action.Git.WorkingTrees.Unlock.text:
+    text: Unlock
+action.Git.WorkingTrees.Lock.text:
+    text: Lock
+Git.WorkingTrees.dialog.prune.worktree.message:
+    text: "Remove Git records for missing worktrees: `{0}`?"
+Git.WorkingTrees.dialog.prune.worktree.title:
+    text: Prune Worktrees
+Git.WorkingTrees.dialog.prune.worktree.yes.option:
+    text: Prune Worktrees
+Git.WorkingTrees.dialog.delete.worktree.message:
+    text: Delete worktree at `{0}`?
+Git.WorkingTrees.dialog.delete.worktree.yes.option:
+    text: Delete Worktree
+Git.WorkingTrees.dialog.delete.worktrees.message:
+    text: Are you sure you want to delete {0} selected worktrees?
+Git.WorkingTrees.dialog.delete.worktrees.title:
+    text: Delete Worktrees
+Git.WorkingTrees.dialog.delete.worktrees.yes.option:
+    text: Delete Worktrees
+progress.text.worktree.fetching.branch:
+    text: Fetching branch…
+status.exception.message.line.is.too.short:
+    text: The line is too short
+status.exception.message.unexpected:
+    text: Unexpected symbol as status
+status.exception.message.missing.path:
+    text: Missing the original path
+status.exception.message.format.message.xstatus.ystatus.line.output:
+    text: "{0} xStatus=[{1}], yStatus=[{2}], line=[{3}]\noutput:\n{4}"
+status.exception.message.unexpected.status:
+    text: "Unexpected symbol as status: ''{0}''"
+branch.ui.handler.checkout.branch.in.other.worktree.title:
+    text: Worktree Conflict
+working.tree.dialog.quick.create.open.existing:
+    text: Open Existing Worktree
+branch.ui.handler.checkout.branch.in.other.worktree.message.with.path:
+    text: "Branch ''{0}'' is already checked out in a worktree at:\n{1}"
+branch.ui.handler.checkout.branch.in.other.worktree.message:
+    text: Branch ''{0}'' is already checked out in another worktree.
+branch.ui.handler.rollback:
+    text: Rollback
+branch.ui.handler.do.not.rollback:
+    text: Don't Rollback
+apply.changes.resolving.conflicts.progress.title:
+    text: Resolving conflicts…
+branch.ui.handler.merge.notification.description:
+    text: The following files have unresolved conflicts. You need to resolve them before {0}.
+branch.ui.handler.merge.error.notification.title:
+    text: Unresolved files remain.
+branch.ui.handler.you.have.to.resolve.all.conflicts.before.operation.name:
+    text: You need to resolve all merge conflicts before {0}.<br/>{1}
+branch.ui.handler.delete.remote.branches:
+    text: "Delete Remote {0,choice,1#Branch|2#Branches}"
+branch.ui.handler.delete.remote.branches.question:
+    text: "Delete remote {0,choice,1#branch|2#branches} {1}?"
+branch.ui.handler.delete.all:
+    text: Delete All
+branch.ui.handler.delete.tracking.local.branch.as.well:
+    text: Delete tracking local branch {0} as well
+branch.ui.handler.delete.tracking.local.branches:
+    text: "Delete tracking local branches:"
+branch.ui.handler.checkout.branch.in.other.worktree.checkout.anyway:
+    text: Checkout Anyway
+branch.ui.handler.can.not.operation.name.because.of.unmerged.files:
+    text: Cannot {0} because of unmerged files
+branch.ui.handler.unmerged.files.error.notification.text:
+    text: You need to resolve all merge conflicts before {0}.<br/>After resolving conflicts do not forget to commit your files to the current branch before switching to another branch.
+activity.name.checkout:
+    text: Git checkout
+checkout.operation.revision.not.found:
+    text: "Revision not found{0,choice,0#|1# in {1}}"
+checkout.operation.in:
+    text: "{0}{1,choice,0#|1# in {2}}"
+checkout.operation.could.not.checkout.error:
+    text: Could not checkout {0}
+checkout.operation.name:
+    text: checkout
+checkout.operation.force.checkout:
+    text: "&Force Checkout"
+checkout.operation.previous.branch:
+    text: previous branch
+checkout.operation.you.may.rollback.not.to.let.branches.diverge:
+    text: You may rollback (checkout back to {0}) not to let branches diverge.
+checkout.operation.however.checkout.has.succeeded.for.the.following:
+    text: "However, checkout has succeeded for the following {0,choice,1#repository|2#repositories}:"
+checkout.operation.errors.during.checkout:
+    text: "Errors during checkout:"
+checkout.operation.errors.during.deleting:
+    text: "Errors during deleting {0}:"
+checkout.operation.error.during.rollback:
+    text: Error during rollback
+checkout.operation.could.not.checkout.error.title:
+    text: Could not checkout {0}
+checkout.operation.checked.out:
+    text: Checked out {0}
+checkout.operation.checked.out.new.branch.from:
+    text: Checked out new branch {0} from {1}
+action.not.possible.in.fresh.repo.generic:
+    text: Action
+branches.create.new.branch.dialog.title:
+    text: Create New Branch
+branches.updating.process:
+    text: Updating branches…
+branches.update.failed:
+    text: Update failed
+branches.fetch.finished:
+    text: Fetched {0} targets
+branches.update.other.worktree.finished:
+    text: "Updated {0} {0,choice,1#branch|2#branches} checked out in other worktrees"
+branches.update.other.worktree.failed:
+    text: Could not update branch ''{0}'' in the worktree at {1}
+action.Git.Show.WorkingTrees.text:
+    text: Worktrees…
+action.Git.Show.WorkingTrees.description:
+    text: Show worktrees in a tool window
+action.Git.WorkingTrees.Remove.text:
+    text: Delete…
+action.Git.WorkingTrees.Remove.description:
+    text: Delete worktree…
+action.Git.WorkingTrees.Open.text:
+    text: Open Worktree
+action.Git.WorkingTrees.Open.description:
+    text: Open the worktree as a project
+action.Git.WorkingTrees.Refresh.text:
+    text: Refresh
+action.Git.WorkingTrees.Refresh.description:
+    text: Refresh the list of worktrees
+action.Git.WorkingTrees.Prune.text:
+    text: Prune
+action.Git.WorkingTrees.Prune.description:
+    text: Remove Git records for worktrees whose directories no longer exist
+action.Git.WorkingTrees.ToggleLock.text:
+    text: Lock
+action.Git.WorkingTrees.OpenReview.text:
+    text: Open Review
+action.Git.WorkingTrees.OpenReview.description:
+    text: Open the review for this branch

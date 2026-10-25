@@ -91,6 +91,18 @@ public class GitCommandResult {
         return mySuccess;
     }
 
+    public void throwOnError(int... ignoredErrorCodes) throws VcsException {
+        if (success()) {
+            return;
+        }
+        for (int code : ignoredErrorCodes) {
+            if (code == myExitCode) {
+                return;
+            }
+        }
+        throw new VcsException(getErrorOutputAsJoinedString());
+    }
+
     @Nonnull
     public List<String> getOutput() {
         return Collections.unmodifiableList(myOutput);

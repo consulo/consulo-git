@@ -105,4 +105,17 @@ public interface GitBranchUiHandler {
         @Nonnull Map<GitRepository, String> baseBranches,
         @Nonnull String removedBranch
     );
+
+    /**
+     * Shows a confirmation asking how to proceed when {@code branchName} is already checked out in another worktree
+     * (at {@code worktreePath}, if known): check it out here anyway, open the existing worktree instead, or cancel.
+     */
+    @Nonnull
+    CheckoutInOtherWorktreeDecision showCheckoutBranchInOtherWorktreeDialog(@Nonnull String branchName, @Nullable String worktreePath);
+
+    enum CheckoutInOtherWorktreeDecision {
+        CANCEL,
+        CHECKOUT_ANYWAY,
+        OPEN_EXISTING_WORKTREE
+    }
 }

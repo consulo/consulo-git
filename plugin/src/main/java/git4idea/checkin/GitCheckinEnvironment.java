@@ -187,6 +187,17 @@ public class GitCheckinEnvironment implements CheckinEnvironment {
     }
 
     @Nonnull
+    private @Nullable Set<VirtualFile> findFreshUnhostedRoots(Collection<VirtualFile> roots) {
+        Set<VirtualFile> freshRoots = new HashSet<>();
+        for (VirtualFile root : roots) {
+            GitRepository repository = GitRepositoryManager.getInstance(myProject).getRepositoryForRootQuick(root);
+            if (repository != null && repository.isFresh() && repository.getRemotes().isEmpty()) {
+                freshRoots.add(root);
+            }
+        }
+        return freshRoots.isEmpty() ? null : freshRoots;
+    }
+
     @Override
     public LocalizeValue getCheckinOperationName() {
         return GitLocalize.commitActionName();
@@ -204,6 +215,7 @@ public class GitCheckinEnvironment implements CheckinEnvironment {
         if (sortedChanges.isEmpty()) {
             LOG.error("Trying to commit an empty list of changes: {}", changes);
         }
+        commitContext.setFreshUnhostedRoots(findFreshUnhostedRoots(sortedChanges.keySet()));
         for (Map.Entry<VirtualFile, Collection<Change>> entry : sortedChanges.entrySet()) {
             VirtualFile root = entry.getKey();
             File messageFile;

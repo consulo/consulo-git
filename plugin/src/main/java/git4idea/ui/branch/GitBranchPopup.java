@@ -31,6 +31,7 @@ import git4idea.branch.GitBranchUtil;
 import git4idea.config.GitVcsSettings;
 import git4idea.repo.GitRepository;
 import git4idea.repo.GitRepositoryManager;
+import git4idea.workingTrees.actions.GitCreateWorkingTreeAction;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 
@@ -104,6 +105,7 @@ class GitBranchPopup extends DvcsBranchPopup<GitRepository> {
     ) {
         List<GitRepository> allRepositories = repositoryManager.getRepositories();
         popupGroup.add(new GitBranchPopupActions.GitNewBranchAction(myProject, allRepositories));
+        popupGroup.add(new GitCreateWorkingTreeAction());
         popupGroup.add(new GitBranchPopupActions.CheckoutRevisionActions(myProject, allRepositories));
 
         popupGroup.addAll(createRepositoriesActions());

@@ -16,6 +16,8 @@ module com.intellij.git {
     requires consulo.ui.ex.api;
     requires consulo.ui.ex.awt.api;
     requires consulo.http.api;
+    requires consulo.account.management.api;
+    requires consulo.review.api;
     requires consulo.external.process.auth.helper;
     requires consulo.process.api;
     requires consulo.builtin.web.server.api;
@@ -73,6 +75,8 @@ module com.intellij.git {
     exports git4idea.push;
     exports git4idea.rebase;
     exports git4idea.remote;
+    exports git4idea.remote.hosting;
+    exports git4idea.remote.hosting.http;
     exports git4idea.repo;
     exports git4idea.reset;
     exports git4idea.rollback;

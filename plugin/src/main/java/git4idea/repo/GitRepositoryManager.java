@@ -56,6 +56,8 @@ public class GitRepositoryManager extends AbstractRepositoryManager<GitRepositor
     @Inject
     public GitRepositoryManager(@Nonnull Project project, @Nonnull VcsRepositoryManager vcsRepositoryManager) {
         super(project, vcsRepositoryManager, GitVcs.getKey());
+        project.getApplication().getMessageBus().connect(project)
+            .subscribe(GitRepositoryUpdateListener.class, new GitWorktreeUpdateListener(project));
     }
 
     @Override

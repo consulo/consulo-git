@@ -17,6 +17,7 @@ package git4idea.branch;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 import jakarta.annotation.Nonnull;
 
@@ -99,13 +100,31 @@ public final class GitBranchWorker
 	public void checkoutNewBranchStartingFrom(@Nonnull String newBranchName, @Nonnull String startPoint, @Nonnull List<GitRepository> repositories)
 	{
 		updateInfo(repositories);
-		new GitCheckoutOperation(myProject, myGit, myUiHandler, repositories, startPoint, false, true, newBranchName).execute();
+		checkoutNewBranchStartingFrom(newBranchName, startPoint, false, repositories);
+	}
+
+	public void checkoutNewBranchStartingFrom(@Nonnull String newBranchName, @Nonnull String startPoint, boolean overwriteIfNeeded,
+	                                          @Nonnull List<GitRepository> repositories)
+	{
+		updateInfo(repositories);
+		new GitCheckoutOperation(myProject, myGit, myUiHandler, repositories, startPoint, false, overwriteIfNeeded, true, newBranchName).execute();
+	}
+
+	public void createBranch(@Nonnull String name, @Nonnull Map<GitRepository, String> startPoints)
+	{
+		createBranch(name, startPoints, false);
+	}
+
+	public void createBranch(@Nonnull String name, @Nonnull Map<GitRepository, String> startPoints, boolean force)
+	{
+		updateInfo(startPoints.keySet());
+		new GitCreateBranchOperation(myProject, myGit, myUiHandler, name, startPoints, force).execute();
 	}
 
 	public void checkout(@Nonnull final String reference, boolean detach, @Nonnull List<GitRepository> repositories)
 	{
 		updateInfo(repositories);
-		new GitCheckoutOperation(myProject, myGit, myUiHandler, repositories, reference, detach, false, null).execute();
+		new GitCheckoutOperation(myProject, myGit, myUiHandler, repositories, reference, detach, false, false, null).execute();
 	}
 
 
@@ -131,6 +150,12 @@ public final class GitBranchWorker
 	{
 		updateInfo(repositories);
 		GitRebaseUtils.rebase(myProject, repositories, new GitRebaseParams(branchName), myUiHandler.getProgressIndicator());
+	}
+
+	public void rebase(@Nonnull List<GitRepository> repositories, @Nonnull String upstream, @Nonnull String branchName)
+	{
+		updateInfo(repositories);
+		GitRebaseUtils.rebase(myProject, repositories, new GitRebaseParams(branchName, null, upstream, false, false), myUiHandler.getProgressIndicator());
 	}
 
 	public void rebaseOnCurrent(@Nonnull List<GitRepository> repositories, @Nonnull String branchName)
