@@ -216,6 +216,27 @@ public enum GitVersionSpecialty {
         }
     },
 
+    /**
+     * Options "-m" and "--diff-merges=m" changed their meaning. When one of these options is provided, instead of showing diff for each parent commit,
+     * the value of the "log.diffMerges" configuration parameter ("separate" by default) is used to determine how to show diff.
+     */
+    DIFF_MERGES_M_USES_DEFAULT_SETTING {
+        @Override
+        public boolean existsIn(@Nonnull GitVersion version) {
+            return version.isLaterOrEqual(new GitVersion(2, 32, 0, 0));
+        }
+    },
+
+    /**
+     * Option "--diff-merges=first-parent" is supported since git version 2.31.0.
+     */
+    DIFF_MERGES_SUPPORTS_FIRST_PARENT {
+        @Override
+        public boolean existsIn(@Nonnull GitVersion version) {
+            return version.isLaterOrEqual(new GitVersion(2, 31, 0, 0));
+        }
+    },
+
     LF_SEPARATORS_IN_STDIN {
         @Override
         public boolean existsIn(@Nonnull GitVersion version) {

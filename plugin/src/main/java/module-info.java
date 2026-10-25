@@ -28,6 +28,7 @@ module com.intellij.git {
 
     requires org.apache.commons.codec;
     requires org.slf4j;
+    requires it.unimi.dsi.fastutil;
     requires trilead.ssh2;
     requires xmlrpc.client;
     requires xmlrpc.common;

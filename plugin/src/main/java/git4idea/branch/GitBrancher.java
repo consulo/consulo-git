@@ -18,6 +18,7 @@ package git4idea.branch;
 import consulo.annotation.component.ComponentScope;
 import consulo.annotation.component.ServiceAPI;
 import consulo.project.Project;
+import git4idea.GitReference;
 import git4idea.repo.GitRepository;
 
 import jakarta.annotation.Nonnull;
@@ -198,6 +199,42 @@ public interface GitBrancher {
    * @param repositories  repositories to operate on.
    */
   void merge(@Nonnull String branchName, @Nonnull DeleteOnMergeOption deleteOnMerge, @Nonnull List<GitRepository> repositories);
+
+  /**
+   * <p>Merges the given branch to the HEAD.</p>
+   * <p>{@code git merge <name>}</p>
+   * <p>If local changes prevent merging, proposes the "Smart merge" procedure (stash-merge-unstash).</p>
+   * <p>If untracked files prevent merging, shows them in an error dialog.</p>
+   *
+   * @param reference     local/remote branch or tag to be merged into HEAD.
+   * @param deleteOnMerge specify whether the branch should be automatically deleted or proposed to be deleted after merge.
+   * @param repositories  repositories to operate on.
+   */
+  void merge(@Nonnull GitReference reference, @Nonnull DeleteOnMergeOption deleteOnMerge, @Nonnull List<GitRepository> repositories);
+
+  /**
+   * <p>Merges the given branch to the HEAD.</p>
+   * <p>{@code git merge <name>}</p>
+   * <p>If local changes prevent merging, proposes the "Smart merge" procedure (stash-merge-unstash).</p>
+   * <p>If untracked files prevent merging, shows them in an error dialog.</p>
+   *
+   * @param reference     local/remote branch or tag to be merged into HEAD.
+   * @param deleteOnMerge specify whether the branch should be automatically deleted or proposed to be deleted after merge.
+   * @param repositories  repositories to operate on.
+   * @param allowRollback whether to prompt the user to rollback on conflicts. Useful to set to `false` when prompting is not necessary.
+   */
+  void merge(@Nonnull GitReference reference,
+             @Nonnull DeleteOnMergeOption deleteOnMerge,
+             @Nonnull List<GitRepository> repositories,
+             boolean allowRollback);
+
+  /**
+   * Call {@code git rebase <branchName>} for each of the given repositories.
+   */
+  /**
+   * Call {@code git rebase <reference.name>} for each of the given repositories.
+   */
+  void rebase(@Nonnull List<GitRepository> repositories, @Nonnull GitReference reference);
 
   /**
    * Call {@code git rebase <branchName>} for each of the given repositories.

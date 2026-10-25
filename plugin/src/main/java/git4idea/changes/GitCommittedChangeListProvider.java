@@ -15,6 +15,13 @@
  */
 package git4idea.changes;
 
+import git4idea.GitVcs;
+import git4idea.GitCommit;
+import consulo.versionControlSystem.log.util.VcsUserUtil;
+import consulo.versionControlSystem.log.VcsFullCommitDetails;
+import consulo.versionControlSystem.util.VcsUtil;
+import git4idea.repo.GitRepositoryManager;
+import git4idea.history.GitFileHistory;
 import consulo.application.util.function.AsynchConsumer;
 import consulo.logging.Logger;
 import consulo.project.Project;
@@ -216,17 +223,26 @@ public class GitCommittedChangeListProvider implements CommittedChangesProvider<
 	public Pair<CommittedChangeList, FilePath> getOneList(final VirtualFile file, final VcsRevisionNumber number) throws VcsException
 	{
 		final FilePath filePath = VcsContextFactory.getInstance().createFilePathOn(file);
+		if(!(number instanceof GitRevisionNumber))
+		{
+			LOG.error("Unsupported revision number: " + number);
+			return null;
+		}
 
-		final List<GitHeavyCommit> gitCommits = GitHistoryUtils.commitsDetails(myProject, filePath, new SymbolicRefs(),
-				Collections.singletonList(number.asString()));
-		if(gitCommits.size() != 1)
+		GitRepository repository = GitRepositoryManager.getInstance(myProject).getRepositoryForFile(VcsUtil.getLastCommitPath(myProject, filePath));
+		if(repository == null)
 		{
 			return null;
 		}
-		final GitHeavyCommit gitCommit = gitCommits.get(0);
-		CommittedChangeList commit = new GitCommittedChangeList(gitCommit.getDescription() + " (" + gitCommit.getShortHash().getString() + ")",
-				gitCommit.getDescription(), gitCommit.getAuthor(), (GitRevisionNumber) number, new Date(gitCommit.getAuthorTime()),
-				gitCommit.getChanges(), true);
+		VirtualFile root = repository.getRoot();
+
+		VcsFullCommitDetails gitCommit = getCommitDetails(myProject, root, number);
+		if(gitCommit == null)
+		{
+			return null;
+		}
+
+		CommittedChangeList commit = createCommittedChangeList(myProject, gitCommit, (GitRevisionNumber) number);
 
 		final Collection<Change> changes = commit.getChanges();
 		if(changes.size() == 1)
@@ -241,8 +257,8 @@ public class GitCommittedChangeListProvider implements CommittedChangesProvider<
 				return new Pair<CommittedChangeList, FilePath>(commit, filePath);
 			}
 		}
-		final String afterTime = "--after=" + GitUtil.gitTime(gitCommit.getDate());
-		final List<VcsFileRevision> history = GitHistoryUtils.history(myProject, filePath, (VirtualFile) null, afterTime);
+		final String afterTime = "--after=" + GitUtil.gitTime(new Date(gitCommit.getCommitTime()));
+		final List<VcsFileRevision> history = GitFileHistory.collectHistory(myProject, filePath, afterTime);
 		if(history.isEmpty())
 		{
 			return new Pair<CommittedChangeList, FilePath>(commit, filePath);
@@ -260,5 +276,46 @@ public class GitCommittedChangeListProvider implements CommittedChangesProvider<
 	public boolean supportsIncomingChanges()
 	{
 		return false;
+	}
+
+	@Nullable
+	private static VcsFullCommitDetails getCommitDetails(@Nonnull Project project,
+			@Nonnull VirtualFile root,
+			@Nonnull VcsRevisionNumber number) throws VcsException
+	{
+		String[] hashParameters = GitHistoryUtils.formHashParameters(project, Collections.singleton(number.asString()));
+		List<GitCommit> gitCommits = GitHistoryUtils.history(project, root, hashParameters);
+		if(gitCommits.size() != 1)
+		{
+			return null;
+		}
+
+		return gitCommits.get(0);
+	}
+
+	@Nonnull
+	private static GitCommittedChangeList createCommittedChangeList(@Nonnull Project project,
+			@Nonnull VcsFullCommitDetails gitCommit,
+			@Nonnull GitRevisionNumber revisionNumber)
+	{
+		return new GitCommittedChangeList(gitCommit.getFullMessage() + " (" + gitCommit.getId().toShortString() + ")",
+				gitCommit.getFullMessage(), VcsUserUtil.toExactString(gitCommit.getAuthor()),
+				revisionNumber,
+				new Date(gitCommit.getAuthorTime()), gitCommit.getChanges(),
+				GitVcs.getInstance(project), true);
+	}
+
+	@Nullable
+	public static GitCommittedChangeList getCommittedChangeList(@Nonnull Project project,
+			@Nonnull VirtualFile root,
+			@Nonnull GitRevisionNumber revisionNumber) throws VcsException
+	{
+		VcsFullCommitDetails details = getCommitDetails(project, root, revisionNumber);
+		if(details == null)
+		{
+			return null;
+		}
+
+		return createCommittedChangeList(project, details, revisionNumber);
 	}
 }

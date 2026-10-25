@@ -16,6 +16,8 @@
  */
 package git4idea.branch;
 
+import git4idea.repo.GitRepository;
+
 /**
  * State of synchronization between two branches from a viewpoint of the first branch
  *
@@ -24,4 +26,15 @@ package git4idea.branch;
  */
 public record GitBranchSyncStatus(boolean incoming, boolean outgoing) {
     public static final GitBranchSyncStatus SYNCED = new GitBranchSyncStatus(false, false);
+
+    public static GitBranchSyncStatus calcForCurrentBranch(GitRepository repository) {
+        String branch = repository.getCurrentBranchName();
+        if (branch == null) {
+            return SYNCED;
+        }
+        GitBranchIncomingOutgoingManager incomingOutgoingManager = GitBranchIncomingOutgoingManager.getInstance(repository.getProject());
+        boolean incoming = incomingOutgoingManager.hasIncomingFor(repository, branch);
+        boolean outgoing = incomingOutgoingManager.hasOutgoingFor(repository, branch);
+        return new GitBranchSyncStatus(incoming, outgoing);
+    }
 }

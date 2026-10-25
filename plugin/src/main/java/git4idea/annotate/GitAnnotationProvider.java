@@ -15,6 +15,7 @@
  */
 package git4idea.annotate;
 
+import git4idea.history.GitFileHistory;
 import consulo.annotation.component.ComponentScope;
 import consulo.annotation.component.ServiceAPI;
 import consulo.annotation.component.ServiceImpl;
@@ -113,9 +114,9 @@ public class GitAnnotationProvider implements AnnotationProvider, VcsCacheableAn
                 if (progress != null) {
                     progress.setText(GitLocalize.gettingHistory(file.getName()));
                 }
-                final List<VcsFileRevision> revisions = GitHistoryUtils.history(myProject, currentFilePath);
+                final List<VcsFileRevision> revisions = GitFileHistory.collectHistory(myProject, currentFilePath);
                 if (revision == null) {
-                    realFilePath = GitHistoryUtils.getLastCommitName(myProject, currentFilePath);
+                    realFilePath = VcsUtil.getLastCommitPath(myProject, currentFilePath);
                 }
                 else {
                     realFilePath = ((GitFileRevision)revision).getPath();

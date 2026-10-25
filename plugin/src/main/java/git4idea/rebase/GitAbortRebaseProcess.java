@@ -27,6 +27,7 @@ import consulo.ui.MessageButtonRole;
 import consulo.versionControlSystem.VcsNotifier;
 import consulo.versionControlSystem.distributed.DvcsUtil;
 import consulo.virtualFileSystem.util.VirtualFileUtil;
+import git4idea.GitActivity;
 import git4idea.GitUtil;
 import git4idea.commands.Git;
 import git4idea.commands.GitCommandResult;
@@ -156,7 +157,7 @@ class GitAbortRebaseProcess {
             myProject,
             "rebase",
             () -> {
-                AccessToken token = DvcsUtil.workingTreeChangeStarted(myProject, "Rebase");
+                AccessToken token = DvcsUtil.workingTreeChangeStarted(myProject, "Rebase", GitActivity.Abort);
                 List<GitRepository> repositoriesToRefresh = new ArrayList<>();
                 try {
                     if (myRepositoryToAbort != null) {

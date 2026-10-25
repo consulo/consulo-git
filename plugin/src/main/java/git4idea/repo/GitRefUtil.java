@@ -7,8 +7,12 @@ import consulo.util.io.FileUtil;
 import consulo.util.lang.Pair;
 import consulo.util.lang.ref.SimpleReference;
 import consulo.versionControlSystem.distributed.DvcsUtil;
+import consulo.versionControlSystem.distributed.repository.Repository;
 import consulo.versionControlSystem.log.Hash;
 import consulo.versionControlSystem.log.base.HashImpl;
+import git4idea.GitLocalBranch;
+import git4idea.GitReference;
+import git4idea.GitTag;
 import git4idea.validators.GitRefNameValidator;
 import org.jspecify.annotations.Nullable;
 
@@ -270,5 +274,29 @@ public final class GitRefUtil {
             return true;
         }
         return false;
+    }
+
+    public static @Nullable GitReference getCurrentReference(GitRepository repository) {
+        GitLocalBranch currentBranch = repository.getCurrentBranch();
+        if (currentBranch != null) {
+            return currentBranch;
+        }
+        else {
+            String currentRevision = repository.getCurrentRevision();
+            if (currentRevision != null) {
+                List<GitTag> tags = repository.getTagsHolder().getTagsForCommit(currentRevision);
+                return ContainerUtil.getFirstItem(tags);
+            }
+        }
+        return null;
+    }
+
+    public static @Nullable GitTag getCurrentTag(GitRepository repository) {
+        if (repository.getState() != Repository.State.DETACHED) {
+            return null;
+        }
+
+        GitReference currentRef = getCurrentReference(repository);
+        return currentRef instanceof GitTag tag ? tag : null;
     }
 }

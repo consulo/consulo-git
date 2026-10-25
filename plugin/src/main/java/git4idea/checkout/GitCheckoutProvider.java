@@ -37,8 +37,10 @@ import git4idea.actions.BasicAction;
 import git4idea.commands.Git;
 import git4idea.commands.GitCommandResult;
 import git4idea.commands.GitLineHandlerListener;
+import git4idea.commands.GitShallowCloneOptions;
 import git4idea.commands.GitStandardProgressAnalyzer;
 import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 import jakarta.inject.Inject;
 
 import java.io.File;
@@ -84,13 +86,14 @@ public class GitCheckoutProvider implements CheckoutProvider {
         final String sourceRepositoryURL,
         final String directoryName,
         final String parentDirectory,
-        final String puttyKey
+        @Nullable final String puttyKey,
+        @Nullable final GitShallowCloneOptions shallowCloneOptions
     ) {
         final AtomicBoolean cloneResult = new AtomicBoolean();
         new Task.Backgroundable(project, GitLocalize.cloningRepository(sourceRepositoryURL)) {
             @Override
             public void run(@Nonnull ProgressIndicator indicator) {
-                cloneResult.set(doClone(project, indicator, git, directoryName, parentDirectory, sourceRepositoryURL, puttyKey));
+                cloneResult.set(doClone(project, indicator, git, directoryName, parentDirectory, sourceRepositoryURL, puttyKey, shallowCloneOptions));
             }
 
             @Override
@@ -114,9 +117,10 @@ public class GitCheckoutProvider implements CheckoutProvider {
         @Nonnull String directoryName,
         @Nonnull String parentDirectory,
         @Nonnull String sourceRepositoryURL,
-        String puttyKey
+        @Nullable String puttyKey,
+        @Nullable GitShallowCloneOptions shallowCloneOptions
     ) {
-        return cloneNatively(project, indicator, git, new File(parentDirectory), sourceRepositoryURL, directoryName, puttyKey);
+        return cloneNatively(project, indicator, git, new File(parentDirectory), sourceRepositoryURL, directoryName, puttyKey, shallowCloneOptions);
     }
 
     private static boolean cloneNatively(
@@ -126,11 +130,12 @@ public class GitCheckoutProvider implements CheckoutProvider {
         @Nonnull File directory,
         @Nonnull String url,
         @Nonnull String cloneDirectoryName,
-        String puttyKey
+        @Nullable String puttyKey,
+        @Nullable GitShallowCloneOptions shallowCloneOptions
     ) {
         indicator.setIndeterminate(false);
         GitLineHandlerListener progressListener = GitStandardProgressAnalyzer.createListener(indicator);
-        GitCommandResult result = git.clone(project, directory, url, puttyKey, cloneDirectoryName, progressListener);
+        GitCommandResult result = git.clone(project, directory, url, puttyKey, cloneDirectoryName, shallowCloneOptions, progressListener);
         if (result.success()) {
             return true;
         }

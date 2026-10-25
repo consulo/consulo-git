@@ -46,6 +46,7 @@ import consulo.versionControlSystem.merge.MergeDialogCustomizer;
 import consulo.versionControlSystem.update.RefreshVFsSynchronously;
 import consulo.virtualFileSystem.LocalFileSystem;
 import consulo.virtualFileSystem.VirtualFile;
+import git4idea.GitActivity;
 import git4idea.GitLocalBranch;
 import git4idea.GitUtil;
 import git4idea.GitVcs;
@@ -107,7 +108,7 @@ public class GitCherryPicker extends VcsCherryPicker {
         LOG.info("Cherry-picking commits: " + toString(commitsInRoots));
         List<GitCommitWrapper> successfulCommits = new ArrayList<>();
         List<GitCommitWrapper> alreadyPicked = new ArrayList<>();
-        try (AccessToken token = DvcsUtil.workingTreeChangeStarted(myProject, getActionTitle())) {
+        try (AccessToken token = DvcsUtil.workingTreeChangeStarted(myProject, getActionTitle(), GitActivity.CherryPick)) {
             for (Map.Entry<GitRepository, List<VcsFullCommitDetails>> entry : commitsInRoots.entrySet()) {
                 GitRepository repository = entry.getKey();
                 boolean result = cherryPick(repository, entry.getValue(), successfulCommits, alreadyPicked);

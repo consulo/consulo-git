@@ -15,6 +15,8 @@
  */
 package git4idea.log;
 
+import git4idea.history.GitLogUtil;
+import git4idea.repo.GitSubmodule;
 import consulo.annotation.component.ExtensionImpl;
 import consulo.component.messagebus.MessageBusConnection;
 import consulo.disposer.Disposable;
@@ -123,7 +125,7 @@ public class GitLogProvider implements VcsLogProvider {
 
         boolean refresh = requirements instanceof VcsLogProviderRequirementsEx requirementsEx && requirementsEx.isRefresh();
 
-        DetailedLogData data = GitHistoryUtils.loadMetadata(myProject, root, params);
+        DetailedLogData data = GitLogUtil.collectMetadata(myProject, root, params);
 
         Set<VcsRef> safeRefs = data.getRefs();
         Interner<VcsRef> allRefs = Interner.createHashInterner(DONT_CONSIDER_SHA);
@@ -343,7 +345,7 @@ public class GitLogProvider implements VcsLogProvider {
         Set<VcsCommitMetadata> commits = new HashSet<>();
         VcsFileUtil.foreachChunk(new ArrayList<>(unmatchedTags), 1, tagsChunk -> {
             String[] parameters = ArrayUtil.toStringArray(ContainerUtil.concat(params, tagsChunk));
-            DetailedLogData logData = GitHistoryUtils.loadMetadata(myProject, root, parameters);
+            DetailedLogData logData = GitLogUtil.collectMetadata(myProject, root, parameters);
             refs.addAll(logData.getRefs());
             commits.addAll(logData.getCommits());
         });
@@ -358,13 +360,13 @@ public class GitLogProvider implements VcsLogProvider {
             return LogDataImpl.empty();
         }
 
-        List<String> parameters = new ArrayList<>(GitHistoryUtils.LOG_ALL);
+        List<String> parameters = new ArrayList<>(GitLogUtil.LOG_ALL);
         parameters.add("--date-order");
 
         GitBekParentFixer parentFixer = GitBekParentFixer.prepare(root, this);
         Set<VcsUser> userRegistry = newHashSet();
         Set<VcsRef> refs = newHashSet();
-        GitHistoryUtils.readCommits(
+        GitLogUtil.readTimedCommits(
             myProject,
             root,
             parameters,
@@ -381,7 +383,7 @@ public class GitLogProvider implements VcsLogProvider {
             return;
         }
 
-        GitHistoryUtils.loadDetails(myProject, root, commitConsumer, ArrayUtil.toStringArray(GitHistoryUtils.LOG_ALL));
+        GitLogUtil.readFullDetails(myProject, root, commitConsumer::accept, ArrayUtil.toStringArray(GitLogUtil.LOG_ALL));
     }
 
     @Override
@@ -399,7 +401,7 @@ public class GitLogProvider implements VcsLogProvider {
             List<String> parameters = new ArrayList<>();
             parameters.add(noWalk);
             parameters.addAll(hashesChunk);
-            GitHistoryUtils.loadDetails(myProject, root, commitConsumer, ArrayUtil.toStringArray(parameters));
+            GitLogUtil.readFullDetails(myProject, root, commitConsumer::accept, ArrayUtil.toStringArray(parameters));
         });
     }
 
@@ -414,7 +416,7 @@ public class GitLogProvider implements VcsLogProvider {
             @Nonnull
             @Override
             public List<? extends VcsShortCommitDetails> apply(@Nonnull List<String> hashes) throws VcsException {
-                return GitHistoryUtils.readMiniDetails(myProject, root, hashes);
+                return GitLogUtil.collectMetadata(myProject, root, hashes);
             }
         });
     }
@@ -527,7 +529,7 @@ public class GitLogProvider implements VcsLogProvider {
     ) {
         VcsLogBranchFilter branchFilter = filterCollection.getBranchFilter();
         if (branchFilter == null && range == null) {
-            return GitHistoryUtils.LOG_ALL;
+            return GitLogUtil.LOG_ALL;
         }
 
         List<String> result = new ArrayList<>();
@@ -631,7 +633,7 @@ public class GitLogProvider implements VcsLogProvider {
         }
 
         List<TimedVcsCommit> commits = new ArrayList<>();
-        GitHistoryUtils.readCommits(
+        GitLogUtil.readTimedCommits(
             myProject,
             root,
             filterParameters,
@@ -713,5 +715,20 @@ public class GitLogProvider implements VcsLogProvider {
     @Nonnull
     private static <T> Set<T> newHashSet(@Nonnull Collection<T> initialCollection) {
         return new HashSet<>(initialCollection);
+    }
+
+    public static VirtualFile getCorrectedVcsRoot(GitRepositoryManager repositoryManager, VirtualFile detectedRoot, FilePath path) {
+        if (path.isDirectory()) {
+            return detectedRoot;
+        }
+        VirtualFile pathFile = path.getVirtualFile();
+        GitRepository repository = pathFile == null ? null : repositoryManager.getRepositoryForRootQuick(pathFile);
+        if (repository != null && repository.getRoot().equals(detectedRoot)) {
+            GitSubmodule submodule = GitSubmodule.asSubmodule(repository);
+            if (submodule != null) {
+                return submodule.getParent().getRoot();
+            }
+        }
+        return detectedRoot;
     }
 }

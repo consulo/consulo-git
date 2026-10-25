@@ -1,5 +1,6 @@
+// Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 /*
- * Copyright 2000-2010 JetBrains s.r.o.
+ * Copyright 2013-2026 consulo.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,26 +16,36 @@
  */
 package git4idea.history;
 
-import static git4idea.history.GitLogParser.GitLogOption.*;
+import consulo.logging.Logger;
+import consulo.util.lang.StringUtil;
+import consulo.util.collection.ArrayUtil;
+import consulo.util.collection.ContainerUtil;
+import git4idea.GitUtil;
+import git4idea.commands.GitHandler;
+
+import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
-import jakarta.annotation.Nonnull;
-import consulo.project.Project;
-import consulo.versionControlSystem.VcsException;
-import consulo.versionControlSystem.change.Change;
-import consulo.util.collection.ArrayUtil;
-import consulo.util.lang.StringUtil;
-import consulo.versionControlSystem.util.VcsUtil;
-import consulo.versionControlSystem.FilePath;
-import consulo.virtualFileSystem.VirtualFile;
-import git4idea.GitUtil;
-import git4idea.commands.GitHandler;
+import static git4idea.history.GitLogParser.GitLogOption.AUTHOR_EMAIL;
+import static git4idea.history.GitLogParser.GitLogOption.AUTHOR_NAME;
+import static git4idea.history.GitLogParser.GitLogOption.AUTHOR_TIME;
+import static git4idea.history.GitLogParser.GitLogOption.BODY;
+import static git4idea.history.GitLogParser.GitLogOption.COMMITTER_EMAIL;
+import static git4idea.history.GitLogParser.GitLogOption.COMMITTER_NAME;
+import static git4idea.history.GitLogParser.GitLogOption.COMMIT_TIME;
+import static git4idea.history.GitLogParser.GitLogOption.HASH;
+import static git4idea.history.GitLogParser.GitLogOption.PARENTS;
+import static git4idea.history.GitLogParser.GitLogOption.RAW_BODY;
+import static git4idea.history.GitLogParser.GitLogOption.REF_NAMES;
+import static git4idea.history.GitLogParser.GitLogOption.SHORT_REF_LOG_SELECTOR;
+import static git4idea.history.GitLogParser.GitLogOption.SUBJECT;
+import static git4idea.history.GitLogParser.GitLogOption.TREE;
 
 /**
  * One record (commit information) returned by git log output.
@@ -43,231 +54,154 @@ import git4idea.commands.GitHandler;
  *
  * @see GitLogParser
  */
-class GitLogRecord
-{
+public class GitLogRecord {
+  private static final Logger LOG = Logger.getInstance(GitLogRecord.class);
 
-	private final Map<GitLogParser.GitLogOption, String> myOptions;
-	private final List<String> myPaths;
-	private final List<GitLogStatusInfo> myStatusInfo;
-	private final boolean mySupportsRawBody;
+  protected final Map<GitLogParser.GitLogOption, String> myOptions;
+  protected final boolean mySupportsRawBody;
 
-	private GitHandler myHandler;
+  protected GitHandler myHandler;
 
-	GitLogRecord(
-			@Nonnull Map<GitLogParser.GitLogOption, String> options,
-			@Nonnull List<String> paths,
-			@Nonnull List<GitLogStatusInfo> statusInfo,
-			boolean supportsRawBody)
-	{
-		myOptions = options;
-		myPaths = paths;
-		myStatusInfo = statusInfo;
-		mySupportsRawBody = supportsRawBody;
-	}
+  GitLogRecord(Map<GitLogParser.GitLogOption, String> options,
+               boolean supportsRawBody) {
+    myOptions = options;
+    mySupportsRawBody = supportsRawBody;
+  }
 
-	private List<String> getPaths()
-	{
-		return myPaths;
-	}
+  private String lookup(GitLogParser.GitLogOption key) {
+    String value = myOptions.get(key);
+    if (value == null) {
+      LOG.error("Missing value for option " + key + ", while executing " + myHandler);
+      return "";
+    }
+    return value;
+  }
 
-	@Nonnull
-	List<GitLogStatusInfo> getStatusInfos()
-	{
-		return myStatusInfo;
-	}
+  // trivial access methods
+  public String getHash() {
+    return lookup(HASH);
+  }
 
-	@Nonnull
-	public List<FilePath> getFilePaths(VirtualFile root) throws VcsException
-	{
-		List<FilePath> res = new ArrayList<FilePath>();
-		String prefix = root.getPath() + "/";
-		for(String strPath : getPaths())
-		{
-			final String subPath = GitUtil.unescapePath(strPath);
-			final FilePath revisionPath = VcsUtil.getFilePathForDeletedFile(prefix + subPath, false);
-			res.add(revisionPath);
-		}
-		return res;
-	}
+  public String getTreeHash() {
+    return lookup(TREE);
+  }
 
-	private String lookup(GitLogParser.GitLogOption key)
-	{
-		return shortBuffer(myOptions.get(key));
-	}
+  public String getAuthorName() {
+    return lookup(AUTHOR_NAME);
+  }
 
-	// trivial access methods
-	String getHash()
-	{
-		return lookup(HASH);
-	}
+  public String getAuthorEmail() {
+    return lookup(AUTHOR_EMAIL);
+  }
 
-	String getAuthorName()
-	{
-		return lookup(AUTHOR_NAME);
-	}
+  public String getCommitterName() {
+    return lookup(COMMITTER_NAME);
+  }
 
-	String getAuthorEmail()
-	{
-		return lookup(AUTHOR_EMAIL);
-	}
+  public String getCommitterEmail() {
+    return lookup(COMMITTER_EMAIL);
+  }
 
-	String getCommitterName()
-	{
-		return lookup(COMMITTER_NAME);
-	}
+  public String getSubject() {
+    return lookup(SUBJECT);
+  }
 
-	String getCommitterEmail()
-	{
-		return lookup(COMMITTER_EMAIL);
-	}
+  public String getBody() {
+    return lookup(BODY);
+  }
 
-	String getSubject()
-	{
-		return lookup(SUBJECT);
-	}
+  public String getRawBody() {
+    return lookup(RAW_BODY);
+  }
 
-	String getBody()
-	{
-		return lookup(BODY);
-	}
+  public String getShortenedRefLog() {
+    return lookup(SHORT_REF_LOG_SELECTOR);
+  }
 
-	String getRawBody()
-	{
-		return lookup(RAW_BODY);
-	}
+  // access methods with some formatting or conversion
 
-	String getShortenedRefLog()
-	{
-		return lookup(SHORT_REF_LOG_SELECTOR);
-	}
+  public Date getDate() {
+    return new Date(getCommitTime());
+  }
 
-	// access methods with some formatting or conversion
+  long getCommitTime() {
+    try {
+      return GitLogUtil.parseTime(myOptions.get(COMMIT_TIME));
+    }
+    catch (NumberFormatException e) {
+      LOG.error("Couldn't get commit time from " + this + ", while executing " + myHandler, e);
+      return 0;
+    }
+  }
 
-	Date getDate()
-	{
-		return GitUtil.parseTimestampWithNFEReport(myOptions.get(COMMIT_TIME), myHandler, myOptions.toString());
-	}
+  public long getAuthorTimeStamp() {
+    try {
+      return GitLogUtil.parseTime(myOptions.get(AUTHOR_TIME));
+    }
+    catch (NumberFormatException e) {
+      LOG.error("Couldn't get author time from " + this + ", while executing " + myHandler, e);
+      return 0;
+    }
+  }
 
-	long getCommitTime()
-	{
-		return Long.parseLong(myOptions.get(COMMIT_TIME).trim()) * 1000;
-	}
+  String getFullMessage() {
+    return (mySupportsRawBody ? getRawBody() : getSubject() + "\n\n" + getBody()).stripTrailing();
+  }
 
-	long getAuthorTimeStamp()
-	{
-		return Long.parseLong(myOptions.get(AUTHOR_TIME).trim()) * 1000;
-	}
+  public String [] getParentsHashes() {
+    final String parents = lookup(PARENTS);
+    if (parents.trim().isEmpty()) return ArrayUtil.EMPTY_STRING_ARRAY;
+    return parents.split(" ");
+  }
 
-	String getAuthorAndCommitter()
-	{
-		String author = String.format("%s <%s>", myOptions.get(AUTHOR_NAME), myOptions.get(AUTHOR_EMAIL));
-		String committer = String.format("%s <%s>", myOptions.get(COMMITTER_NAME), myOptions.get(COMMITTER_EMAIL));
-		return GitUtil.adjustAuthorName(author, committer);
-	}
+  public Collection<String> getRefs() {
+    final String decorate = myOptions.get(REF_NAMES);
+    return parseRefNames(decorate);
+  }
 
-	String getFullMessage()
-	{
-		return mySupportsRawBody ? getRawBody().trim() : ((getSubject() + "\n\n" + getBody()).trim());
-	}
+  public Map<GitLogParser.GitLogOption, String> getOptions() {
+    return myOptions;
+  }
 
-	String[] getParentsHashes()
-	{
-		final String parents = lookup(PARENTS);
-		if(parents.trim().length() == 0)
-		{
-			return ArrayUtil.EMPTY_STRING_ARRAY;
-		}
-		return parents.split(" ");
-	}
+  public boolean isSupportsRawBody() {
+    return mySupportsRawBody;
+  }
 
-	public Collection<String> getRefs()
-	{
-		final String decorate = myOptions.get(REF_NAMES);
-		return parseRefNames(decorate);
-	}
-
-	/**
-	 * Returns the list of tags and the list of branches.
-	 * A single method is used to return both, because they are returned together by Git and we don't want to parse them twice.
-	 *
-	 * @param allBranchesSet
-	 * @return
-	 */
-  /*Pair<List<String>, List<String>> getTagsAndBranches(SymbolicRefs refs) {
-	final String decorate = myOptions.get(REF_NAMES);
-    final String[] refNames = parseRefNames(decorate);
-    final List<String> tags = refNames.length > 0 ? new ArrayList<String>() : Collections.<String>emptyList();
-    final List<String> branches = refNames.length > 0 ? new ArrayList<String>() : Collections.<String>emptyList();
-    for (String refName : refNames) {
-      if (refs.contains(refName)) {
-        // also some gits can return ref name twice (like (HEAD, HEAD), so check we will show it only once)
-        if (!branches.contains(refName)) {
-          branches.add(shortBuffer(refName));
-        }
-      } else {
-        if (!tags.contains(refName)) {
-          tags.add(shortBuffer(refName));
-        }
+  private static List<String> parseRefNames(final @Nullable String decoration) {
+    if (decoration == null) {
+      return List.of();
+    }
+    final int startParentheses = decoration.indexOf("(");
+    final int endParentheses = decoration.lastIndexOf(")");
+    if ((startParentheses == -1) || (endParentheses == -1)) return Collections.emptyList();
+    String refs = decoration.substring(startParentheses + 1, endParentheses);
+    String[] names = refs.split(", ");
+    List<String> result = new ArrayList<>();
+    for (String item : names) {
+      final String POINTER = " -> ";   // HEAD -> refs/heads/master in Git 2.4.3+
+      if (item.contains(POINTER)) {
+        List<String> parts = StringUtil.split(item, POINTER);
+        result.addAll(ContainerUtil.map(parts, String::trim));
+      }
+      else {
+        int colon = item.indexOf(':'); // tags have the "tag:" prefix.
+        String raw = colon > 0 ? item.substring(colon + 1).trim() : item;
+        result.add(raw);
       }
     }
-    return Pair.create(tags, branches);
-  }*/
-	private static List<String> parseRefNames(final String decoration)
-	{
-		if(decoration == null)
-		{
-			return List.of();
-		}
-		final int startParentheses = decoration.indexOf("(");
-		final int endParentheses = decoration.lastIndexOf(")");
-		if((startParentheses == -1) || (endParentheses == -1))
-		{
-			return List.of();
-		}
-		String refs = decoration.substring(startParentheses + 1, endParentheses);
-		String[] names = refs.split(", ");
-		List<String> result = new ArrayList<>();
-		for(String item : names)
-		{
-			final String POINTER = " -> ";   // HEAD -> refs/heads/master in Git 2.4.3+
-			if(item.contains(POINTER))
-			{
-				for(String part : StringUtil.split(item, POINTER))
-				{
-					result.add(part.trim());
-				}
-			}
-			else
-			{
-				int colon = item.indexOf(':'); // tags have the "tag:" prefix.
-				String raw = colon > 0 ? item.substring(colon + 1).trim() : item;
-				result.add(raw);
-			}
-		}
-		return result;
-	}
+    return result;
+  }
 
-	private static String shortBuffer(String raw)
-	{
-		return new String(raw);
-	}
+  /**
+   * for debugging purposes - see {@link GitUtil#parseTimestampWithNFEReport(String, GitHandler, String)}.
+   */
+  public void setUsedHandler(GitHandler handler) {
+    myHandler = handler;
+  }
 
-	public List<Change> parseChanges(Project project, VirtualFile vcsRoot) throws VcsException
-	{
-		return GitChangesParser.parse(project, vcsRoot, myStatusInfo, getHash(), getDate(), Arrays.asList(getParentsHashes()));
-	}
-
-	/**
-	 * for debugging purposes - see {@link GitUtil#parseTimestampWithNFEReport(String, GitHandler, String)}.
-	 */
-	public void setUsedHandler(GitHandler handler)
-	{
-		myHandler = handler;
-	}
-
-	@Override
-	public String toString()
-	{
-		return String.format("GitLogRecord{myOptions=%s, myPaths=%s, myStatusInfo=%s, mySupportsRawBody=%s, myHandler=%s}", myOptions, myPaths, myStatusInfo, mySupportsRawBody, myHandler);
-	}
+  @Override
+  public String toString() {
+    return String.format("GitLogRecord{myOptions=%s, mySupportsRawBody=%s, myHandler=%s}",
+                         myOptions, mySupportsRawBody, myHandler);
+  }
 }

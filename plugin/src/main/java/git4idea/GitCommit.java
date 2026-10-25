@@ -1,5 +1,6 @@
+// Copyright 2000-2023 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 /*
- * Copyright 2000-2013 JetBrains s.r.o.
+ * Copyright 2013-2026 consulo.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -12,95 +13,91 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- */
-package git4idea;
+ */package git4idea;
 
-import consulo.application.util.function.ThrowableComputable;
 import consulo.project.Project;
-import consulo.util.collection.ContainerUtil;
-import consulo.versionControlSystem.VcsException;
+import consulo.versionControlSystem.FilePath;
 import consulo.versionControlSystem.change.Change;
+import consulo.versionControlSystem.change.ChangesUtil;
 import consulo.versionControlSystem.log.Hash;
+import consulo.versionControlSystem.log.VcsShortCommitDetails;
 import consulo.versionControlSystem.log.VcsUser;
 import consulo.versionControlSystem.log.base.VcsChangesLazilyParsedDetails;
+import consulo.versionControlSystem.log.base.VcsChangesLazilyParsedDetailsChanges;
+import consulo.versionControlSystem.log.base.VcsChangesLazilyParsedDetailsChangesParser;
+import consulo.versionControlSystem.log.base.VcsChangesLazilyParsedDetailsUnparsedChanges;
+import consulo.versionControlSystem.log.base.VcsFileStatusInfo;
 import consulo.virtualFileSystem.VirtualFile;
-import git4idea.history.GitChangesParser;
-import git4idea.history.GitLogStatusInfo;
+import git4idea.history.GitCommitRequirements;
 
-import jakarta.annotation.Nonnull;
-import java.util.Collection;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Represents a Git commit with its meta information (hash, author, message, etc.), its parents and the {@link Change changes}.
- *
- * @author Kirill Likhodedov
  */
-public final class GitCommit extends VcsChangesLazilyParsedDetails
-{
+public final class GitCommit extends VcsChangesLazilyParsedDetails {
+    private final GitCommitRequirements myRequirements;
 
-	public GitCommit(
-			Project project,
-			@Nonnull Hash hash,
-			@Nonnull List<Hash> parents,
-			long time,
-			@Nonnull VirtualFile root,
-			@Nonnull String subject,
-			@Nonnull VcsUser author,
-			@Nonnull String message,
-			@Nonnull VcsUser committer,
-			long authorTime,
-			@Nonnull List<GitLogStatusInfo> reportedChanges)
-	{
-		super(hash, parents, time, root, subject, author, message, committer, authorTime, new MyChangesComputable(new Data(project, root,
-				reportedChanges, hash, time, parents)));
+    public GitCommit(Project project, Hash hash, List<Hash> parents, long commitTime, VirtualFile root,
+                     String subject, VcsUser author, String message, VcsUser committer,
+                     long authorTime,
+                     List<List<VcsFileStatusInfo>> reportedChanges,
+                     GitCommitRequirements requirements) {
+        super(project, hash, parents, commitTime, root, subject, author, message, committer, authorTime, reportedChanges,
+            new GitChangesParser());
+        myRequirements = requirements;
+    }
 
-	}
+    public Set<FilePath> getAffectedPaths() {
+        VcsChangesLazilyParsedDetailsChanges changesObject = getChangesObject();
+        if (changesObject instanceof VcsChangesLazilyParsedDetailsUnparsedChanges unparsedChanges) {
+            Set<FilePath> result = new HashSet<>();
 
-	private static class MyChangesComputable implements ThrowableComputable<Collection<Change>, VcsException>
-	{
+            for (VcsFileStatusInfo statusInfo : unparsedChanges.getMergedStatuses()) {
+                result.add(GitContentRevision.createPath(getRoot(), statusInfo.getFirstPath()));
 
-		private Data myData;
-		private Collection<Change> myChanges;
+                String secondPath = statusInfo.getSecondPath();
+                if (secondPath != null) {
+                    result.add(GitContentRevision.createPath(getRoot(), secondPath));
+                }
+            }
 
-		public MyChangesComputable(Data data)
-		{
-			myData = data;
-		}
+            return result;
+        }
 
-		@Override
-		public Collection<Change> compute() throws VcsException
-		{
-			if(myChanges == null)
-			{
-				myChanges = GitChangesParser.parse(myData.project, myData.root, myData.changesOutput, myData.hash.asString(), new Date(myData.time),
-						ContainerUtil.map(myData.parents, hash -> hash.asString()));
-				myData = null; // don't hold the not-yet-parsed string
-			}
-			return myChanges;
-		}
+        Set<FilePath> result = new HashSet<>();
+        for (Change change : getChanges()) {
+            FilePath beforePath = ChangesUtil.getBeforePath(change);
+            if (beforePath != null) {
+                result.add(beforePath);
+            }
+            FilePath afterPath = ChangesUtil.getAfterPath(change);
+            if (afterPath != null) {
+                result.add(afterPath);
+            }
+        }
+        return result;
+    }
 
-	}
+    public GitCommitRequirements getRequirements() {
+        return myRequirements;
+    }
 
-	private static class Data
-	{
-		private final Project project;
-		private final VirtualFile root;
-		private final List<GitLogStatusInfo> changesOutput;
-		private final Hash hash;
-		private final long time;
-		private final List<Hash> parents;
-
-		public Data(Project project, VirtualFile root, List<GitLogStatusInfo> changesOutput, Hash hash, long time, List<Hash> parents)
-		{
-			this.project = project;
-			this.root = root;
-			this.changesOutput = changesOutput;
-			this.hash = hash;
-			this.time = time;
-			this.parents = parents;
-		}
-	}
-
+    private static class GitChangesParser implements VcsChangesLazilyParsedDetailsChangesParser {
+        @Override
+        public List<Change> parseStatusInfo(Project project,
+                                            VcsShortCommitDetails commit,
+                                            List<VcsFileStatusInfo> changes,
+                                            int parentIndex) {
+            String parentHash = null;
+            if (parentIndex < commit.getParents().size()) {
+                parentHash = commit.getParents().get(parentIndex).asString();
+            }
+            return git4idea.history.GitChangesParser.parse(project, commit.getRoot(), changes, commit.getId().asString(),
+                new Date(commit.getCommitTime()), parentHash);
+        }
+    }
 }

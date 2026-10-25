@@ -20,7 +20,9 @@ import consulo.application.Application;
 import consulo.application.ApplicationManager;
 import consulo.application.progress.ProgressIndicator;
 import consulo.application.progress.Task;
+import consulo.localize.LocalizeValue;
 import consulo.project.Project;
+import git4idea.GitReference;
 import git4idea.GitVcs;
 import git4idea.commands.Git;
 import git4idea.repo.GitRepository;
@@ -190,11 +192,46 @@ class GitBrancherImpl implements GitBrancher {
   }
 
   @Override
+  public void merge(@Nonnull GitReference reference,
+                    @Nonnull DeleteOnMergeOption deleteOnMerge,
+                    @Nonnull List<GitRepository> repositories) {
+    merge(reference, deleteOnMerge, repositories, true);
+  }
+
+  @Override
+  public void merge(@Nonnull GitReference reference,
+                    @Nonnull DeleteOnMergeOption deleteOnMerge,
+                    @Nonnull List<GitRepository> repositories,
+                    boolean allowRollback) {
+    new CommonBackgroundTask(myProject, "Merging " + reference.getName(), null) {
+      @Override
+      public void execute(@Nonnull ProgressIndicator indicator) {
+        GitBranchWorker worker = new GitBranchWorker(GitBrancherImpl.this.myProject, myGit, new GitBranchUiHandlerImpl(GitBrancherImpl.this.myProject, myGit, indicator) {
+          @Override
+          public boolean showUnmergedFilesMessageWithRollback(@Nonnull LocalizeValue operationName, @Nonnull LocalizeValue rollbackProposal) {
+            return allowRollback && super.showUnmergedFilesMessageWithRollback(operationName, rollbackProposal);
+          }
+        });
+        worker.merge(reference.getName(), deleteOnMerge, repositories);
+      }
+    }.runInBackground();
+  }
+
+  @Override
+  public void rebase(@Nonnull List<GitRepository> repositories, @Nonnull GitReference reference) {
+    doRebase(repositories, reference.getFullName(), reference.getName());
+  }
+
+  @Override
   public void rebase(@Nonnull final List<GitRepository> repositories, @Nonnull final String branchName) {
-    new CommonBackgroundTask(myProject, "Rebasing onto " + branchName, null) {
+    doRebase(repositories, branchName, branchName);
+  }
+
+  private void doRebase(@Nonnull List<GitRepository> repositories, @Nonnull String reference, @Nonnull String displayName) {
+    new CommonBackgroundTask(myProject, "Rebasing onto " + displayName, null) {
       @Override
       void execute(@Nonnull ProgressIndicator indicator) {
-        newWorker(indicator).rebase(repositories, branchName);
+        newWorker(indicator).rebase(repositories, reference);
       }
     }.runInBackground();
   }

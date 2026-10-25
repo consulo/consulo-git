@@ -29,6 +29,7 @@ import consulo.versionControlSystem.VcsNotifier;
 import consulo.versionControlSystem.change.Change;
 import consulo.versionControlSystem.distributed.DvcsUtil;
 import consulo.virtualFileSystem.VirtualFile;
+import git4idea.GitActivity;
 import git4idea.GitStandardLocalBranch;
 import git4idea.GitUtil;
 import git4idea.GitWorkingTree;
@@ -39,7 +40,6 @@ import git4idea.util.GitPreservingProcess;
 import git4idea.workingTrees.GitWorkingTreesService;
 import git4idea.workingTrees.GitWorkingTreesUtil;
 import git4idea.workingTrees.actions.GitChooseWorkingTreeDialog;
-
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 
@@ -125,7 +125,7 @@ class GitCheckoutOperation extends GitBranchOperation {
     protected void execute() {
         saveAllDocuments();
         boolean fatalErrorHappened = false;
-        try (AccessToken token = DvcsUtil.workingTreeChangeStarted(myProject, getOperationName().get())) {
+        try (AccessToken token = DvcsUtil.workingTreeChangeStarted(myProject, getOperationName().get(), GitActivity.Checkout)) {
             while (hasMoreRepositories() && !fatalErrorHappened) {
                 GitRepository repository = next();
 

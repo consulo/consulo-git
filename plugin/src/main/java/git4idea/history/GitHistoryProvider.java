@@ -118,7 +118,7 @@ public class GitHistoryProvider
     public VcsHistorySession createSessionFor(final FilePath filePath) throws VcsException {
         List<VcsFileRevision> revisions = null;
         try {
-            revisions = GitHistoryUtils.history(myProject, filePath);
+            revisions = GitFileHistory.collectHistory(myProject, filePath);
         }
         catch (VcsException e) {
             GitVcs.getInstance(myProject).getExecutableValidator().showNotificationOrThrow(e);
@@ -196,7 +196,7 @@ public class GitHistoryProvider
             ArrayUtil.EMPTY_STRING_ARRAY;
 
         final GitExecutableValidator validator = GitVcs.getInstance(myProject).getExecutableValidator();
-        GitHistoryUtils.history(
+        GitFileHistory.loadHistory(
             myProject,
             refreshPath(path),
             null,

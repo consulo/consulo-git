@@ -25,7 +25,7 @@ import consulo.versionControlSystem.VcsException;
 import consulo.versionControlSystem.distributed.DvcsUtil;
 import consulo.versionControlSystem.log.TimedVcsCommit;
 import consulo.virtualFileSystem.VirtualFile;
-import git4idea.history.GitHistoryUtils;
+import git4idea.history.GitLogUtil;
 
 import jakarta.annotation.Nonnull;
 import java.util.Arrays;
@@ -52,10 +52,7 @@ public class GitRebaseOverMergeProblem {
 
     String range = baseRef + ".." + currentRef;
     try {
-      GitHistoryUtils.readCommits(project, root, Arrays.asList(range, "--merges"), e -> {
-                                  },
-                                  e -> {
-                                  }, detectingConsumer);
+      GitLogUtil.readTimedCommits(project, root, Arrays.asList(range, "--merges"), null, null, detectingConsumer);
     }
     catch (VcsException e) {
       LOG.warn("Couldn't get git log --merges " + range, e);

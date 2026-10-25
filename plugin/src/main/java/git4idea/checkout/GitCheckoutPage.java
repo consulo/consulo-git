@@ -37,6 +37,8 @@ import git4idea.commands.GitTaskResult;
 import git4idea.commands.GitTaskResultHandlerAdapter;
 import git4idea.config.GitVcsApplicationSettings;
 import git4idea.remote.GitRememberedInputs;
+import git4idea.ui.GitShallowCloneComponentFactory;
+import git4idea.ui.GitShallowCloneViewModel;
 import org.jspecify.annotations.Nullable;
 
 import java.io.File;
@@ -50,6 +52,7 @@ public class GitCheckoutPage extends DvcsCheckoutPage {
     private final Git myGit;
 
     private FileChooserTextBoxBuilder.@Nullable Controller myPuttyKeyController;
+    private final GitShallowCloneViewModel myShallowCloneViewModel = new GitShallowCloneViewModel();
 
     public GitCheckoutPage(Project project, Disposable uiDisposable, Git git) {
         super(project, uiDisposable, GitLocalize.git4ideaVcsName(), GitUtil.DOT_GIT);
@@ -64,6 +67,8 @@ public class GitCheckoutPage extends DvcsCheckoutPage {
     @Override
     @RequiredUIAccess
     protected void addCustomRows(FormBuilder builder, Context context) {
+        builder.addBottom(GitShallowCloneComponentFactory.createShallowCloneRow(myShallowCloneViewModel));
+
         if (GitVcsApplicationSettings.getInstance().getSshExecutableType() != GitVcsApplicationSettings.SshExecutable.PUTTY) {
             return;
         }
@@ -112,7 +117,8 @@ public class GitCheckoutPage extends DvcsCheckoutPage {
             sourceRepositoryUrl,
             directoryName,
             parentDirectory,
-            getPuttyKeyFile()
+            getPuttyKeyFile(),
+            myShallowCloneViewModel.getShallowCloneOptions()
         );
     }
 

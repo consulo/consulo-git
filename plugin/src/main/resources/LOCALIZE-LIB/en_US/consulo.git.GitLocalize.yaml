@@ -1589,3 +1589,93 @@ action.Git.WorkingTrees.OpenReview.text:
     text: Open Review
 action.Git.WorkingTrees.OpenReview.description:
     text: Open the review for this branch
+clone.dialog.shallow.clone:
+    text: Shallow clone with a history truncated to
+clone.dialog.shallow.clone.depth:
+    text: commits
+clone.dialog.error.destination.not.exist:
+    text: Clone Failed. Destination doesn't exist
+clone.dialog.error.unable.to.find.destination.directory:
+    text: Unable to find destination directory
+open.in.browser.error:
+    text: Cannot open in browser
+open.in.browser.getting.revision:
+    text: Getting Last File Revision
+open.in.browser.getting.revision.error:
+    text: Cannot retrieve latest revision for file
+share.anyway.button:
+    text: Share Anyway
+share.action.remote.is.on.host:
+    text: "Remote is already on {0}:"
+share.action.remotes.are.on.host:
+    text: "Following remotes are already on {0}:"
+share.process:
+    text: Sharing project on {0}…
+share.process.creating.git.repository:
+    text: Creating empty git repository…
+share.process.adding.files:
+    text: Adding files to git…
+share.process.performing.commit:
+    text: Performing commit…
+share.process.retrieving.username:
+    text: Retrieving username…
+share.process.creating.repository:
+    text: Creating {0} repository…
+share.process.adding.gh.as.remote.host:
+    text: Adding {0} as a remote host…
+share.process.pushing.to.host.master:
+    text: Pushing to {0} {1}…
+share.process.empty.project.created:
+    text: Successfully created empty repository on {0}
+share.process.successfully.shared:
+    text: Successfully shared project on {0}
+share.error.project.is.on.host:
+    text: Project Is Already on {0}
+share.error.cannot.finish:
+    text: Can''t finish {0} sharing process
+share.error.cannot.find.git.repo:
+    text: Can't find Git repository
+share.error.failed.to.create.repo:
+    text: Failed to create repository
+share.error.created.project:
+    text: Successfully created project
+share.error.init.commit.failed:
+    text: "on {0}, but initial commit failed:<br/>"
+share.error.push.failed:
+    text: "on {0}, but initial push failed:<br/>{1}"
+share.error.push.no.current.branch:
+    text: "on {0}, but initial push failed: no current branch"
+share.error.unknownHost:
+    text: "Unknown host: {0}"
+share.error.unknown:
+    text: Unknown error
+share.untracked.files.dialog.title:
+    text: Add Files For Initial Commit
+dialog.title.update.branch:
+    text: Update {0}
+dialog.message.update.branch:
+    text: "You are about to update {0} from {1}.\n\nChoose ''Merge'' if you want to create a merge commit, ''Rebase'' if you want to rebase onto {1}."
+rebasing.merge.commits.button.merge:
+    text: Merge
+rebasing.merge.commits.button.rebase:
+    text: Rebase
+rebasing.merge.commits.button.cancel:
+    text: Cancel
+git.status.bar.widget.tooltip.detached:
+    text: "Git: Detached HEAD doesn't point to any branch"
+git.status.bar.widget.tooltip.rebasing:
+    text: "Git: Rebase in progress"
+branch.direction.panel.branch.label:
+    text: "Branch:"
+branch.direction.panel.save.button:
+    text: Save
+branch.direction.panel.base.repo.label:
+    text: "Base repository:"
+branch.direction.panel.head.repo.label:
+    text: "Head repository:"
+branch.direction.panel.select.link:
+    text: Select…
+branch.direction.panel.warning.push:
+    text: "There is no remote branch for ''{0}''.\nNew remote branch will be created on ''{1}''."
+branch.direction.panel.warning.not.synced:
+    text: "Local branch is not in sync with remote.\n''{0}'' branch will be synced with ''{1}''."

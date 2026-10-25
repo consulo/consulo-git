@@ -19,7 +19,6 @@ import consulo.application.AccessToken;
 import consulo.application.Application;
 import consulo.application.progress.ProgressIndicator;
 import consulo.document.FileDocumentManager;
-import consulo.application.Application;
 import consulo.localize.LocalizeValue;
 import consulo.project.Project;
 import consulo.project.ui.notification.NotificationService;
@@ -34,6 +33,7 @@ import consulo.versionControlSystem.distributed.DvcsUtil;
 import consulo.versionControlSystem.log.Hash;
 import consulo.virtualFileSystem.VirtualFile;
 import consulo.virtualFileSystem.util.VirtualFileUtil;
+import git4idea.GitActivity;
 import git4idea.GitUtil;
 import git4idea.branch.GitBranchUiHandlerImpl;
 import git4idea.branch.GitSmartOperationDialog;
@@ -84,7 +84,7 @@ public class GitResetOperation {
     public void execute() {
         saveAllDocuments();
         Map<GitRepository, GitCommandResult> results = new HashMap<>();
-        try (AccessToken ignored = DvcsUtil.workingTreeChangeStarted(myProject, "Git Reset")) {
+        try (AccessToken ignored = DvcsUtil.workingTreeChangeStarted(myProject, "Git Reset", GitActivity.Reset)) {
             for (Map.Entry<GitRepository, Hash> entry : myCommits.entrySet()) {
                 GitRepository repository = entry.getKey();
                 VirtualFile root = repository.getRoot();

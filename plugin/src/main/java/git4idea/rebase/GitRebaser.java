@@ -27,6 +27,7 @@ import consulo.versionControlSystem.ProjectLevelVcsManager;
 import consulo.versionControlSystem.VcsException;
 import consulo.versionControlSystem.distributed.DvcsUtil;
 import consulo.virtualFileSystem.VirtualFile;
+import git4idea.GitActivity;
 import git4idea.GitUtil;
 import git4idea.GitVcs;
 import git4idea.commands.*;
@@ -95,7 +96,7 @@ public class GitRebaser {
         rebaseHandler.addLineListener(localChangesDetector);
         rebaseHandler.addLineListener(GitStandardProgressAnalyzer.createListener(myProgressIndicator));
 
-        try (AccessToken ignored = DvcsUtil.workingTreeChangeStarted(myProject, "Rebase")) {
+        try (AccessToken ignored = DvcsUtil.workingTreeChangeStarted(myProject, "Rebase", GitActivity.Rebase)) {
             LocalizeValue oldText = myProgressIndicator.getText();
             myProgressIndicator.setText(LocalizeValue.localizeTODO("Rebasing..."));
             GitCommandResult result = myGit.runCommand(rebaseHandler);
@@ -144,7 +145,7 @@ public class GitRebaser {
      */
     @RequiredUIAccess
     public boolean continueRebase(@Nonnull Collection<VirtualFile> rebasingRoots) {
-        try (AccessToken ignored = DvcsUtil.workingTreeChangeStarted(myProject, "Rebase")) {
+        try (AccessToken ignored = DvcsUtil.workingTreeChangeStarted(myProject, "Rebase", GitActivity.Rebase)) {
             boolean success = true;
             for (VirtualFile root : rebasingRoots) {
                 success &= continueRebase(root);

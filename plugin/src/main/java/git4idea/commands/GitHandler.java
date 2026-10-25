@@ -15,6 +15,9 @@
  */
 package git4idea.commands;
 
+import java.nio.file.Path;
+import java.nio.file.Files;
+import consulo.process.CommandLineUtil;
 import consulo.component.ProcessCanceledException;
 import consulo.disposer.Disposable;
 import consulo.disposer.Disposer;
@@ -143,7 +146,26 @@ public abstract class GitHandler {
      * @param directory a process directory
      * @param command   a command to execute (if empty string, the parameter is ignored)
      */
+    private static final String NICE_PATH = "/usr/bin/nice";
+
+    private boolean myWithLowPriority;
+
     protected GitHandler(@Nonnull Project project, @Nonnull File directory, @Nonnull GitCommand command) {
+        this(project, directory, command, Collections.emptyList());
+    }
+
+    /**
+     * A constructor
+     *
+     * @param project          a project
+     * @param directory        a process directory
+     * @param command          a command to execute
+     * @param configParameters list of config parameters to use for this git execution
+     */
+    protected GitHandler(@Nonnull Project project,
+                         @Nonnull File directory,
+                         @Nonnull GitCommand command,
+                         @Nonnull List<String> configParameters) {
         myProject = project;
         myCommand = command;
         myAppSettings = GitVcsApplicationSettings.getInstance();
@@ -158,6 +180,10 @@ public abstract class GitHandler {
         myCommandLine.setWorkDirectory(myWorkingDirectory);
         if (GitVersionSpecialty.CAN_OVERRIDE_GIT_CONFIG_FOR_COMMAND.existsIn(myVcs.getVersion())) {
             myCommandLine.addParameters("-c", "core.quotepath=false");
+            myCommandLine.addParameters("-c", "log.showSignature=false");
+            for (String parameter : configParameters) {
+                myCommandLine.addParameters("-c", parameter);
+            }
         }
         myCommandLine.addParameter(command.name());
         myStdoutSuppressed = true;
@@ -173,6 +199,17 @@ public abstract class GitHandler {
      */
     protected GitHandler(Project project, VirtualFile vcsRoot, GitCommand command) {
         this(project, VirtualFileUtil.virtualToIoFile(vcsRoot), command);
+    }
+
+    protected GitHandler(Project project, VirtualFile vcsRoot, GitCommand command, List<String> configParameters) {
+        this(project, VirtualFileUtil.virtualToIoFile(vcsRoot), command, configParameters);
+    }
+
+    /**
+     * Execute process with lower priority
+     */
+    public void withLowPriority() {
+        myWithLowPriority = true;
     }
 
     /**
@@ -480,6 +517,9 @@ public abstract class GitHandler {
             unsetGitTrace();
             myCommandLine.getEnvironment().clear();
             myCommandLine.getEnvironment().putAll(myEnv);
+            if (myWithLowPriority) {
+                setupLowPriorityExecution(myCommandLine);
+            }
             // start process
             myProcess = startProcess();
             startHandlingStreams();
@@ -913,5 +953,14 @@ public abstract class GitHandler {
     @Override
     public String toString() {
         return myCommandLine.toString();
+    }
+
+    private static void setupLowPriorityExecution(GeneralCommandLine commandLine) {
+        if (Platform.current().os().isWindows()) {
+            commandLine.withWrappingCommand(CommandLineUtil.getWinShellName(), "/c", "start", "/b", "/low", "/wait", GeneralCommandLine.inescapableQuote(""));
+        }
+        else if (Files.exists(Path.of(NICE_PATH))) {
+            commandLine.withWrappingCommand(NICE_PATH, "-n", "10");
+        }
     }
 }

@@ -17,6 +17,8 @@
 package git4idea.workingTrees.actions;
 
 import consulo.annotation.component.ActionImpl;
+import consulo.annotation.component.ActionParentRef;
+import consulo.annotation.component.ActionRef;
 import consulo.git.icon.GitIconGroup;
 import consulo.git.localize.GitLocalize;
 import consulo.project.Project;
@@ -30,7 +32,10 @@ import git4idea.workingTrees.GitWorkingTreesService;
 import git4idea.workingTrees.GitWorkingTreesUtil;
 import git4idea.workingTrees.UnsupportedGitWorktreeSupportStatus;
 
-@ActionImpl(id = "Git.Show.WorkingTrees")
+@ActionImpl(
+    id = "Git.Show.WorkingTrees",
+    parents = @ActionParentRef(@ActionRef(id = "Vcs.Log.ToolWindow.TabActions.DropDown"))
+)
 public class ShowWorkingTreesAction extends DumbAwareAction implements AnActionWithSyncUpdate {
     public ShowWorkingTreesAction() {
         super(GitLocalize.actionGitShowWorkingtreesText(), GitLocalize.actionGitShowWorkingtreesDescription(), GitIconGroup.worktree());

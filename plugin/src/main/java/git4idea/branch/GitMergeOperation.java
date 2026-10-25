@@ -31,6 +31,7 @@ import consulo.versionControlSystem.change.Change;
 import consulo.versionControlSystem.change.ChangeListManager;
 import consulo.versionControlSystem.distributed.DvcsUtil;
 import consulo.virtualFileSystem.VirtualFile;
+import git4idea.GitActivity;
 import git4idea.GitUtil;
 import git4idea.commands.*;
 import git4idea.config.GitVcsSettings;
@@ -83,7 +84,7 @@ class GitMergeOperation extends GitBranchOperation {
         saveAllDocuments();
         boolean fatalErrorHappened = false;
         int alreadyUpToDateRepositories = 0;
-        try (AccessToken token = DvcsUtil.workingTreeChangeStarted(myProject, getOperationName().get())) {
+        try (AccessToken token = DvcsUtil.workingTreeChangeStarted(myProject, getOperationName().get(), GitActivity.Merge)) {
             while (hasMoreRepositories() && !fatalErrorHappened) {
                 GitRepository repository = next();
                 LOG.info("next repository: " + repository);

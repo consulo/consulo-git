@@ -15,6 +15,7 @@
  */
 package git4idea.diff;
 
+import git4idea.history.GitFileHistory;
 import consulo.annotation.component.ComponentScope;
 import consulo.annotation.component.ServiceAPI;
 import consulo.annotation.component.ServiceImpl;
@@ -169,7 +170,7 @@ public class GitDiffProvider implements DiffProvider {
         }
 
         try {
-            for (VcsFileRevision f : GitHistoryUtils.history(myProject, filePath)) {
+            for (VcsFileRevision f : GitFileHistory.collectHistory(myProject, filePath)) {
                 GitFileRevision gitRevision = (GitFileRevision)f;
                 if (f.getRevisionNumber().equals(revisionNumber)) {
                     return GitContentRevision.createRevision(gitRevision.getPath(), revisionNumber, myProject, selectedFile.getCharset());

@@ -65,6 +65,9 @@ public interface Git {
     GitCommandResult runCommand(@Nonnull GitLineHandler handler);
 
     @Nonnull
+    GitCommandResult runCommandWithoutCollectingOutput(@Nonnull GitLineHandler handler);
+
+    @Nonnull
     GitCommandResult init(@Nonnull Project project, @Nonnull VirtualFile root, @Nonnull GitLineHandlerListener... listeners);
 
     @Nonnull
@@ -97,6 +100,7 @@ public interface Git {
         @Nonnull String url,
         @Nullable String puttyKey,
         @Nonnull String clonedDirectoryName,
+        @Nullable GitShallowCloneOptions shallowCloneOptions,
         @Nonnull GitLineHandlerListener... progressListeners
     );
 

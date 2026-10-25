@@ -15,6 +15,7 @@
  */
 package git4idea.commands;
 
+import java.util.List;
 import consulo.process.ExecutionException;
 import consulo.process.NativeProcessHandler;
 import consulo.process.ProcessHandler;
@@ -46,6 +47,10 @@ public abstract class GitTextHandler extends GitHandler {
 
   protected GitTextHandler(final Project project, final VirtualFile vcsRoot, final GitCommand command) {
     super(project, vcsRoot, command);
+  }
+
+  protected GitTextHandler(Project project, VirtualFile vcsRoot, GitCommand command, List<String> configParameters) {
+    super(project, vcsRoot, command, configParameters);
   }
 
   @Nullable

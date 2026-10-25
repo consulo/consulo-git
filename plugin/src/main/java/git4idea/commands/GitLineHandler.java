@@ -15,6 +15,7 @@
  */
 package git4idea.commands;
 
+import java.util.List;
 import consulo.process.ProcessOutputTypes;
 import consulo.project.Project;
 import consulo.proxy.EventDispatcher;
@@ -65,6 +66,13 @@ public class GitLineHandler extends GitTextHandler {
    */
   public GitLineHandler(@Nonnull Project project, @Nonnull VirtualFile vcsRoot, @Nonnull GitCommand command) {
     super(project, vcsRoot, command);
+  }
+
+  public GitLineHandler(@Nonnull Project project,
+                        @Nonnull VirtualFile vcsRoot,
+                        @Nonnull GitCommand command,
+                        @Nonnull List<String> configParameters) {
+    super(project, vcsRoot, command, configParameters);
   }
 
   /**

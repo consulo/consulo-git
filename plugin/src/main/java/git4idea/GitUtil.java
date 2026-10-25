@@ -893,6 +893,15 @@ public class GitUtil {
         return GitRepositoryManager.getInstance(project);
     }
 
+    @Nonnull
+    public static GitRepository getRepositoryForFile(@Nonnull Project project, @Nonnull FilePath file) throws VcsException {
+        GitRepository repository = getRepositoryManager(project).getRepositoryForFile(file);
+        if (repository == null) {
+            throw new GitRepositoryNotFoundException(file);
+        }
+        return repository;
+    }
+
     @Nullable
     public static GitRepository getRepositoryForRootOrLogError(@Nonnull Project project, @Nonnull VirtualFile root) {
         GitRepositoryManager manager = getRepositoryManager(project);

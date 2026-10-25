@@ -16,12 +16,12 @@
 package git4idea.rebase;
 
 import consulo.application.AccessToken;
+import consulo.application.Application;
 import consulo.application.progress.ProgressIndicator;
 import consulo.application.progress.ProgressManager;
 import consulo.application.progress.Task;
 import consulo.component.ProcessCanceledException;
 import consulo.git.localize.GitLocalize;
-import consulo.application.Application;
 import consulo.localize.LocalizeValue;
 import consulo.logging.Logger;
 import consulo.project.Project;
@@ -41,6 +41,7 @@ import consulo.versionControlSystem.distributed.DvcsUtil;
 import consulo.versionControlSystem.distributed.repository.Repository;
 import consulo.virtualFileSystem.VirtualFile;
 import consulo.virtualFileSystem.util.VirtualFileUtil;
+import git4idea.GitActivity;
 import git4idea.GitUtil;
 import git4idea.branch.GitRebaseParams;
 import git4idea.commands.Git;
@@ -125,7 +126,7 @@ public class GitRebaseProcess {
         Map<GitRepository, GitRebaseStatus> statuses = new LinkedHashMap<>(myRebaseSpec.getStatuses());
         Collection<GitRepository> toRefresh = new LinkedHashSet<>();
         List<GitRepository> repositoriesToRebase = myRebaseSpec.getIncompleteRepositories();
-        try (AccessToken ignored = DvcsUtil.workingTreeChangeStarted(myProject, "Rebase")) {
+        try (AccessToken ignored = DvcsUtil.workingTreeChangeStarted(myProject, "Rebase", GitActivity.Rebase)) {
             if (!saveDirtyRootsInitially(repositoriesToRebase)) {
                 return;
             }

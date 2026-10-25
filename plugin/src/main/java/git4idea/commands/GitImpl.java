@@ -183,6 +183,7 @@ public class GitImpl implements Git {
                                 @Nonnull final String url,
                                 @Nullable final String puttyKey,
                                 @Nonnull final String clonedDirectoryName,
+                                @Nullable final GitShallowCloneOptions shallowCloneOptions,
                                 @Nonnull final GitLineHandlerListener... listeners) {
     return run(() ->
                {
@@ -190,6 +191,12 @@ public class GitImpl implements Git {
                  handler.setStdoutSuppressed(false);
                  handler.setUrl(url);
                  handler.addParameters("--progress");
+                 if (shallowCloneOptions != null) {
+                   Integer depth = shallowCloneOptions.getDepth();
+                   if (depth != null) {
+                     handler.addParameters("--depth=" + depth);
+                   }
+                 }
                  handler.addParameters(url);
                  handler.setPuttyKey(puttyKey);
                  handler.endOptions();
@@ -793,6 +800,11 @@ public class GitImpl implements Git {
 
   @Nonnull
   private static GitCommandResult run(@Nonnull Supplier<GitLineHandler> handlerFactory) {
+    return run(handlerFactory, true);
+  }
+
+  @Nonnull
+  private static GitCommandResult run(@Nonnull Supplier<GitLineHandler> handlerFactory, boolean collectOutput) {
     OutputCollector output;
     final AtomicInteger exitCode = new AtomicInteger();
     final AtomicBoolean startFailed = new AtomicBoolean();
@@ -815,7 +827,7 @@ public class GitImpl implements Git {
           if (looksLikeError(line)) {
             tempCollector.addErrorOutput(line);
           }
-          else {
+          else if (collectOutput) {
             tempCollector.addOutput(line);
           }
         }
@@ -847,6 +859,12 @@ public class GitImpl implements Git {
   @Nonnull
   private static GitCommandResult run(@Nonnull GitLineHandler handler) {
     return run(() -> handler);
+  }
+
+  @Override
+  @Nonnull
+  public GitCommandResult runCommandWithoutCollectingOutput(@Nonnull GitLineHandler handler) {
+    return run(() -> handler, false);
   }
 
   @Override

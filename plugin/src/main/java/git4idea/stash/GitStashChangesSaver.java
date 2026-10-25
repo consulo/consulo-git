@@ -15,6 +15,7 @@
  */
 package git4idea.stash;
 
+import consulo.application.AccessToken;
 import consulo.application.progress.ProgressIndicator;
 import consulo.localize.LocalizeValue;
 import consulo.logging.Logger;
@@ -24,10 +25,12 @@ import consulo.ui.annotation.RequiredUIAccess;
 import consulo.util.lang.StringUtil;
 import consulo.versionControlSystem.VcsException;
 import consulo.versionControlSystem.VcsNotifier;
+import consulo.versionControlSystem.distributed.DvcsUtil;
 import consulo.versionControlSystem.history.VcsRevisionNumber;
 import consulo.versionControlSystem.merge.MergeDialogCustomizer;
 import consulo.virtualFileSystem.VirtualFile;
 import consulo.virtualFileSystem.util.VirtualFileUtil;
+import git4idea.GitActivity;
 import git4idea.GitUtil;
 import git4idea.commands.Git;
 import git4idea.commands.GitCommandResult;
@@ -69,6 +72,12 @@ public class GitStashChangesSaver extends GitChangesSaver {
     protected void save(@Nonnull Collection<VirtualFile> rootsToSave) throws VcsException {
         LOG.info("saving " + rootsToSave);
 
+        try (AccessToken ignore = DvcsUtil.workingTreeChangeStarted(myProject, "Stash", GitActivity.Stash)) {
+            saveRoots(rootsToSave);
+        }
+    }
+
+    private void saveRoots(@Nonnull Collection<VirtualFile> rootsToSave) throws VcsException {
         for (VirtualFile root : rootsToSave) {
             String message = GitHandlerUtil.formatOperationName("Stashing changes from", root);
             LOG.info(message);

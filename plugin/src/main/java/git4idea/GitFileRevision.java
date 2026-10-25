@@ -56,6 +56,8 @@ public class GitFileRevision extends VcsFileRevisionEx implements Comparable<Vcs
     @Nullable
     private final VirtualFile myRoot;
 
+    private final boolean myIsDeleted;
+
     public GitFileRevision(@Nonnull Project project, @Nonnull FilePath path, @Nonnull GitRevisionNumber revision) {
         this(project, null, path, revision, null, null, null, null, Collections.<String>emptyList());
     }
@@ -71,6 +73,22 @@ public class GitFileRevision extends VcsFileRevisionEx implements Comparable<Vcs
         @Nullable Date authorTime,
         @Nonnull Collection<String> parents
     ) {
+        this(project, root, path, revision, authorAndCommitter, message, branch, authorTime, parents, false);
+    }
+
+    public GitFileRevision(
+        @Nonnull Project project,
+        @Nullable VirtualFile root,
+        @Nonnull FilePath path,
+        @Nonnull GitRevisionNumber revision,
+        @Nullable Couple<Couple<String>> authorAndCommitter,
+        @Nullable String message,
+        @Nullable String branch,
+        @Nullable Date authorTime,
+        @Nonnull Collection<String> parents,
+        boolean isDeleted
+    ) {
+        myIsDeleted = isDeleted;
         myProject = project;
         myRoot = root;
         myPath = path;
@@ -80,6 +98,10 @@ public class GitFileRevision extends VcsFileRevisionEx implements Comparable<Vcs
         myBranch = branch;
         myAuthorTime = authorTime;
         myParents = parents;
+    }
+
+    public boolean isDeleted() {
+        return myIsDeleted;
     }
 
     @Override

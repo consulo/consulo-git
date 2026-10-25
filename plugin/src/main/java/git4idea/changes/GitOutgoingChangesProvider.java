@@ -15,6 +15,8 @@
  */
 package git4idea.changes;
 
+import consulo.versionControlSystem.log.VcsCommitMetadata;
+import consulo.versionControlSystem.log.TimedVcsCommit;
 import consulo.logging.Logger;
 import consulo.project.Project;
 import consulo.util.lang.Pair;
@@ -103,18 +105,13 @@ public class GitOutgoingChangesProvider implements VcsOutgoingChangesProvider<Co
     if (base == null) {
       return new ArrayList<>(localChanges); // no information, better strict approach (see getOutgoingChanges() code)
     }
-    List<Pair<SHAHash, Date>> hashes = GitHistoryUtils.onlyHashesHistory(
-      myProject,
-      VcsContextFactory.getInstance().createFilePathOn(vcsRoot),
-      vcsRoot,
-      (base.asString() + "..HEAD")
-    );
+    List<? extends TimedVcsCommit> commits = GitHistoryUtils.collectTimedCommits(myProject, vcsRoot, base.asString() + "..HEAD");
 
-    if (hashes.isEmpty()) return Collections.emptyList(); // no local commits
-    String first = hashes.get(0).getFirst().getValue(); // optimization
+    if (commits.isEmpty()) return Collections.emptyList(); // no local commits
+    String first = commits.get(0).getId().asString(); // optimization
     Set<String> localHashes = new HashSet<>();
-    for (Pair<SHAHash, Date> hash : hashes) {
-      localHashes.add(hash.getFirst().getValue());
+    for (TimedVcsCommit commit : commits) {
+      localHashes.add(commit.getId().asString());
     }
     Collection<Change> result = new ArrayList<>();
     for (Change change : localChanges) {
@@ -133,7 +130,9 @@ public class GitOutgoingChangesProvider implements VcsOutgoingChangesProvider<Co
   public Date getRevisionDate(VcsRevisionNumber revision, FilePath file) {
     if (VcsRevisionNumber.NULL.equals(revision)) return null;
     try {
-      return new Date(GitHistoryUtils.getAuthorTime(myProject, file, revision.asString()));
+      VirtualFile root = GitUtil.getRootForFile(myProject, file);
+      List<? extends VcsCommitMetadata> metadata = GitHistoryUtils.collectCommitsMetadata(myProject, root, revision.asString());
+      return metadata == null || metadata.isEmpty() ? null : new Date(metadata.get(0).getAuthorTime());
     }
     catch (VcsException e) {
       return null;

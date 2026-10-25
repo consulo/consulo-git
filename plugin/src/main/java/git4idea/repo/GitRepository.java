@@ -111,6 +111,16 @@ public interface GitRepository extends Repository {
     @Nonnull
     Collection<GitBranchTrackInfo> getBranchTrackInfos();
 
+    @Nullable
+    default GitBranchTrackInfo getBranchTrackInfo(@Nonnull String localBranchName) {
+        for (GitBranchTrackInfo info : getBranchTrackInfos()) {
+            if (info.localBranch().getName().equals(localBranchName)) {
+                return info;
+            }
+        }
+        return null;
+    }
+
     boolean isRebaseInProgress();
 
     boolean isOnBranch();

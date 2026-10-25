@@ -16,13 +16,16 @@
 package git4idea.actions;
 
 import consulo.annotation.component.ActionImpl;
+import consulo.application.AccessToken;
 import consulo.git.localize.GitLocalize;
 import consulo.localize.LocalizeValue;
 import consulo.platform.base.icon.PlatformIconGroup;
 import consulo.project.Project;
 import consulo.ui.annotation.RequiredUIAccess;
 import consulo.versionControlSystem.VcsException;
+import consulo.versionControlSystem.distributed.DvcsUtil;
 import consulo.virtualFileSystem.VirtualFile;
+import git4idea.GitActivity;
 import git4idea.GitUtil;
 import git4idea.actions.GitRepositoryAction;
 import git4idea.commands.GitHandlerUtil;
@@ -71,7 +74,9 @@ public class GitResetHead extends GitRepositoryAction {
         }
         GitLineHandler h = d.handler();
         affectedRoots.add(d.getGitRoot());
-        GitHandlerUtil.doSynchronously(h, GitLocalize.resettingTitle(), LocalizeValue.ofNullable(h.printableCommandLine()));
+        try (AccessToken ignored = DvcsUtil.workingTreeChangeStarted(project, GitLocalize.resetActionName().get(), GitActivity.Reset)) {
+            GitHandlerUtil.doSynchronously(h, GitLocalize.resettingTitle(), LocalizeValue.ofNullable(h.printableCommandLine()));
+        }
         GitRepositoryManager manager = GitUtil.getRepositoryManager(project);
         manager.updateRepository(d.getGitRoot());
     }

@@ -15,11 +15,13 @@
  */
 package git4idea.ui.branch;
 
+import consulo.localize.LocalizeValue;
 import consulo.project.Project;
 import consulo.project.ui.wm.StatusBarWidget;
 import consulo.project.ui.wm.StatusBarWidgetFactory;
 import consulo.ui.ex.action.ActionManager;
 import consulo.ui.ex.popup.ListPopup;
+import consulo.ui.image.Image;
 import consulo.versionControlSystem.distributed.DvcsUtil;
 import consulo.versionControlSystem.distributed.branch.DvcsInOutCountersInProject;
 import consulo.versionControlSystem.distributed.branch.DvcsSyncSettings;
@@ -53,6 +55,7 @@ public class GitBranchWidget extends DvcsStatusWidget<GitRepository> {
         super(project, factory, GitVcs.NAME);
         mySettings = GitVcsSettings.getInstance(project);
         project.getMessageBus().connect().subscribe(GitRepositoryChangeListener.class, repository -> updateLater());
+        project.getMessageBus().connect().subscribe(GitCurrentBranchPresentationUpdatedListener.class, this::updateLater);
     }
 
     @Override
@@ -69,7 +72,32 @@ public class GitBranchWidget extends DvcsStatusWidget<GitRepository> {
     @Nonnull
     @Override
     protected String getFullBranchName(@Nonnull GitRepository repository) {
+        GitCurrentBranchPresenter.Presentation presentation = GitCurrentBranchPresenter.findCustomPresentation(repository);
+        if (presentation != null) {
+            return presentation.getText().get();
+        }
         return GitBranchUtil.getDisplayableBranchText(repository);
+    }
+
+    @Nullable
+    @Override
+    protected Image getIcon(@Nonnull GitRepository repository) {
+        GitCurrentBranchPresenter.Presentation presentation = GitCurrentBranchPresenter.findCustomPresentation(repository);
+        if (presentation != null && presentation.getIcon() != null) {
+            return presentation.getIcon();
+        }
+        return super.getIcon(repository);
+    }
+
+    @Override
+    protected LocalizeValue getToolTip(@Nullable GitRepository repository) {
+        if (repository != null) {
+            GitCurrentBranchPresenter.Presentation presentation = GitCurrentBranchPresenter.findCustomPresentation(repository);
+            if (presentation != null && presentation.getDescription().isNotEmpty()) {
+                return presentation.getDescription();
+            }
+        }
+        return super.getToolTip(repository);
     }
 
     @Override
