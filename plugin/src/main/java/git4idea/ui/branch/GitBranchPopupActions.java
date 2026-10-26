@@ -51,12 +51,18 @@ import static git4idea.branch.GitBranchType.REMOTE;
 import static java.util.stream.Collectors.toList;
 
 public class GitBranchPopupActions {
+    private static final int MAX_BRANCH_NAME_LENGTH = 40;
+
     private final Project myProject;
     private final GitRepository myRepository;
 
     GitBranchPopupActions(Project project, GitRepository repository) {
         myProject = project;
         myRepository = repository;
+    }
+
+    public static String truncateBranchName(String branchName, Project project) {
+        return GitBranchPresentation.truncateBranchName(project, branchName, MAX_BRANCH_NAME_LENGTH);
     }
 
     ActionGroup createActions() {

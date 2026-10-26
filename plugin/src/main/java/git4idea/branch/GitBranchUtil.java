@@ -288,6 +288,15 @@ public class GitBranchUtil {
      */
     @Nonnull
     public static String getDisplayableBranchText(@Nonnull GitRepository repository) {
+        return getDisplayableBranchText(repository, Function.identity());
+    }
+
+    /**
+     * Returns the text that is displaying current branch.
+     * In the simple case it is just the branch name, but in detached HEAD state it displays the hash or "rebasing master".
+     */
+    @Nonnull
+    public static String getDisplayableBranchText(@Nonnull GitRepository repository, @Nonnull Function<String, String> branchNameTruncator) {
         GitRepository.State state = repository.getState();
         if (state == GitRepository.State.DETACHED) {
             String currentRevision = repository.getCurrentRevision();
@@ -301,7 +310,7 @@ public class GitBranchUtil {
         }
 
         GitBranch branch = repository.getCurrentBranch();
-        String branchName = (branch == null ? "" : branch.getName());
+        String branchName = (branch == null ? "" : branchNameTruncator.apply(branch.getName()));
         return prefix + branchName;
     }
 

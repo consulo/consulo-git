@@ -72,6 +72,7 @@ module com.intellij.git {
     exports git4idea.history.browser;
     exports git4idea.history.wholeTree;
     exports git4idea.i18n;
+    exports git4idea.index;
     exports git4idea.log;
     exports git4idea.merge;
     exports git4idea.push;

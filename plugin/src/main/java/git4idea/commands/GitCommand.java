@@ -57,6 +57,7 @@ public class GitCommand {
     public static final GitCommand FOR_EACH_REF = read("for-each-ref");
     public static final GitCommand FETCH = read("fetch");  // fetch is a read-command, because it doesn't modify the index
     public static final GitCommand INIT = write("init");
+    public static final GitCommand HASH_OBJECT = write("hash-object");
     public static final GitCommand LOG = read("log");
     public static final GitCommand LS_FILES = read("ls-files");
     public static final GitCommand LS_TREE = read("ls-tree");

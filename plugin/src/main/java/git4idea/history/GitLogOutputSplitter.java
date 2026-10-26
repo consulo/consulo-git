@@ -25,7 +25,7 @@ import git4idea.GitFormatException;
 import git4idea.GitUtil;
 import git4idea.commands.GitLineHandler;
 import git4idea.commands.GitLineHandlerListener;
-import git4idea.i18n.GitBundle;
+import consulo.git.localize.GitLocalize;
 
 import org.jspecify.annotations.Nullable;
 
@@ -43,6 +43,7 @@ public class GitLogOutputSplitter<R extends GitLogRecord> implements GitLineHand
 
   private final StringBuilder myErrors = new StringBuilder();
   private @Nullable VcsException myException = null;
+  private volatile boolean myCanceled;
 
   public GitLogOutputSplitter(GitLineHandler handler,
                        GitLogParser<R> parser,
@@ -56,6 +57,9 @@ public class GitLogOutputSplitter<R extends GitLogRecord> implements GitLineHand
 
   @Override
   public void onLineAvailable(String line, Key outputType) {
+    if (myCanceled) {
+      return;
+    }
     if (ProcessOutputType.isStderr(outputType)) {
       myErrors.append(GitUtil.cleanupErrorPrefixes(line)).append("\n");
     }
@@ -64,7 +68,8 @@ public class GitLogOutputSplitter<R extends GitLogRecord> implements GitLineHand
         processOutputLine(line);
       }
       catch (ProcessCanceledException pce) {
-        throw pce;
+        myCanceled = true;
+        myException = new VcsException(pce);
       }
       catch (VcsException e) {
         myException = e;
@@ -85,21 +90,22 @@ public class GitLogOutputSplitter<R extends GitLogRecord> implements GitLineHand
     }
     catch (GitFormatException e) {
       myParser.clear();
-      throw new VcsException(GitBundle.message("log.parser.exception.message.error.parsing.line",
-                                               StringUtil.escapeStringCharacters(line)), e);
+      throw new VcsException(GitLocalize.logParserExceptionMessageErrorParsingLine(StringUtil.escapeStringCharacters(line)), e);
     }
   }
 
   @Override
   public void processTerminated(int exitCode) {
+    if (myCanceled) {
+      return;
+    }
     if (exitCode != 0) {
       String errorMessage = myErrors.toString();
       if (errorMessage.isEmpty()) {
-        errorMessage = GitBundle.message("git.error.exit", exitCode);
+        errorMessage = GitLocalize.gitErrorExit(exitCode).get();
       }
-      myException = new VcsException(GitBundle.message("log.parser.exception.message.error.command.line",
-                                                       errorMessage,
-                                                       myHandler.printableCommandLine()));
+      myException = new VcsException(GitLocalize.logParserExceptionMessageErrorCommandLine(errorMessage,
+                                                                                           myHandler.printableCommandLine()));
     }
     else {
       try {

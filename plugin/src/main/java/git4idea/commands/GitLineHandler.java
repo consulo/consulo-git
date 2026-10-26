@@ -128,8 +128,8 @@ public class GitLineHandler extends GitTextHandler {
       if (lines.hasNext()) {
         // line is complete
         String line = lineBuilder.toString();
-        notifyLine(line, outputType);
         lineBuilder.setLength(0);
+        notifyLine(line, outputType);
       }
     }
     while (true) {

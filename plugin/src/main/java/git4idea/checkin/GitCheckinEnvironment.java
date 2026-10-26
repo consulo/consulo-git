@@ -19,6 +19,7 @@ import consulo.annotation.component.ComponentScope;
 import consulo.annotation.component.ServiceAPI;
 import consulo.annotation.component.ServiceImpl;
 import consulo.application.Application;
+import consulo.document.FileDocumentManager;
 import consulo.git.localize.GitLocalize;
 import consulo.application.Application;
 import consulo.language.editor.ui.EditorBox;
@@ -36,9 +37,11 @@ import consulo.ui.Label;
 import consulo.ui.annotation.RequiredUIAccess;
 import consulo.ui.layout.DockLayout;
 import consulo.ui.layout.VerticalLayout;
+import consulo.util.collection.ArrayUtil;
 import consulo.util.io.FileUtil;
 import consulo.util.lang.StringUtil;
 import consulo.util.lang.function.PairConsumer;
+import consulo.util.lang.function.ThrowableConsumer;
 import consulo.versionControlSystem.FilePath;
 import consulo.versionControlSystem.VcsException;
 import consulo.versionControlSystem.change.*;
@@ -898,4 +901,145 @@ public class GitCheckinEnvironment implements CheckinEnvironment {
         }
     }
 
+    public static List<VcsException> commitUsingIndex(
+        Project project,
+        GitRepository repository,
+        Collection<? extends ChangedPath> rootChanges,
+        Set<? extends ChangedPath> changedWithIndex,
+        String message
+    ) {
+        List<VcsException> exceptions = new ArrayList<>();
+        try {
+            Set<FilePath> toCommitAdded = new HashSet<>();
+            Set<FilePath> toCommitRemoved = new HashSet<>();
+            for (ChangedPath change : rootChanges) {
+                if (change.getAfterPath() != null) {
+                    toCommitAdded.add(change.getAfterPath());
+                }
+                if (change.getBeforePath() != null) {
+                    toCommitRemoved.add(change.getBeforePath());
+                }
+            }
+
+            // Save and reset what is staged besides our changes
+            try (GitStagingAreaStateManager stagingAreaManager = GitStagingAreaStateManager.create(repository)) {
+                stagingAreaManager.prepareStagingArea(toCommitAdded, toCommitRemoved);
+
+                Set<FilePath> alreadyHandledPaths = new HashSet<>();
+                for (ChangedPath change : changedWithIndex) {
+                    if (change.getBeforePath() != null) {
+                        alreadyHandledPaths.add(change.getBeforePath());
+                    }
+                    if (change.getAfterPath() != null) {
+                        alreadyHandledPaths.add(change.getAfterPath());
+                    }
+                }
+                // Stage what else is needed to commit
+                Set<FilePath> toAdd = new HashSet<>(toCommitAdded);
+                toAdd.removeAll(alreadyHandledPaths);
+
+                Set<FilePath> toRemove = new HashSet<>(toCommitRemoved);
+                toRemove.removeAll(toAdd);
+                toRemove.removeAll(alreadyHandledPaths);
+
+                LOG.debug("Updating index: added: {}, removed: {}", toAdd, toRemove);
+                GitFileUtils.stageForCommit(project, repository.getRoot(), toAdd, toRemove, exceptions);
+                if (!exceptions.isEmpty()) {
+                    return exceptions;
+                }
+
+                // Commit the staging area
+                LOG.debug("Performing commit...");
+                new GitRepositoryCommitter(repository).commitStaged(message);
+            }
+        }
+        catch (VcsException e) {
+            exceptions.add(e);
+        }
+        return exceptions;
+    }
+
+    public static byte[] convertDocumentContentToBytesWithBOM(GitRepository repository, String documentContent, VirtualFile file) {
+        String lineSeparator = FileDocumentManager.getInstance().getLineSeparator(file, repository.getProject());
+        String text = lineSeparator.equals("\n") ? documentContent : StringUtil.convertLineSeparators(documentContent, lineSeparator);
+        byte[] fileContent = text.getBytes(file.getCharset());
+
+        byte[] bom = file.getBOM();
+        if (bom != null && !ArrayUtil.startsWith(fileContent, bom)) {
+            fileContent = ArrayUtil.mergeArrays(bom, fileContent);
+        }
+        return fileContent;
+    }
+
+    /**
+     * Create a file that contains the specified message
+     *
+     * @param root    a git repository root
+     * @param message a message to write
+     * @return a file reference
+     * @throws IOException if file cannot be created
+     */
+    public static File createCommitMessageFile(Project project, VirtualFile root, String message) throws IOException {
+        // filter comment lines
+        File file = FileUtil.createTempFile(GIT_COMMIT_MSG_FILE_PREFIX, GIT_COMMIT_MSG_FILE_EXT);
+        file.deleteOnExit();
+        String encoding = GitConfigUtil.getCommitEncoding(project, root);
+        try (Writer out = new OutputStreamWriter(new FileOutputStream(file), encoding)) {
+            out.write(message);
+        }
+        return file;
+    }
+
+    public static void runWithMessageFile(Project project,
+                                          VirtualFile root,
+                                          String message,
+                                          ThrowableConsumer<? super File, ? extends VcsException> task) throws VcsException {
+        File messageFile;
+        try {
+            messageFile = createCommitMessageFile(project, root, message);
+        }
+        catch (IOException ex) {
+            throw new VcsException(GitLocalize.errorCommitCantCreateMessageFile(), ex);
+        }
+
+        try {
+            task.consume(messageFile);
+        }
+        finally {
+            if (!messageFile.delete()) {
+                LOG.warn("Failed to remove temporary file: {}", messageFile);
+            }
+        }
+    }
+
+    public static class ChangedPath {
+        private final @Nullable FilePath myBeforePath;
+        private final @Nullable FilePath myAfterPath;
+
+        public ChangedPath(@Nullable FilePath beforePath, @Nullable FilePath afterPath) {
+            assert beforePath != null || afterPath != null;
+            myBeforePath = beforePath;
+            myAfterPath = afterPath;
+        }
+
+        public @Nullable FilePath getBeforePath() {
+            return myBeforePath;
+        }
+
+        public @Nullable FilePath getAfterPath() {
+            return myAfterPath;
+        }
+
+        public boolean isMove() {
+            if (myBeforePath == null || myAfterPath == null) {
+                return false;
+            }
+            return !ChangesUtil.equalsCaseSensitive(myBeforePath, myAfterPath);
+        }
+
+        @Override
+        public String toString() {
+            return String.format("%s -> %s", myBeforePath, myAfterPath);
+        }
+    }
 }

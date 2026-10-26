@@ -31,6 +31,8 @@ import consulo.git.localize.GitLocalize;
 import consulo.localize.LocalizeValue;
 import consulo.logging.Logger;
 import consulo.project.Project;
+import consulo.ui.MessageBoxBuilder;
+import consulo.ui.MessageButtonRole;
 import consulo.util.io.URLUtil;
 import consulo.util.io.UriUtil;
 import consulo.util.lang.Couple;
@@ -38,13 +40,19 @@ import consulo.util.lang.StringUtil;
 import consulo.util.lang.ref.SimpleReference;
 import consulo.versionControlSystem.distributed.DvcsRememberedInputs;
 import git4idea.remote.GitHttpAuthDataProvider;
+import git4idea.remote.GitRepositoryHostingService;
+import git4idea.remote.InteractiveGitHttpAuthDataProvider;
 import git4idea.remote.GitRememberedInputs;
 import org.jspecify.annotations.Nullable;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
 
 /**
@@ -372,6 +380,7 @@ public final class GitHttpGuiAuthenticator implements GitHttpAuthenticator {
         private final Project myProject;
         private final PasswordSafeProvider myPasswordSafeDelegate;
         private boolean myCancelled;
+        private boolean myDataForSession = false;
 
         DialogProvider(String url, Project project, PasswordSafeProvider passwordSafeDelegate) {
             super(url);
@@ -381,26 +390,32 @@ public final class GitHttpGuiAuthenticator implements GitHttpAuthenticator {
 
         @Override
         public String getName() {
-            return "Dialog";
+            return myDataForSession ? "Session Provider" : "Dialog";
         }
 
         @Override
         public AuthData getData() {
-            return getDataFromDialog(myUrl, myPasswordSafeDelegate.getRememberedLogin(myUrl));
+            return getDataFromDialog(myUrl, myPasswordSafeDelegate.getRememberedLogin(myUrl), true);
         }
 
         @Override
         public AuthData getDataForKnownLogin(String login) {
-            return getDataFromDialog(myUrl, login);
+            return getDataFromDialog(myUrl, login, false);
         }
 
         @Override
         public void onAuthSuccess() {
+            if (myDataForSession) {
+                return;
+            }
             myPasswordSafeDelegate.onAuthSuccess();
         }
 
         @Override
         public void onAuthFailure() {
+            if (myDataForSession) {
+                return;
+            }
             myPasswordSafeDelegate.onAuthFailure();
         }
 
@@ -409,8 +424,36 @@ public final class GitHttpGuiAuthenticator implements GitHttpAuthenticator {
             return LocalizeValue.empty();
         }
 
-        private AuthData getDataFromDialog(String url, @Nullable String username) {
-            AuthenticationData data = showAuthDialog(UriUtil.splitScheme(url).second, username);
+        private AuthData getDataFromDialog(String url, @Nullable String username, boolean editableUsername) {
+            Map<LocalizeValue, InteractiveGitHttpAuthDataProvider> providers = new LinkedHashMap<>();
+            Application.get().getExtensionPoint(GitRepositoryHostingService.class).forEach(service -> {
+                InteractiveGitHttpAuthDataProvider provider = editableUsername || username == null
+                    ? service.getInteractiveAuthDataProvider(myProject, url)
+                    : service.getInteractiveAuthDataProvider(myProject, url, username);
+                if (provider != null) {
+                    providers.put(service.getServiceDisplayName(), provider);
+                }
+            });
+
+            String login = username;
+            if (!providers.isEmpty()) {
+                InteractiveChoice choice = askInteractiveProviders(UriUtil.splitScheme(url).second, providers);
+                LOG.debug("Showed interactive providers choice: " + choice);
+                if (choice.cancelled()) {
+                    myCancelled = true;
+                    throw new ProcessCanceledException();
+                }
+                AuthData externalAuthData = choice.authData();
+                if (externalAuthData != null) {
+                    if (externalAuthData.getPassword() != null) {
+                        myDataForSession = true;
+                        return externalAuthData;
+                    }
+                    login = externalAuthData.getLogin();
+                }
+            }
+
+            AuthenticationData data = showAuthDialog(UriUtil.splitScheme(url).second, login);
             LOG.debug("Showed dialog:" + (data != null ? "OK" : "Cancel"));
             if (data == null) {
                 myCancelled = true;
@@ -437,9 +480,65 @@ public final class GitHttpGuiAuthenticator implements GitHttpAuthenticator {
             return dialog.get();
         }
 
+        private InteractiveChoice askInteractiveProviders(String url, Map<LocalizeValue, InteractiveGitHttpAuthDataProvider> providers) {
+            List<InteractiveGitHttpAuthDataProvider> providerList = List.copyOf(providers.values());
+            CompletableFuture<InteractiveChoice> result = new CompletableFuture<>();
+            myProject.getUIAccess().give(() -> {
+                MessageBoxBuilder<Integer> builder = MessageBoxBuilder.<Integer>create()
+                    .title(GitLocalize.loginDialogLabelLoginToUrl(url))
+                    .text(GitLocalize.loginDialogPromptEnterCredentials())
+                    .asQuestion();
+                int index = 0;
+                for (LocalizeValue name : providers.keySet()) {
+                    builder.button(index == 0 ? MessageButtonRole.YES : MessageButtonRole.OK,
+                        GitLocalize.loginDialogLoginWithSelectedProvider(name), index);
+                    if (index == 0) {
+                        builder.asDefaultButton();
+                    }
+                    index++;
+                }
+                builder.button(MessageButtonRole.NO, GitLocalize.loginDialogSelectLoginWayCredentials(), -1);
+                builder.button(MessageButtonRole.CANCEL, -2).asExitButton();
+                builder.exitValue(-2);
+                builder.showAsync().whenComplete((selected, error) -> {
+                    if (error != null || selected == null || selected == -2) {
+                        result.complete(InteractiveChoice.CANCELLED);
+                    }
+                    else if (selected == -1) {
+                        result.complete(InteractiveChoice.CREDENTIALS);
+                    }
+                    else {
+                        providerList.get(selected).getAuthDataAsync(null).whenComplete((authData, authError) -> {
+                            if (authError != null) {
+                                LOG.warn("Failed to get auth data from " + providerList.get(selected), authError);
+                            }
+                            result.complete(authError != null || authData == null
+                                ? InteractiveChoice.CREDENTIALS
+                                : new InteractiveChoice(false, authData));
+                        });
+                    }
+                });
+            });
+            try {
+                return result.get();
+            }
+            catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return InteractiveChoice.CANCELLED;
+            }
+            catch (ExecutionException e) {
+                return InteractiveChoice.CREDENTIALS;
+            }
+        }
+
         public boolean isCancelled() {
             return myCancelled;
         }
+    }
+
+    private record InteractiveChoice(boolean cancelled, @Nullable AuthData authData) {
+        private static final InteractiveChoice CANCELLED = new InteractiveChoice(true, null);
+        private static final InteractiveChoice CREDENTIALS = new InteractiveChoice(false, null);
     }
 
     public static class PasswordSafeProvider extends AuthDataProvider {

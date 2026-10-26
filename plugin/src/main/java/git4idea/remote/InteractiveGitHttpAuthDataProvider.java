@@ -7,6 +7,8 @@ import consulo.ui.Component;
 import consulo.ui.annotation.RequiredUIAccess;
 import org.jspecify.annotations.Nullable;
 
+import java.util.concurrent.CompletableFuture;
+
 /**
  * Provides authentication information to the {@link git4idea.commands.GitHttpAuthenticator} for a single run.
  * Main use-case is to show a button in git login dialog which will allow user to manually select data that will be used for the current run.
@@ -20,4 +22,9 @@ import org.jspecify.annotations.Nullable;
 public interface InteractiveGitHttpAuthDataProvider {
     @RequiredUIAccess
     @Nullable AuthData getAuthData(@Nullable Component parentComponent);
+
+    @RequiredUIAccess
+    default CompletableFuture<@Nullable AuthData> getAuthDataAsync(@Nullable Component parentComponent) {
+        return CompletableFuture.completedFuture(getAuthData(parentComponent));
+    }
 }

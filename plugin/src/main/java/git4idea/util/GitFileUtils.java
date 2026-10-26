@@ -207,6 +207,40 @@ public class GitFileUtils {
     return nonIgnoredFiles;
   }
 
+  public static void stageForCommit(Project project,
+                                    VirtualFile root,
+                                    Collection<FilePath> toAdd,
+                                    Collection<FilePath> toRemove,
+                                    List<? super VcsException> exceptions) {
+    if (!toRemove.isEmpty()) {
+      try {
+        delete(project, root, toRemove, "--ignore-unmatch", "--cached", "-r");
+      }
+      catch (VcsException ex) {
+        exceptions.add(ex);
+      }
+    }
+    if (!toAdd.isEmpty()) {
+      try {
+        addPathsForce(project, root, toAdd);
+      }
+      catch (VcsException ex) {
+        exceptions.add(ex);
+      }
+    }
+  }
+
+  private static void addPathsForce(Project project, VirtualFile root, Collection<FilePath> files) throws VcsException {
+    for (List<String> paths : VcsFileUtil.chunkPaths(root, files)) {
+      GitSimpleHandler handler = new GitSimpleHandler(project, root, GitCommand.ADD);
+      handler.addParameters("--ignore-errors", "-f");
+      handler.endOptions();
+      handler.addParameters(paths);
+      handler.run();
+    }
+    updateUntrackedFilesHolderOnFileAdd(project, root, getVirtualFilesFromFilePaths(files));
+  }
+
   /**
    * Get file content for the specific revision
    *

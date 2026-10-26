@@ -1,5 +1,7 @@
 action.Annotate.with.Blame.text:
     text: A_nnotate with Git Blame
+error.commit.cant.commit.with.unmerged.paths:
+    text: Committing is not possible because you have unmerged files.
 git.add.to.exclude.file.action.description:
     text: Add entries to .git/info/exclude
 git.add.to.exclude.file.action.text:
@@ -396,6 +398,8 @@ git.commit.message.empty:
     text: Please specify commit message
 git.commit.message.empty.title:
     text: Commit Message Is Empty
+git.commit.nothing.to.commit.error.message:
+    text: Nothing to commit
 git.default.commit.message:
     text: |4+
 
@@ -527,8 +531,18 @@ initializing.title:
     text: Initializing repository…
 label.credential.store.key.http.password:
     text: Git HTTP
+log.parser.exception.message.error.command.line:
+    text: "{0}\nCommand line: [{1}]"
+log.parser.exception.message.error.parsing.line:
+    text: Error while parsing line "{0}"
 login.dialog.label.login.to.url:
     text: 'Log In to {0}'
+login.dialog.login.with.selected.provider:
+    text: 'Log In with {0}…'
+login.dialog.prompt.enter.credentials:
+    text: 'Enter credentials:'
+login.dialog.select.login.way.credentials:
+    text: Enter credentials
 merge.add.log.information:
     text: Add &log information
 merge.add.log.information.tooltip:

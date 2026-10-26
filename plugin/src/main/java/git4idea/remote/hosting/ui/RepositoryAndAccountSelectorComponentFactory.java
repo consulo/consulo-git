@@ -19,9 +19,11 @@ package git4idea.remote.hosting.ui;
 import consulo.accountManagement.Account;
 import consulo.accountManagement.AccountManager;
 import consulo.application.Application;
+import consulo.dataContext.DataManager;
 import consulo.disposer.Disposable;
 import consulo.disposer.Disposer;
 import consulo.localize.LocalizeValue;
+import consulo.platform.base.icon.PlatformIconGroup;
 import consulo.review.list.error.ErrorStatusAlignment;
 import consulo.review.list.error.ErrorStatusPanelFactory;
 import consulo.review.list.error.ErrorStatusPresenter;
@@ -33,7 +35,12 @@ import consulo.ui.ImageBox;
 import consulo.ui.Label;
 import consulo.ui.TextAttribute;
 import consulo.ui.UIAccess;
+import consulo.ui.PopupPosition;
 import consulo.ui.annotation.RequiredUIAccess;
+import consulo.ui.ex.action.AnAction;
+import consulo.ui.ex.action.DefaultActionGroup;
+import consulo.ui.ex.popup.JBPopupFactory;
+import consulo.ui.ex.popup.ListPopup;
 import consulo.ui.image.Image;
 import consulo.ui.layout.DockLayout;
 import consulo.ui.layout.HorizontalLayout;
@@ -51,6 +58,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 public class RepositoryAndAccountSelectorComponentFactory<M extends HostedGitRepositoryMapping> {
     private final RepositoryAndAccountSelectorViewModel<M> myVm;
@@ -62,6 +70,17 @@ public class RepositoryAndAccountSelectorComponentFactory<M extends HostedGitRep
     @RequiredUIAccess
     public Component create(Disposable parentDisposable,
                             Function<M, LocalizeValue> repoNamer,
+                            LocalizeValue submitActionText,
+                            List<Button> loginButtons,
+                            ErrorStatusPresenter<RepositoryAndAccountSelectorViewModel.Error> errorPresenter) {
+        return create(parentDisposable, null, repoNamer, it -> List.of(), submitActionText, loginButtons, errorPresenter);
+    }
+
+    @RequiredUIAccess
+    public Component create(Disposable parentDisposable,
+                            @Nullable Supplier<@Nullable Account> defaultAccountHolder,
+                            Function<M, LocalizeValue> repoNamer,
+                            Function<M, List<AnAction>> accountsPopupActionsSupplier,
                             LocalizeValue submitActionText,
                             List<Button> loginButtons,
                             ErrorStatusPresenter<RepositoryAndAccountSelectorViewModel.Error> errorPresenter) {
@@ -109,6 +128,19 @@ public class RepositoryAndAccountSelectorComponentFactory<M extends HostedGitRep
         bind(parentDisposable, uiAccess, myVm.getAccountsState(), accounts -> {
             Account selected = myVm.getAccountSelectionState().get();
             accountModel.replaceAll(accounts);
+            if (selected == null || !accounts.contains(selected)) {
+                Account defaultAccount = defaultAccountHolder == null ? null : defaultAccountHolder.get();
+                if (defaultAccount != null && accounts.contains(defaultAccount)) {
+                    selected = defaultAccount;
+                }
+                else if (!accounts.isEmpty()) {
+                    selected = accounts.get(0);
+                }
+                else {
+                    selected = null;
+                }
+                myVm.getAccountSelectionState().set(selected);
+            }
             accountCombo.setValue(selected);
             for (Account account : accounts) {
                 if (avatarSubscriptions.add(account.getId())) {
@@ -128,9 +160,30 @@ public class RepositoryAndAccountSelectorComponentFactory<M extends HostedGitRep
         });
         accountCombo.addValueListener(event -> myVm.getAccountSelectionState().set(event.getValue()));
 
+        Button accountActionsButton = Button.create(LocalizeValue.empty());
+        accountActionsButton.setIcon(PlatformIconGroup.generalAdd());
+        accountActionsButton.addClickListener(event -> {
+            M repo = myVm.getRepoSelectionState().get();
+            List<AnAction> actions = repo == null ? List.of() : accountsPopupActionsSupplier.apply(repo);
+            if (actions.isEmpty()) {
+                return;
+            }
+            ListPopup popup = JBPopupFactory.getInstance().createActionGroupPopup(
+                null,
+                new DefaultActionGroup(actions),
+                DataManager.getInstance().getDataContext(accountActionsButton),
+                JBPopupFactory.ActionSelectionAid.SPEEDSEARCH,
+                true
+            );
+            popup.showBy(accountActionsButton, null, PopupPosition.BOTTOM);
+        });
+        bind(parentDisposable, uiAccess, myVm.getRepoSelectionState(),
+            repo -> accountActionsButton.setVisible(repo != null && !accountsPopupActionsSupplier.apply(repo).isEmpty()));
+
         bind(parentDisposable, uiAccess, myVm.getBusyState(), busy -> {
             repoCombo.setEnabled(!busy);
             accountCombo.setEnabled(!busy);
+            accountActionsButton.setEnabled(!busy);
         });
 
         Button submitButton = Button.create(submitActionText, event -> myVm.submitSelection());
@@ -155,7 +208,10 @@ public class RepositoryAndAccountSelectorComponentFactory<M extends HostedGitRep
 
         DockLayout combos = DockLayout.create();
         combos.center(repoCombo);
-        combos.right(accountCombo);
+        HorizontalLayout accountPanel = HorizontalLayout.create();
+        accountPanel.add(accountCombo);
+        accountPanel.add(accountActionsButton);
+        combos.right(accountPanel);
 
         VerticalLayout root = VerticalLayout.create();
         root.add(combos);

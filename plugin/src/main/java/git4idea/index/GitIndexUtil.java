@@ -8,17 +8,23 @@ import consulo.util.collection.ContainerUtil;
 import consulo.util.dataholder.Key;
 import consulo.versionControlSystem.FilePath;
 import consulo.versionControlSystem.VcsException;
+import consulo.versionControlSystem.log.Hash;
+import consulo.versionControlSystem.log.base.HashImpl;
+import consulo.versionControlSystem.util.VcsFileUtil;
 import consulo.versionControlSystem.util.VcsUtil;
 import consulo.virtualFileSystem.VirtualFile;
 import git4idea.GitUtil;
 import git4idea.commands.Git;
 import git4idea.commands.GitCommand;
+import git4idea.commands.GitHandlerInputProcessorUtil;
 import git4idea.commands.GitLineHandler;
 import git4idea.commands.GitLineHandlerAdapter;
 import git4idea.repo.GitRepository;
 import git4idea.util.StringScanner;
 import org.jspecify.annotations.Nullable;
 
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -32,6 +38,13 @@ public final class GitIndexUtil {
     public static final String SUBMODULE_MODE = "160000";
 
     private GitIndexUtil() {
+    }
+
+    /**
+     * In index-related Git operations zeroed-out hash is used to indicate that the file is not present.
+     */
+    public static boolean isNullHash(String hash) {
+        return hash.chars().allMatch(c -> c == '0');
     }
 
     public static @Nullable StagedFile listStaged(GitRepository repository, FilePath filePath) throws VcsException {
@@ -95,6 +108,64 @@ public final class GitIndexUtil {
             LOG.warn(e);
             return null;
         }
+    }
+
+    public static Hash write(GitRepository repository, FilePath filePath, byte[] bytes, boolean executable) throws VcsException {
+        return write(repository, filePath, new ByteArrayInputStream(bytes), executable);
+    }
+
+    public static Hash write(GitRepository repository, FilePath filePath, InputStream content, boolean executable) throws VcsException {
+        return write(repository.getProject(), repository.getRoot(), filePath, content, executable);
+    }
+
+    public static Hash write(Project project, VirtualFile root, FilePath filePath, InputStream content, boolean executable)
+        throws VcsException {
+        return write(project, root, filePath, content, executable, false);
+    }
+
+    public static Hash write(Project project,
+                             VirtualFile root,
+                             FilePath filePath,
+                             InputStream content,
+                             boolean executable,
+                             boolean addNewFiles) throws VcsException {
+        Hash hash = hashObject(project, root, filePath, content);
+        updateIndex(project, root, filePath, hash, executable, addNewFiles);
+        return hash;
+    }
+
+    private static Hash hashObject(Project project, VirtualFile root, FilePath filePath, InputStream content) throws VcsException {
+        GitLineHandler h = new GitLineHandler(project, root, GitCommand.HASH_OBJECT);
+        h.setSilent(true);
+        h.addParameters("-w", "--stdin");
+        h.addParameters("--path");
+        h.addRelativePaths(filePath);
+        h.setInputProcessor(GitHandlerInputProcessorUtil.redirectStream(content));
+        h.endOptions();
+        String output = Git.getInstance().runCommand(h).getOutputOrThrow();
+        return HashImpl.build(output.trim());
+    }
+
+    public static void updateIndex(GitRepository repository, FilePath filePath, Hash blobHash, boolean isExecutable) throws VcsException {
+        updateIndex(repository.getProject(), repository.getRoot(), filePath, blobHash, isExecutable, false);
+    }
+
+    public static void updateIndex(Project project,
+                                   VirtualFile root,
+                                   FilePath filePath,
+                                   Hash blobHash,
+                                   boolean isExecutable,
+                                   boolean addNewFiles) throws VcsException {
+        String mode = isExecutable ? EXECUTABLE_MODE : DEFAULT_MODE;
+        String path = VcsFileUtil.relativePath(root, filePath);
+
+        GitLineHandler h = new GitLineHandler(project, root, GitCommand.UPDATE_INDEX);
+        if (addNewFiles) {
+            h.addParameters("--add");
+        }
+        h.addParameters("--cacheinfo", mode + "," + blobHash.asString() + "," + path);
+        h.endOptions();
+        Git.getInstance().runCommand(h).throwOnError();
     }
 
     public static class StagedFileOrDirectory {
