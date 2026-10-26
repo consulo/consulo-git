@@ -67,6 +67,7 @@ module com.intellij.git {
     exports git4idea.config;
     exports git4idea.crlf;
     exports git4idea.diff;
+    exports git4idea.fetch;
     exports git4idea.history;
     exports git4idea.history.browser;
     exports git4idea.history.wholeTree;
@@ -77,7 +78,9 @@ module com.intellij.git {
     exports git4idea.rebase;
     exports git4idea.remote;
     exports git4idea.remote.hosting;
+    exports git4idea.remote.hosting.action;
     exports git4idea.remote.hosting.http;
+    exports git4idea.remote.hosting.ui;
     exports git4idea.repo;
     exports git4idea.reset;
     exports git4idea.rollback;
@@ -91,6 +94,7 @@ module com.intellij.git {
     exports git4idea.util;
     exports git4idea.validators;
     exports git4idea.vfs;
+    exports git4idea.workingTrees;
     exports org.jetbrains.git4idea.ssh;
     exports org.jetbrains.git4idea.util;
 }

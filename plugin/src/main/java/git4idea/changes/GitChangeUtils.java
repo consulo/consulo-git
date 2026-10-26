@@ -41,6 +41,7 @@ import git4idea.history.browser.SHAHash;
 import git4idea.util.StringScanner;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import git4idea.repo.GitRepository;
 
 import java.io.File;
 import java.util.*;
@@ -415,30 +416,71 @@ public class GitChangeUtils {
         @Nullable String newRevision,
         @Nullable Collection<FilePath> dirtyPaths
     ) throws VcsException {
+        return getDiff(project, root, oldRevision, newRevision, dirtyPaths, true, false);
+    }
+
+    @Nonnull
+    private static Collection<Change> getDiff(
+        @Nonnull Project project,
+        @Nonnull VirtualFile root,
+        @Nullable String oldRevision,
+        @Nullable String newRevision,
+        @Nullable Collection<FilePath> dirtyPaths,
+        boolean detectRenames,
+        boolean threeDots
+    ) throws VcsException {
         LOG.assertTrue(oldRevision != null || newRevision != null, "Both old and new revisions can't be null");
         String range;
         GitRevisionNumber newRev;
         GitRevisionNumber oldRev;
+        String dots;
+        if (threeDots) {
+            dots = "...";
+        }
+        else {
+            dots = "..";
+        }
         if (newRevision == null) { // current revision at the right
-            range = oldRevision + "..";
+            range = oldRevision + dots;
             oldRev = resolveReference(project, root, oldRevision);
             newRev = null;
         }
         else if (oldRevision == null) { // current revision at the left
-            range = ".." + newRevision;
+            range = dots + newRevision;
             oldRev = null;
             newRev = resolveReference(project, root, newRevision);
         }
         else {
-            range = oldRevision + ".." + newRevision;
+            range = oldRevision + dots + newRevision;
             oldRev = resolveReference(project, root, oldRevision);
             newRev = resolveReference(project, root, newRevision);
         }
-        String output = getDiffOutput(project, root, range, dirtyPaths);
+        String output = getDiffOutput(project, root, range, dirtyPaths, false, detectRenames);
 
         Collection<Change> changes = new ArrayList<>();
         parseChanges(project, root, newRev, oldRev, output, changes, Collections.<String>emptySet());
         return changes;
+    }
+
+    @Nullable
+    public static Collection<Change> getDiff(@Nonnull GitRepository repository,
+                                             @Nonnull String oldRevision,
+                                             @Nonnull String newRevision,
+                                             boolean detectRenames) {
+        try {
+            return getDiff(repository.getProject(), repository.getRoot(), oldRevision, newRevision, null, detectRenames, false);
+        }
+        catch (VcsException e) {
+            LOG.info("Couldn't collect changes between " + oldRevision + " and " + newRevision, e);
+            return null;
+        }
+    }
+
+    @Nonnull
+    public static Collection<Change> getThreeDotDiffOrThrow(@Nonnull GitRepository repository,
+                                                            @Nonnull String oldRevision,
+                                                            @Nonnull String newRevision) throws VcsException {
+        return getDiff(repository.getProject(), repository.getRoot(), oldRevision, newRevision, null, true, true);
     }
 
     @Nonnull
@@ -571,7 +613,7 @@ public class GitChangeUtils {
         @Nullable Collection<FilePath> dirtyPaths,
         boolean reverse
     ) throws VcsException {
-        String output = getDiffOutput(project, root, oldRevision, dirtyPaths, reverse);
+        String output = getDiffOutput(project, root, oldRevision, dirtyPaths, reverse, true);
         Collection<Change> changes = new ArrayList<>();
         GitRevisionNumber revisionNumber = resolveReference(project, root, oldRevision);
         parseChanges(
@@ -603,12 +645,13 @@ public class GitChangeUtils {
         @Nonnull VirtualFile root,
         @Nonnull String diffRange,
         @Nullable Collection<FilePath> dirtyPaths,
-        boolean reverse
+        boolean reverse,
+        boolean detectRenames
     ) throws VcsException {
-        GitSimpleHandler handler = getDiffHandler(project, root, diffRange, dirtyPaths, reverse);
+        GitSimpleHandler handler = getDiffHandler(project, root, diffRange, dirtyPaths, reverse, detectRenames);
         if (handler.isLargeCommandLine()) {
             // if there are too much files, just get all changes for the project
-            handler = getDiffHandler(project, root, diffRange, null, reverse);
+            handler = getDiffHandler(project, root, diffRange, null, reverse, detectRenames);
         }
         return handler.run();
     }
@@ -620,7 +663,7 @@ public class GitChangeUtils {
         @Nonnull String diffRange,
         @Nullable Collection<FilePath> dirtyPaths
     ) throws VcsException {
-        return getDiffOutput(project, root, diffRange, dirtyPaths, false);
+        return getDiffOutput(project, root, diffRange, dirtyPaths, false, true);
     }
 
 
@@ -630,13 +673,18 @@ public class GitChangeUtils {
         @Nonnull VirtualFile root,
         @Nonnull String diffRange,
         @Nullable Collection<FilePath> dirtyPaths,
-        boolean reverse
+        boolean reverse,
+        boolean detectRenames
     ) {
         GitSimpleHandler handler = new GitSimpleHandler(project, root, GitCommand.DIFF);
         if (reverse) {
             handler.addParameters("-R");
         }
-        handler.addParameters("--name-status", "--diff-filter=ADCMRUXT", "-M", diffRange);
+        handler.addParameters("--name-status", "--diff-filter=ADCMRUXT");
+        if (detectRenames) {
+            handler.addParameters("-M");
+        }
+        handler.addParameters(diffRange);
         handler.setSilent(true);
         handler.setStdoutSuppressed(true);
         handler.endOptions();

@@ -1285,6 +1285,10 @@ progress.text.worktree.running.setup.script:
     text: Running the setup script…
 progress.text.worktree.opening.project:
     text: Opening project…
+Git.WorkingTrees.delete.current.worktree.checkbox:
+    text: Delete the worktree
+Git.WorkingTrees.delete.current.worktree.project.will.be.closed:
+    text: The project will be closed
 Git.WorkingTrees.delete.worktree.success.message:
     text: Deleted worktree `{0}`
 Git.WorkingTrees.delete.worktrees.failure.notification.title:

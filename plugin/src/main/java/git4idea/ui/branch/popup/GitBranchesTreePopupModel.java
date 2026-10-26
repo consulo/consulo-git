@@ -79,6 +79,11 @@ public class GitBranchesTreePopupModel extends DvcsBranchesTreePopupModel<GitRep
     }
 
     @Override
+    protected String getTopLevelActionGroupId() {
+        return GitBranchesPopupTopLevelActionsGroup.ID;
+    }
+
+    @Override
     public void appendHeaderActions(Consumer<AnAction> consumer) {
         super.appendHeaderActions(consumer);
         consumer.accept(new GitBranchPopupFetchAction());
