@@ -42,6 +42,7 @@ import consulo.ui.ex.action.DefaultActionGroup;
 import consulo.ui.ex.popup.JBPopupFactory;
 import consulo.ui.ex.popup.ListPopup;
 import consulo.ui.image.Image;
+import consulo.ui.image.ImageEffects;
 import consulo.ui.layout.DockLayout;
 import consulo.ui.layout.HorizontalLayout;
 import consulo.ui.layout.VerticalLayout;
@@ -54,13 +55,17 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
 public class RepositoryAndAccountSelectorComponentFactory<M extends HostedGitRepositoryMapping> {
+    private static final int AVATAR_SIZE = 20;
+
     private final RepositoryAndAccountSelectorViewModel<M> myVm;
 
     public RepositoryAndAccountSelectorComponentFactory(RepositoryAndAccountSelectorViewModel<M> vm) {
@@ -112,13 +117,14 @@ public class RepositoryAndAccountSelectorComponentFactory<M extends HostedGitRep
         MutableFlatDataModel<Account> accountModel = FlatDataModel.of(myVm.getAccountsState().get());
         ComboBox<Account> accountCombo = ComboBox.create(accountModel);
         Set<String> avatarSubscriptions = new HashSet<>();
+        Map<String, Image> avatars = new ConcurrentHashMap<>();
         accountCombo.setRenderer((presentation, item) -> {
             Account account = item.getValue();
             if (account == null) {
                 presentation.append(ReviewLocalize.accountChooseLink(), TextAttribute.GRAYED);
                 return;
             }
-            Image avatar = accountManager.getAvatar(account).get();
+            Image avatar = avatars.get(account.getId());
             if (avatar != null) {
                 presentation.withIcon(avatar);
             }
@@ -145,7 +151,14 @@ public class RepositoryAndAccountSelectorComponentFactory<M extends HostedGitRep
             for (Account account : accounts) {
                 if (avatarSubscriptions.add(account.getId())) {
                     ObservableValue<@Nullable Image> avatar = accountManager.getAvatar(account);
+                    Image loaded = avatar.get();
+                    if (loaded != null) {
+                        avatars.put(account.getId(), ImageEffects.resize(loaded, AVATAR_SIZE));
+                    }
                     Disposer.register(parentDisposable, avatar.addListener(image -> uiAccess.give(() -> {
+                        if (image != null) {
+                            avatars.put(account.getId(), ImageEffects.resize(image, AVATAR_SIZE));
+                        }
                         if (accountModel.indexOf(account) >= 0) {
                             accountModel.update(account);
                         }
