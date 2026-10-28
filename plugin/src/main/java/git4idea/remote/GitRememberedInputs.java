@@ -19,10 +19,7 @@ import consulo.annotation.component.ComponentScope;
 import consulo.annotation.component.ServiceAPI;
 import consulo.annotation.component.ServiceImpl;
 import consulo.application.Application;
-import consulo.component.persist.PersistentStateComponent;
-import consulo.component.persist.State;
-import consulo.component.persist.Storage;
-import consulo.component.persist.StoragePathMacros;
+import consulo.component.persist.*;
 import consulo.versionControlSystem.distributed.DvcsRememberedInputs;
 import jakarta.inject.Singleton;
 
@@ -32,31 +29,28 @@ import jakarta.inject.Singleton;
 @Singleton
 @State(
     name = "GitRememberedInputs",
-    storages = @Storage(file = StoragePathMacros.APP_CONFIG + "/vcs.xml")
+    storages = @Storage(value = "vcs-inputs", roamingType = RoamingType.DISABLED)
 )
 @ServiceAPI(ComponentScope.APPLICATION)
 @ServiceImpl
-public class GitRememberedInputs extends DvcsRememberedInputs implements PersistentStateComponent<GitRememberedInputs.State> {
-    public static class State extends DvcsRememberedInputs.State {
-        public String puttyKey = "";
-    }
-
-    public GitRememberedInputs() {
-        super.loadState(new State());
-    }
-
+public class GitRememberedInputs extends DvcsRememberedInputs<GitRememberedInputsState> implements PersistentStateComponent<GitRememberedInputsState> {
     public static GitRememberedInputs getInstance() {
         return Application.get().getInstance(GitRememberedInputs.class);
     }
 
-    @Override
-    public State getState() {
-        return (State)super.getState();
+    private GitRememberedInputsState myState = new GitRememberedInputsState();
+
+    public GitRememberedInputs() {
     }
 
     @Override
-    public void loadState(State state) {
-        super.loadState(state);
+    public GitRememberedInputsState getState() {
+        return myState;
+    }
+
+    @Override
+    public void loadState(GitRememberedInputsState state) {
+        myState = state;
     }
 
     public void setPuttyKey(String puttyKey) {
