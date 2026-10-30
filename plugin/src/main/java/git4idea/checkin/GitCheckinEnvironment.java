@@ -876,7 +876,7 @@ public class GitCheckinEnvironment implements CheckinEnvironment {
         @Override
         @RequiredUIAccess
         public void restoreState() {
-            refresh();
+            mySignOffCheckbox.setValue(mySettings.shouldSignOffCommit());
         }
 
         @Override
