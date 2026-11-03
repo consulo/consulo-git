@@ -21,6 +21,7 @@ import consulo.project.ui.notification.NotificationService;
 import consulo.ui.annotation.RequiredUIAccess;
 import consulo.versionControlSystem.distributed.push.PushSpec;
 import consulo.versionControlSystem.distributed.push.Pusher;
+import consulo.versionControlSystem.distributed.push.ForcePushType;
 import consulo.versionControlSystem.distributed.push.VcsPushOptionValue;
 import git4idea.GitUtil;
 import git4idea.config.GitVcsSettings;
@@ -56,6 +57,26 @@ class GitPusher extends Pusher<GitRepository, GitPushSource, GitPushTarget> {
         @Nullable VcsPushOptionValue optionValue,
         boolean force
     ) {
+        push(pushSpecs, optionValue, force ? ForcePushType.DEFAULT : null);
+    }
+
+    @Override
+    @RequiredUIAccess
+    public void push(
+        @Nonnull Map<GitRepository, PushSpec<GitPushSource, GitPushTarget>> pushSpecs,
+        @Nullable VcsPushOptionValue optionValue,
+        @Nullable ForcePushType forceType,
+        @Nonnull Map<String, VcsPushOptionValue> customParams
+    ) {
+        push(pushSpecs, optionValue, forceType);
+    }
+
+    @RequiredUIAccess
+    private void push(
+        @Nonnull Map<GitRepository, PushSpec<GitPushSource, GitPushTarget>> pushSpecs,
+        @Nullable VcsPushOptionValue optionValue,
+        @Nullable ForcePushType forceType
+    ) {
         expireExistingErrorsAndWarnings();
         GitPushTagMode pushTagMode;
         boolean skipHook;
@@ -68,7 +89,7 @@ class GitPusher extends Pusher<GitRepository, GitPushSource, GitPushTarget> {
             skipHook = false;
         }
 
-        GitPushResult result = new GitPushOperation(myProject, myPushSupport, pushSpecs, pushTagMode, force, skipHook).execute();
+        GitPushResult result = new GitPushOperation(myProject, myPushSupport, pushSpecs, pushTagMode, forceType, skipHook).execute();
         GitPushResultNotification notification = GitPushResultNotification.create(myProject, result, myRepositoryManager.moreThanOneRoot());
         notification.notify(myProject);
         mySettings.setPushTagMode(pushTagMode);

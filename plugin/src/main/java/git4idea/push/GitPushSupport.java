@@ -26,13 +26,17 @@ import git4idea.*;
 import git4idea.branch.GitBranchUtil;
 import git4idea.config.GitSharedSettings;
 import git4idea.config.GitVcsSettings;
+import git4idea.config.GitVersion;
 import git4idea.config.GitVersionSpecialty;
 import git4idea.repo.*;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import jakarta.inject.Inject;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 @ExtensionImpl
 public class GitPushSupport extends PushSupport<GitRepository, GitPushSource, GitPushTarget> {
@@ -218,6 +222,33 @@ public class GitPushSupport extends PushSupport<GitRepository, GitPushSource, Gi
             target.remoteBranch().getRemote().getName(),
             target.remoteBranch().getNameForRemoteOperations()
         );
+    }
+
+    @Nonnull
+    @Override
+    public List<ForcePushType> getForcePushTypes() {
+        if (!mySettings.isForcePushAllowed()) {
+            return List.of();
+        }
+
+        GitVersion version = myVcs.getVersion();
+        List<ForcePushType> types = new ArrayList<>();
+        for (GitForcePushType type : mySettings.getForcePushTypes()) {
+            if (type.isSupported(version)) {
+                types.add(type);
+            }
+        }
+        return types;
+    }
+
+    @Nonnull
+    @Override
+    @RequiredUIAccess
+    public CompletableFuture<ForcePushType> beforeForcePush(@Nonnull ForcePushType type, @Nonnull Collection<PushInfo> pushInfos) {
+        if (type == GitForcePushType.FORCE_WITH_LEASE_HASH) {
+            return GitForcePushHashDialog.showAsync(pushInfos);
+        }
+        return CompletableFuture.completedFuture(type);
     }
 
     @Override

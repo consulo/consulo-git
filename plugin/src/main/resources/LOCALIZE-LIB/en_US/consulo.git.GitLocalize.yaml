@@ -1697,3 +1697,31 @@ branch.direction.panel.warning.push:
     text: "There is no remote branch for ''{0}''.\nNew remote branch will be created on ''{1}''."
 branch.direction.panel.warning.not.synced:
     text: "Local branch is not in sync with remote.\n''{0}'' branch will be synced with ''{1}''."
+push.force.type.force:
+    text: _Force Push
+push.force.type.force.with.lease:
+    text: Force Push (with _Lease)
+push.force.type.force.with.lease.if.includes:
+    text: Force Push (with Lease, If _Includes)
+push.force.type.force.with.lease.hash:
+    text: Force Push (with Lease, _Hash)…
+push.force.hash.dialog.title:
+    text: Force Push with Expected Commit
+push.force.hash.dialog.description:
+    text: Push will be rejected if remote branch does not point to the expected commit.
+push.force.hash.dialog.invalid.hash:
+    text: Value ''{0}'' is not a commit hash
+settings.force.push.types:
+    text: 'Force push actions:'
+settings.force.push.types.default:
+    text: Default
+settings.force.push.type.requires.git:
+    text: '{0} (requires Git {1})'
+push.force.type.force.description:
+    text: 'Runs git push --force. Overwrites the remote branch, even if it contains commits you don''t have.'
+push.force.type.force.with.lease.description:
+    text: 'Runs git push --force-with-lease. Rejected if the remote branch is not where your last fetch saw it.'
+push.force.type.force.with.lease.if.includes.description:
+    text: 'Runs git push --force-with-lease --force-if-includes. Also rejected if fetched remote commits were not integrated into your branch.'
+push.force.type.force.with.lease.hash.description:
+    text: 'Runs git push --force-with-lease=<branch>:<commit>. Asks for the commit the remote branch must point to.'

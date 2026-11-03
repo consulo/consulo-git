@@ -26,6 +26,7 @@ import consulo.process.cmd.ParametersListUtil;
 import consulo.project.Project;
 import consulo.ui.*;
 import consulo.ui.annotation.RequiredUIAccess;
+import consulo.ui.ex.action.Presentation;
 import consulo.ui.layout.DockLayout;
 import consulo.ui.layout.HorizontalLayout;
 import consulo.ui.layout.VerticalLayout;
@@ -36,6 +37,7 @@ import consulo.versionControlSystem.distributed.branch.DvcsSyncSettings;
 import consulo.versionControlSystem.distributed.localize.DistributedVcsLocalize;
 import git4idea.GitVcs;
 import git4idea.config.*;
+import git4idea.push.GitForcePushType;
 import git4idea.repo.GitRepositoryManager;
 import jakarta.annotation.Nonnull;
 
@@ -59,6 +61,7 @@ public class GitVcsPanel {
     private final CheckBox myEnableForcePush;
     private final TextBoxWithExpandAction myProtectedBranchesButton;
     private final Label myProtectedBranchesLabel;
+    private final MultiSelectComboBox<GitForcePushType> myForcePushTypes;
     private final ComboBox<UpdateMethod> myUpdateMethodComboBox;
 
     @Nonnull
@@ -111,10 +114,26 @@ public class GitVcsPanel {
             ParametersListUtil.COLON_LINE_JOINER
         );
 
-        myEnableForcePush.addValueListener(e -> {
-            myProtectedBranchesButton.setEnabled(myEnableForcePush.getValueOrError());
-            myProtectedBranchesLabel.setEnabled(myEnableForcePush.getValueOrError());
+        GitVersion gitVersion = myVcs.getVersion();
+        myForcePushTypes = MultiSelectComboBox.create(GitForcePushType.values());
+        myForcePushTypes.setPlaceholder(GitLocalize.settingsForcePushTypesDefault());
+        myForcePushTypes.setTextRenderer(type -> {
+            if (type == null) {
+                return LocalizeValue.empty();
+            }
+            LocalizeValue text = type.getActionText().map(Presentation.NO_MNEMONIC);
+            String requiredVersion = type.getRequiredVersion();
+            if (requiredVersion != null && !type.isSupported(gitVersion)) {
+                return GitLocalize.settingsForcePushTypeRequiresGit(text, requiredVersion);
+            }
+            return text;
         });
+        myForcePushTypes.setSummaryRenderer(types -> LocalizeValue.join(
+            ", ",
+            types.stream().map(type -> type.getActionText().map(Presentation.NO_MNEMONIC)).toArray(LocalizeValue[]::new)
+        ));
+
+        myEnableForcePush.addValueListener(e -> updateForcePushComponents());
 
         myRootPanel.add(DockLayout.create().left(Label.create(GitLocalize.gitVcsConfigPathLabel())).center(myGitField).right(testButton));
         myRootPanel.add(LabeledBuilder.sided(GitLocalize.gitVcsConfigSshMode(), mySSHExecutableComboBox));
@@ -131,6 +150,9 @@ public class GitVcsPanel {
                 .left(myEnableForcePush)
                 .right(HorizontalLayout.create().add(myProtectedBranchesLabel).add(myProtectedBranchesButton))
         );
+        Component forcePushTypesLabeled = LabeledBuilder.sided(GitLocalize.settingsForcePushTypes(), myForcePushTypes);
+        Indenter.indent(forcePushTypesLabeled);
+        myRootPanel.add(forcePushTypesLabeled);
     }
 
     /**
@@ -205,6 +227,8 @@ public class GitVcsPanel {
         myWarnAboutDetachedHead.setValue(settings.warnAboutDetachedHead());
         myEnableForcePush.setValue(settings.isForcePushAllowed());
         myUpdateMethodComboBox.setValue(settings.getUpdateType());
+        myForcePushTypes.setValue(settings.getForcePushTypes());
+        updateForcePushComponents();
         myProtectedBranchesButton.setValue(ParametersListUtil.COLON_LINE_JOINER.apply(sharedSettings.getForcePushProhibitedPatterns()));
     }
 
@@ -224,6 +248,7 @@ public class GitVcsPanel {
             || settings.warnAboutDetachedHead() != myWarnAboutDetachedHead.getValueOrError()
             || settings.isForcePushAllowed() != myEnableForcePush.getValueOrError()
             || settings.getUpdateType() != myUpdateMethodComboBox.getValueOrError()
+            || !settings.getForcePushTypes().equals(getSelectedForcePushTypes())
             || !ContainerUtil.sorted(sharedSettings.getForcePushProhibitedPatterns())
             .equals(ContainerUtil.sorted(getProtectedBranchesPatterns()));
     }
@@ -251,7 +276,26 @@ public class GitVcsPanel {
         settings.setWarnAboutDetachedHead(myWarnAboutDetachedHead.getValueOrError());
         settings.setForcePushAllowed(myEnableForcePush.getValueOrError());
         settings.setUpdateType(myUpdateMethodComboBox.getValueOrError());
+        settings.setForcePushTypes(myForcePushTypes.getValue());
         sharedSettings.setForcePushProhibitedPatters(getProtectedBranchesPatterns());
+    }
+
+    @RequiredUIAccess
+    private void updateForcePushComponents() {
+        boolean enabled = myEnableForcePush.getValueOrError();
+        myProtectedBranchesButton.setEnabled(enabled);
+        myProtectedBranchesLabel.setEnabled(enabled);
+        myForcePushTypes.setEnabled(enabled);
+    }
+
+    /**
+     * @return selected types, empty selection means defaults
+     */
+    @Nonnull
+    @RequiredUIAccess
+    private List<GitForcePushType> getSelectedForcePushTypes() {
+        List<GitForcePushType> types = myForcePushTypes.getValue();
+        return types.isEmpty() ? GitForcePushType.DEFAULTS : types;
     }
 
     @Nonnull

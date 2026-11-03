@@ -210,11 +210,28 @@ public interface Git {
     );
 
     @Nonnull
-    GitCommandResult push(
+    default GitCommandResult push(
         @Nonnull GitRepository repository,
         @Nonnull GitRemote remote,
         @Nonnull String spec,
         boolean force,
+        boolean updateTracking,
+        boolean skipHook,
+        @Nullable String tagMode,
+        GitLineHandlerListener... listeners
+    ) {
+        return push(repository, remote, spec, force ? List.of("--force") : List.of(), updateTracking, skipHook, tagMode, listeners);
+    }
+
+    /**
+     * @param forceParameters force push parameters, like {@code --force} or {@code --force-with-lease}, empty for usual push
+     */
+    @Nonnull
+    GitCommandResult push(
+        @Nonnull GitRepository repository,
+        @Nonnull GitRemote remote,
+        @Nonnull String spec,
+        @Nonnull List<String> forceParameters,
         boolean updateTracking,
         boolean skipHook,
         @Nullable String tagMode,

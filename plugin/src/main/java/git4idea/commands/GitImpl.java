@@ -487,7 +487,7 @@ public class GitImpl implements Git {
                                @Nonnull String spec,
                                boolean updateTracking,
                                @Nonnull GitLineHandlerListener... listeners) {
-    return doPush(repository, remote, puttyKey, singleton(url), spec, false, updateTracking, false, null, listeners);
+    return doPush(repository, remote, puttyKey, singleton(url), spec, List.of(), updateTracking, false, null, listeners);
   }
 
   @Override
@@ -495,7 +495,7 @@ public class GitImpl implements Git {
   public GitCommandResult push(@Nonnull GitRepository repository,
                                @Nonnull GitRemote remote,
                                @Nonnull String spec,
-                               boolean force,
+                               @Nonnull List<String> forceParameters,
                                boolean updateTracking,
                                boolean skipHook,
                                @Nullable String tagMode,
@@ -505,7 +505,7 @@ public class GitImpl implements Git {
                   remote.getPuttyKeyFile(),
                   remote.getPushUrls(),
                   spec,
-                  force,
+                  forceParameters,
                   updateTracking,
                   skipHook,
                   tagMode,
@@ -518,7 +518,7 @@ public class GitImpl implements Git {
                                   @Nullable String puttyKey,
                                   @Nonnull final Collection<String> remoteUrls,
                                   @Nonnull final String spec,
-                                  final boolean force,
+                                  @Nonnull final List<String> forceParameters,
                                   final boolean updateTracking,
                                   boolean skipHook,
                                   @Nullable final String tagMode,
@@ -538,9 +538,7 @@ public class GitImpl implements Git {
                         if (updateTracking) {
                           h.addParameters("--set-upstream");
                         }
-                        if (force) {
-                          h.addParameters("--force");
-                        }
+                        h.addParameters(forceParameters);
                         if (tagMode != null) {
                           h.addParameters(tagMode);
                         }

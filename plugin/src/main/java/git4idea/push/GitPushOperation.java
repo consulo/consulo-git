@@ -27,10 +27,12 @@ import consulo.util.collection.ContainerUtil;
 import consulo.util.lang.ObjectUtil;
 import consulo.versionControlSystem.VcsException;
 import consulo.versionControlSystem.distributed.DvcsUtil;
+import consulo.versionControlSystem.distributed.push.ForcePushType;
 import consulo.versionControlSystem.distributed.push.PushSpec;
 import consulo.versionControlSystem.distributed.repository.Repository;
 import consulo.versionControlSystem.update.UpdatedFiles;
 import consulo.virtualFileSystem.VirtualFile;
+import git4idea.GitBranch;
 import git4idea.GitLocalBranch;
 import git4idea.GitRemoteBranch;
 import git4idea.GitRevisionNumber;
@@ -81,7 +83,8 @@ public class GitPushOperation {
     private final Map<GitRepository, PushSpec<GitPushSource, GitPushTarget>> myPushSpecs;
     @Nullable
     private final GitPushTagMode myTagMode;
-    private final boolean myForce;
+    @Nullable
+    private final ForcePushType myForceType;
     private final boolean mySkipHook;
     private final Git myGit;
     private final ProgressIndicator myProgressIndicator;
@@ -96,11 +99,26 @@ public class GitPushOperation {
         boolean force,
         boolean skipHook
     ) {
+        this(project, pushSupport, pushSpecs, tagMode, force ? GitForcePushType.FORCE : null, skipHook);
+    }
+
+    /**
+     * @param forceType one of {@link GitForcePushType}, {@link GitForcePushWithHash},
+     *                  {@link ForcePushType#DEFAULT} (plain force push), or null for usual push
+     */
+    public GitPushOperation(
+        @Nonnull Project project,
+        @Nonnull GitPushSupport pushSupport,
+        @Nonnull Map<GitRepository, PushSpec<GitPushSource, GitPushTarget>> pushSpecs,
+        @Nullable GitPushTagMode tagMode,
+        @Nullable ForcePushType forceType,
+        boolean skipHook
+    ) {
         myProject = project;
         myPushSupport = pushSupport;
         myPushSpecs = pushSpecs;
         myTagMode = tagMode;
-        myForce = force;
+        myForceType = forceType;
         mySkipHook = skipHook;
         myGit = Git.getInstance();
         myProgressIndicator = ObjectUtil.notNull(ProgressManager.getInstance().getProgressIndicator(), new EmptyProgressIndicator());
@@ -149,7 +167,7 @@ public class GitPushOperation {
                 // propose to update if rejected
                 if (!result.rejected.isEmpty()) {
                     boolean shouldUpdate = true;
-                    if (myForce || pushingToNotTrackedBranch(result.rejected)) {
+                    if (myForceType != null || pushingToNotTrackedBranch(result.rejected)) {
                         shouldUpdate = false;
                     }
                     else if (pushAttempt == 0 && !mySettings.autoUpdateIfPushRejected()) {
@@ -367,8 +385,46 @@ public class GitPushOperation {
 
         String spec = sourceBranch.getFullName() + ":" + targetBranch.getNameForRemoteOperations();
         GitCommandResult res =
-            myGit.push(repository, targetBranch.getRemote(), spec, myForce, setUpstream, mySkipHook, tagMode, progressListener);
+            myGit.push(
+                repository,
+                targetBranch.getRemote(),
+                spec,
+                getForceParameters(repository, targetBranch),
+                setUpstream,
+                mySkipHook,
+                tagMode,
+                progressListener
+            );
         return new ResultWithOutput(res);
+    }
+
+    @Nonnull
+    private List<String> getForceParameters(@Nonnull GitRepository repository, @Nonnull GitRemoteBranch targetBranch) {
+        if (myForceType == null) {
+            return List.of();
+        }
+
+        if (myForceType instanceof GitForcePushWithHash withHash) {
+            String expectedHash = withHash.expectedHashes().get(repository);
+            if (expectedHash == null) {
+                return List.of("--force-with-lease");
+            }
+            // empty expected hash means that target branch must not exist
+            String refName = GitBranch.REFS_HEADS_PREFIX + targetBranch.getNameForRemoteOperations();
+            return List.of("--force-with-lease=" + refName + ":" + expectedHash);
+        }
+
+        if (myForceType instanceof GitForcePushType gitType) {
+            return switch (gitType) {
+                case FORCE -> List.of("--force");
+                // without hash git uses remote tracking branch as expected value
+                case FORCE_WITH_LEASE, FORCE_WITH_LEASE_HASH -> List.of("--force-with-lease");
+                // --force-if-includes is no-op if expected hash is specified
+                case FORCE_WITH_LEASE_IF_INCLUDES -> List.of("--force-with-lease", "--force-if-includes");
+            };
+        }
+
+        return List.of("--force");
     }
 
     private static boolean branchTrackingInfoIsSet(@Nonnull GitRepository repository, @Nonnull GitLocalBranch source) {

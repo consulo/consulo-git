@@ -35,6 +35,7 @@ import consulo.versionControlSystem.distributed.repository.Repository;
 import git4idea.GitRemoteBranch;
 import git4idea.GitUtil;
 import git4idea.branch.GitBranchType;
+import git4idea.push.GitForcePushType;
 import git4idea.push.GitPushTagMode;
 import git4idea.repo.GitRemote;
 import git4idea.repo.GitRepository;
@@ -90,6 +91,8 @@ public class GitVcsSettings implements PersistentStateComponent<GitVcsSettings.S
         public boolean WARN_ABOUT_DETACHED_HEAD = true;
         public GitResetMode RESET_MODE = null;
         public boolean FORCE_PUSH_ALLOWED = false;
+        // empty - use defaults. Must be not null - serializer fills existing collection
+        public List<GitForcePushType> FORCE_PUSH_TYPES = new ArrayList<>();
         public GitPushTagMode PUSH_TAGS = null;
         public boolean SIGN_OFF_COMMIT = false;
         public GitIncomingRemoteCheckStrategy INCOMING_COMMITS_CHECK_STRATEGY = GitIncomingRemoteCheckStrategy.LS_REMOTE;
@@ -265,6 +268,32 @@ public class GitVcsSettings implements PersistentStateComponent<GitVcsSettings.S
 
     public void setForcePushAllowed(boolean allowed) {
         myState.FORCE_PUSH_ALLOWED = allowed;
+    }
+
+    /**
+     * @return force push types, selected by user, or {@link GitForcePushType#DEFAULTS}
+     */
+    @Nonnull
+    public List<GitForcePushType> getForcePushTypes() {
+        List<GitForcePushType> types = myState.FORCE_PUSH_TYPES;
+        // unknown names (from newer versions) can be deserialized as null
+        List<GitForcePushType> result = new ArrayList<>(types == null ? 0 : types.size());
+        if (types != null) {
+            for (GitForcePushType type : types) {
+                if (type != null && !result.contains(type)) {
+                    result.add(type);
+                }
+            }
+        }
+        return result.isEmpty() ? GitForcePushType.DEFAULTS : result;
+    }
+
+    /**
+     * @param types selected types, empty list or null means defaults
+     */
+    public void setForcePushTypes(@Nullable List<GitForcePushType> types) {
+        boolean isDefault = types == null || types.isEmpty() || types.equals(GitForcePushType.DEFAULTS);
+        myState.FORCE_PUSH_TYPES = isDefault ? new ArrayList<>() : new ArrayList<>(types);
     }
 
     @Nullable

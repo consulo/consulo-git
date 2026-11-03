@@ -237,6 +237,26 @@ public enum GitVersionSpecialty {
         }
     },
 
+    /**
+     * Option "--force-with-lease" is supported since git version 1.8.5
+     */
+    SUPPORTS_FORCE_PUSH_WITH_LEASE {
+        @Override
+        public boolean existsIn(@Nonnull GitVersion version) {
+            return version.isLaterOrEqual(new GitVersion(1, 8, 5, 0));
+        }
+    },
+
+    /**
+     * Option "--force-if-includes" is supported since git version 2.30.0
+     */
+    SUPPORTS_FORCE_IF_INCLUDES {
+        @Override
+        public boolean existsIn(@Nonnull GitVersion version) {
+            return version.isLaterOrEqual(new GitVersion(2, 30, 0, 0));
+        }
+    },
+
     LF_SEPARATORS_IN_STDIN {
         @Override
         public boolean existsIn(@Nonnull GitVersion version) {
