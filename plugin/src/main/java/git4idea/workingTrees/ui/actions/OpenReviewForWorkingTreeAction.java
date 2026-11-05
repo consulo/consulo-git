@@ -4,6 +4,7 @@ package git4idea.workingTrees.ui.actions;
 import consulo.annotation.component.ActionImpl;
 import consulo.git.icon.GitIconGroup;
 import consulo.git.localize.GitLocalize;
+import consulo.review.icon.ReviewIconGroup;
 import consulo.ui.annotation.RequiredUIAccess;
 import consulo.ui.ex.action.AnActionEvent;
 import consulo.ui.ex.action.AnActionWithSyncUpdate;
@@ -13,7 +14,7 @@ import git4idea.ui.branch.GitBranchReview;
 @ActionImpl(id = "Git.WorkingTrees.OpenReview")
 public class OpenReviewForWorkingTreeAction extends DumbAwareAction implements AnActionWithSyncUpdate {
     public OpenReviewForWorkingTreeAction() {
-        super(GitLocalize.actionGitWorkingtreesOpenreviewText(), GitLocalize.actionGitWorkingtreesOpenreviewDescription(), GitIconGroup.pullrequestopen());
+        super(GitLocalize.actionGitWorkingtreesOpenreviewText(), GitLocalize.actionGitWorkingtreesOpenreviewDescription(), ReviewIconGroup.pullrequestopen());
     }
 
     @Override

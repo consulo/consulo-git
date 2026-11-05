@@ -20,6 +20,7 @@ import consulo.git.icon.GitIconGroup;
 import consulo.git.localize.GitLocalize;
 import consulo.localize.LocalizeValue;
 import consulo.platform.base.icon.PlatformIconGroup;
+import consulo.review.icon.ReviewIconGroup;
 import consulo.versionControlSystem.FilePath;
 import consulo.versionControlSystem.workspace.VcsWorkspaceBadge;
 import git4idea.GitWorkingTree;
@@ -86,7 +87,7 @@ public record GitWorktreeRow(GitRepository repository,
     @Override
     public List<VcsWorkspaceBadge> getRevisionBadges() {
         GitBranchReview review = this.review;
-        return review == null ? List.of() : List.of(new VcsWorkspaceBadge(GitIconGroup.pullrequestopen(), LocalizeValue.of(review.getTitle())));
+        return review == null ? List.of() : List.of(new VcsWorkspaceBadge(ReviewIconGroup.pullrequestopen(), LocalizeValue.of(review.getTitle())));
     }
 
     @Override
