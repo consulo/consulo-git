@@ -117,17 +117,23 @@ public class GitVcsPanel {
         GitVersion gitVersion = myVcs.getVersion();
         myForcePushTypes = MultiSelectComboBox.create(GitForcePushType.values());
         myForcePushTypes.setPlaceholder(GitLocalize.settingsForcePushTypesDefault());
-        myForcePushTypes.setTextRenderer(type -> {
+        myForcePushTypes.setRenderer((presentation, item) -> {
+            GitForcePushType type = item.getValue();
             if (type == null) {
-                return LocalizeValue.empty();
+                return;
             }
+
+            presentation.withTooltip(type.getDescription());
+
             LocalizeValue text = type.getActionText().map(Presentation.NO_MNEMONIC);
             String requiredVersion = type.getRequiredVersion();
             if (requiredVersion != null && !type.isSupported(gitVersion)) {
-                return GitLocalize.settingsForcePushTypeRequiresGit(text, requiredVersion);
+                presentation.append(GitLocalize.settingsForcePushTypeRequiresGit(text, requiredVersion));
+            } else {
+                presentation.append(text);
             }
-            return text;
         });
+
         myForcePushTypes.setSummaryRenderer(types -> LocalizeValue.join(
             ", ",
             types.stream().map(type -> type.getActionText().map(Presentation.NO_MNEMONIC)).toArray(LocalizeValue[]::new)
