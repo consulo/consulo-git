@@ -51,7 +51,6 @@ module com.intellij.git {
     opens git4idea.ui.branch to consulo.component.impl;
 
     exports consulo.git;
-    exports consulo.git.config;
     exports consulo.git.icon;
     exports consulo.git.localize;
     exports git4idea;

@@ -1,10 +1,12 @@
 package consulo.git;
 
 import consulo.annotation.component.ExtensionImpl;
+import consulo.git.icon.GitIconGroup;
 import consulo.git.localize.GitLocalize;
 import consulo.localize.LocalizeValue;
 import consulo.project.Project;
 import consulo.project.ui.notification.NotificationService;
+import consulo.ui.image.Image;
 import consulo.versionControlSystem.AbstractVcs;
 import consulo.versionControlSystem.VcsFactory;
 import git4idea.GitVcs;
@@ -74,6 +76,11 @@ public class GitVcsFactory implements VcsFactory {
     @Override
     public LocalizeValue getDisplayName() {
         return GitLocalize.git4ideaVcsName();
+    }
+
+    @Override
+    public Image getIcon() {
+        return GitIconGroup.git();
     }
 
     @Nonnull
