@@ -43,8 +43,9 @@ import consulo.versionControlSystem.util.VcsImplUtil;
 import consulo.versionControlSystem.util.VcsUtil;
 import consulo.versionControlSystem.versionBrowser.CommittedChangeList;
 import consulo.versionControlSystem.virtualFileSystem.AbstractVcsVirtualFile;
-import consulo.virtualFileSystem.LocalFileSystem;
 import consulo.virtualFileSystem.VirtualFile;
+import consulo.virtualFileSystem.VirtualFileManager;
+import consulo.virtualFileSystem.VirtualFileSystem;
 import git4idea.branch.GitBranchUtil;
 import git4idea.changes.GitChangeUtils;
 import git4idea.changes.GitCommittedChangeList;
@@ -66,6 +67,9 @@ import java.io.File;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
+import java.nio.file.Path;
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -116,17 +120,19 @@ public class GitUtil {
     /**
      * Returns the Git repository location for the given repository root directory, or null if nothing can be found.
      * Able to find the real repository root of a submodule.
+     * <p>
+     * Works with a path of any machine - the local one, or the platform of a remote project.
      *
      * @see #findGitDir(VirtualFile)
      */
     @Nullable
-    public static File findGitDir(@Nonnull File rootDir) {
-        File dotGit = new File(rootDir, DOT_GIT);
-        if (!dotGit.exists()) {
+    public static Path findGitDir(@Nonnull Path rootDir) {
+        Path dotGit = rootDir.resolve(DOT_GIT);
+        if (!Files.exists(dotGit)) {
             return null;
         }
-        if (dotGit.isDirectory()) {
-            boolean headExists = new File(dotGit, HEAD_FILE).exists();
+        if (Files.isDirectory(dotGit)) {
+            boolean headExists = Files.exists(dotGit.resolve(HEAD_FILE));
             return headExists ? dotGit : null;
         }
 
@@ -135,7 +141,7 @@ public class GitUtil {
             return null;
         }
         String pathToDir = parsePathToRepository(content);
-        return findSubmoduleRepositoryDir(rootDir.getPath(), pathToDir);
+        return findSubmoduleRepositoryDir(rootDir, pathToDir);
     }
 
     /**
@@ -163,24 +169,59 @@ public class GitUtil {
             return null;
         }
         String pathToDir = parsePathToRepository(content);
-        File file = findSubmoduleRepositoryDir(rootDir.getPath(), pathToDir);
-        if (file == null) {
+        Path rootPath = toNioPathOrNull(rootDir);
+        if (rootPath == null) {
             return null;
         }
-        return VcsUtil.getVirtualFileWithRefresh(file);
+        Path dir = findSubmoduleRepositoryDir(rootPath, pathToDir);
+        if (dir == null) {
+            return null;
+        }
+        return VirtualFileManager.getInstance().refreshAndFindFileByNioPath(dir);
     }
 
     @Nullable
-    private static File findSubmoduleRepositoryDir(@Nonnull String rootPath, @Nonnull String path) {
-        if (!FileUtil.isAbsolute(path)) {
-            String canonicalPath = FileUtil.toCanonicalPath(FileUtil.join(rootPath, path), true);
-            if (canonicalPath == null) {
-                return null;
-            }
-            path = FileUtil.toSystemIndependentName(canonicalPath);
+    private static Path findSubmoduleRepositoryDir(@Nonnull Path rootDir, @Nonnull String path) {
+        Path dir = resolvePathWrittenByGit(rootDir, path);
+        return dir != null && Files.isDirectory(dir) ? dir : null;
+    }
+
+    /**
+     * Resolves a path written by git into one of its files (e.g. {@code gitdir:} of a {@code .git} file, {@code commondir})
+     * on the file system of the given directory - the local one, or the platform of a remote project.
+     *
+     * @param dir  the directory a relative path is relative to
+     * @param path the absolute or relative path, as written by git
+     * @return the normalized path, or null if the path is invalid for the file system of the directory
+     */
+    @Nullable
+    public static Path resolvePathWrittenByGit(@Nonnull Path dir, @Nonnull String path) {
+        Path written;
+        try {
+            written = dir.getFileSystem().getPath(path);
         }
-        File file = new File(path);
-        return file.isDirectory() ? file : null;
+        catch (InvalidPathException e) {
+            LOG.warn("Invalid path [{}] relative to {}", path, dir, e);
+            return null;
+        }
+        if (written.isAbsolute()) {
+            return written.normalize();
+        }
+        return dir.resolve(written).normalize();
+    }
+
+    /**
+     * @return the path of the file on its machine (the local one, or the platform of a remote project),
+     * or null if the file is not of a file system with paths
+     */
+    @Nullable
+    public static Path toNioPathOrNull(@Nonnull VirtualFile file) {
+        try {
+            return file.toNioPath();
+        }
+        catch (UnsupportedOperationException e) {
+            return null;
+        }
     }
 
     @Nonnull
@@ -442,25 +483,24 @@ public class GitUtil {
     @Deprecated
     @Nullable
     public static VirtualFile getGitRootOrNull(@Nonnull FilePath filePath) {
-        return getGitRootOrNull(filePath.getIOFile());
+        Path path = filePath.getNioPath();
+        return path == null ? null : getGitRootOrNull(path);
     }
 
-    public static boolean isGitRoot(@Nonnull File folder) {
+    public static boolean isGitRoot(@Nonnull Path folder) {
         return findGitDir(folder) != null;
     }
 
     /**
      * @use GitRepositoryManager#getRepositoryForFile().
-     * @deprecated because uses the java.io.File.
      */
-    @Deprecated
     @Nullable
-    public static VirtualFile getGitRootOrNull(File file) {
-        File root = file;
-        while (root != null && (!root.exists() || !root.isDirectory() || !new File(root, DOT_GIT).exists())) {
-            root = root.getParentFile();
+    public static VirtualFile getGitRootOrNull(@Nonnull Path file) {
+        Path root = file;
+        while (root != null && (!Files.isDirectory(root) || !Files.exists(root.resolve(DOT_GIT)))) {
+            root = root.getParent();
         }
-        return root == null ? null : LocalFileSystem.getInstance().findFileByIoFile(root);
+        return root == null ? null : VirtualFileManager.getInstance().findFileByNioPath(root);
     }
 
     /**
@@ -1008,11 +1048,19 @@ public class GitUtil {
         return !output.trim().isEmpty();
     }
 
+    /**
+     * Finds the file by its path, as {@link VirtualFile#getPath()} answers it, in the file system of the given root
+     * (the local one, or the platform of a remote project).
+     *
+     * @param root         a file of the file system to look in, e.g. the git root
+     * @param absolutePath the path of the file in the file system of the root
+     */
     @Nullable
-    public static VirtualFile findRefreshFileOrLog(@Nonnull String absolutePath) {
-        VirtualFile file = LocalFileSystem.getInstance().findFileByPath(absolutePath);
+    public static VirtualFile findRefreshFileOrLog(@Nonnull VirtualFile root, @Nonnull String absolutePath) {
+        VirtualFileSystem fileSystem = root.getFileSystem();
+        VirtualFile file = fileSystem.findFileByPath(absolutePath);
         if (file == null) {
-            file = LocalFileSystem.getInstance().refreshAndFindFileByPath(absolutePath);
+            file = fileSystem.refreshAndFindFileByPath(absolutePath);
         }
         if (file == null) {
             LOG.warn("VirtualFile not found for {}", absolutePath);
@@ -1047,7 +1095,7 @@ public class GitUtil {
         List<Change> affectedChanges = new ArrayList<>();
         for (String path : affectedPaths) {
             String absolutePath = relativePaths ? toAbsolute(root, path) : path;
-            VirtualFile file = findRefreshFileOrLog(absolutePath);
+            VirtualFile file = findRefreshFileOrLog(root, absolutePath);
             if (file == null) {
                 continue;
             }

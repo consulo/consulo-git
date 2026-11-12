@@ -35,7 +35,6 @@ import consulo.ui.util.FormBuilder;
 import consulo.util.concurrent.coroutine.Coroutine;
 import consulo.util.concurrent.coroutine.step.CodeExecution;
 import consulo.util.lang.StringUtil;
-import consulo.virtualFileSystem.util.VirtualFileUtil;
 import git4idea.commands.Git;
 import git4idea.commands.GitCommandResult;
 import git4idea.repo.GitRemote;
@@ -169,7 +168,7 @@ class GitDefineRemoteDialog extends DialogDescriptor {
             .modal()
             .cancelable()
             .execute(UIAccess.current(), () -> Coroutine.first(CodeExecution.<Object, LocalizeValue>apply((input, continuation) -> {
-                GitCommandResult result = myGit.lsRemote(project, VirtualFileUtil.virtualToIoFile(myRepository.getRoot()), url);
+                GitCommandResult result = myGit.lsRemote(project, myRepository.getRoot().toNioPath(), url);
                 if (!result.success()) {
                     LOG.warn(
                         "Invalid remote. Name: {}, URL: {}, error: {}",

@@ -23,8 +23,10 @@ import git4idea.GitUtil;
 import git4idea.branch.GitBranchUtil;
 import org.jspecify.annotations.Nullable;
 
-import java.io.File;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
+import java.nio.file.Path;
 
 /**
  * Stateless reader of the current Git branch for a <b>closed</b> recent project, shown on the Welcome screen.
@@ -46,7 +48,7 @@ public class GitRecentProjectsBranchesProvider implements RecentProjectsBranches
     @Nullable
     @Override
     public String getCurrentBranch(String projectPath) {
-        File headFile = findGitHead(projectPath);
+        Path headFile = findGitHead(projectPath);
         if (headFile == null) {
             return null;
         }
@@ -75,12 +77,19 @@ public class GitRecentProjectsBranchesProvider implements RecentProjectsBranches
      * redirect, e.g. submodules and worktrees), and returns its {@code HEAD} file if it exists.
      */
     @Nullable
-    private static File findGitHead(String projectPath) {
-        for (File dir = new File(projectPath); dir != null; dir = dir.getParentFile()) {
-            File gitDir = GitUtil.findGitDir(dir);
+    private static Path findGitHead(String projectPath) {
+        Path projectDir;
+        try {
+            projectDir = Path.of(projectPath);
+        }
+        catch (InvalidPathException e) {
+            return null;
+        }
+        for (Path dir = projectDir; dir != null; dir = dir.getParent()) {
+            Path gitDir = GitUtil.findGitDir(dir);
             if (gitDir != null) {
-                File headFile = new File(gitDir, GitUtil.HEAD);
-                return headFile.exists() ? headFile : null;
+                Path headFile = gitDir.resolve(GitUtil.HEAD);
+                return Files.exists(headFile) ? headFile : null;
             }
         }
         return null;

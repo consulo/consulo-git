@@ -3,7 +3,6 @@ package git4idea.repo;
 
 import consulo.logging.Logger;
 import consulo.util.collection.ContainerUtil;
-import consulo.util.io.FileUtil;
 import consulo.util.lang.Pair;
 import consulo.util.lang.ref.SimpleReference;
 import consulo.versionControlSystem.distributed.DvcsUtil;
@@ -16,14 +15,21 @@ import git4idea.GitTag;
 import git4idea.validators.GitRefNameValidator;
 import org.jspecify.annotations.Nullable;
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.FileVisitResult;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
+import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -111,70 +117,112 @@ public final class GitRefUtil {
         return Pair.create(branch, hash.trim());
     }
 
-    public static Map<String, String> readFromRefsFiles(File refsRootDir, String prefix, GitRepositoryFiles repositoryFiles) {
+    public static Map<String, String> readFromRefsFiles(Path refsRootDir, String prefix, GitRepositoryFiles repositoryFiles) {
         Map<String, String> result = new HashMap<>();
         BiConsumer<String, String> collectingConsumer = result::put;
         readFromRefsFiles(refsRootDir, prefix, repositoryFiles, collectingConsumer);
         return result;
     }
 
-    public static void readFromRefsFiles(File refsRootDir,
+    public static void readFromRefsFiles(Path refsRootDir,
                                          String prefix,
                                          GitRepositoryFiles repositoryFiles,
                                          BiConsumer<String, String> consumer) {
-        if (!refsRootDir.exists()) {
+        if (!Files.exists(refsRootDir)) {
             return;
         }
         SimpleReference<Boolean> couldNotLoadFile = SimpleReference.create(false);
-        FileUtil.processFilesRecursively(refsRootDir, file -> {
-            if (!file.isDirectory() && !isHidden(file)) {
-                String relativePath = FileUtil.getRelativePath(refsRootDir, file);
-                if (relativePath != null) {
-                    String branchName = prefix + FileUtil.toSystemIndependentName(relativePath);
-                    boolean isBranchNameValid = GitRefNameValidator.getInstance().checkInput(branchName);
-                    if (isBranchNameValid) {
-                        String hash = loadHashFromBranchFile(file);
-                        if (hash != null) {
-                            consumer.accept(branchName, hash);
-                        }
-                        else {
-                            couldNotLoadFile.set(true);
-                        }
+        processFilesRecursively(refsRootDir, file -> {
+            if (!isHidden(file)) {
+                String branchName = prefix + toRelativePath(refsRootDir, file);
+                boolean isBranchNameValid = GitRefNameValidator.getInstance().checkInput(branchName);
+                if (isBranchNameValid) {
+                    String hash = loadHashFromBranchFile(file);
+                    if (hash != null) {
+                        consumer.accept(branchName, hash);
+                    }
+                    else {
+                        couldNotLoadFile.set(true);
                     }
                 }
             }
-            return true;
         }, dir -> !isHidden(dir));
         if (couldNotLoadFile.get()) {
             logDebugAllRefsFiles(repositoryFiles);
         }
     }
 
-    private static boolean isHidden(File file) {
-        return file.getName().startsWith(".");
+    /**
+     * Visits the non-directory files under the given directory, descending only into the directories accepted by the filter.
+     */
+    private static void processFilesRecursively(Path rootDir, Consumer<Path> fileConsumer, Predicate<Path> directoryFilter) {
+        try {
+            Files.walkFileTree(rootDir, new SimpleFileVisitor<>() {
+                @Override
+                public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
+                    return directoryFilter.test(dir) ? FileVisitResult.CONTINUE : FileVisitResult.SKIP_SUBTREE;
+                }
+
+                @Override
+                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
+                    if (!attrs.isDirectory()) {
+                        fileConsumer.accept(file);
+                    }
+                    return FileVisitResult.CONTINUE;
+                }
+
+                @Override
+                public FileVisitResult visitFileFailed(Path file, IOException e) {
+                    LOG.debug("Couldn't visit " + file, e);
+                    return FileVisitResult.CONTINUE;
+                }
+            });
+        }
+        catch (IOException e) {
+            LOG.warn("Couldn't walk the directory " + rootDir, e);
+        }
     }
 
-    public static @Nullable String loadHashFromBranchFile(File branchFile) {
+    /**
+     * The path of the file relative to the directory, with "/" as the separator, whatever the file system is.
+     */
+    private static String toRelativePath(Path dir, Path file) {
+        StringBuilder result = new StringBuilder();
+        for (Path name : dir.relativize(file)) {
+            if (result.length() > 0) {
+                result.append('/');
+            }
+            result.append(name);
+        }
+        return result.toString();
+    }
+
+    private static boolean isHidden(Path file) {
+        Path fileName = file.getFileName();
+        return fileName != null && fileName.toString().startsWith(".");
+    }
+
+    public static @Nullable String loadHashFromBranchFile(Path branchFile) {
         return DvcsUtil.tryLoadFileOrReturn(branchFile, null);
     }
 
     public static void logDebugAllRefsFiles(GitRepositoryFiles gitRepositoryFiles) {
-        File refsHeadsFile = gitRepositoryFiles.getRefsHeadsFile();
-        File refsRemotesFile = gitRepositoryFiles.getRefsRemotesFile();
-        File refsTagsFile = gitRepositoryFiles.getRefsTagsFile();
+        Path refsHeadsFile = gitRepositoryFiles.getRefsHeadsFile();
+        Path refsRemotesFile = gitRepositoryFiles.getRefsRemotesFile();
+        Path refsTagsFile = gitRepositoryFiles.getRefsTagsFile();
 
         LOG.debug("Logging .git/refs files. " +
-            ".git/refs/heads " + (refsHeadsFile.exists() ? "exists" : "doesn't exist") +
-            ".git/refs/remotes " + (refsRemotesFile.exists() ? "exists" : "doesn't exist") +
-            ".git/refs/tags " + (refsTagsFile.exists() ? "exists" : "doesn't exist"));
+            ".git/refs/heads " + (Files.exists(refsHeadsFile) ? "exists" : "doesn't exist") +
+            ".git/refs/remotes " + (Files.exists(refsRemotesFile) ? "exists" : "doesn't exist") +
+            ".git/refs/tags " + (Files.exists(refsTagsFile) ? "exists" : "doesn't exist"));
         if (LOG.isDebugEnabled()) {
             logDebugAllFilesIn(refsHeadsFile);
             logDebugAllFilesIn(refsRemotesFile);
             logDebugAllFilesIn(refsTagsFile);
-            File packedRefsPath = gitRepositoryFiles.getPackedRefsPath();
-            if (packedRefsPath.exists()) {
+            Path packedRefsPath = gitRepositoryFiles.getPackedRefsPath();
+            if (Files.exists(packedRefsPath)) {
                 try {
-                    LOG.debug("packed-refs file content: [\n" + FileUtil.loadFile(packedRefsPath) + "\n]");
+                    LOG.debug("packed-refs file content: [\n" + Files.readString(packedRefsPath, StandardCharsets.UTF_8) + "\n]");
                 }
                 catch (IOException e) {
                     LOG.debug("Couldn't load the file " + packedRefsPath, e);
@@ -186,14 +234,12 @@ public final class GitRefUtil {
         }
     }
 
-    public static void logDebugAllFilesIn(File dir) {
+    public static void logDebugAllFilesIn(Path dir) {
+        if (!Files.exists(dir)) {
+            return;
+        }
         List<String> paths = new ArrayList<>();
-        FileUtil.processFilesRecursively(dir, file -> {
-            if (!file.isDirectory()) {
-                paths.add(FileUtil.getRelativePath(dir, file));
-            }
-            return true;
-        });
+        processFilesRecursively(dir, file -> paths.add(toRelativePath(dir, file)), d -> true);
         LOG.debug("Files in " + dir + ": " + paths);
     }
 

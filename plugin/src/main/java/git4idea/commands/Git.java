@@ -32,7 +32,6 @@ import git4idea.reset.GitResetMode;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 
-import java.io.File;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
@@ -96,7 +95,7 @@ public interface Git {
     @Nonnull
     GitCommandResult clone(
         @Nonnull Project project,
-        @Nonnull File parentDirectory,
+        @Nonnull Path parentDirectory,
         @Nonnull String url,
         @Nullable String puttyKey,
         @Nonnull String clonedDirectoryName,
@@ -277,7 +276,7 @@ public interface Git {
     GitCommandResult addRemote(@Nonnull GitRepository repository, @Nonnull String name, @Nonnull String url);
 
     @Nonnull
-    GitCommandResult lsRemote(@Nonnull Project project, @Nonnull File workingDir, @Nonnull String url);
+    GitCommandResult lsRemote(@Nonnull Project project, @Nonnull Path workingDir, @Nonnull String url);
 
     @Nonnull
     GitCommandResult lsRemote(

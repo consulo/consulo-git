@@ -15,8 +15,6 @@
  */
 package git4idea.config;
 
-import consulo.application.progress.ProgressIndicator;
-import consulo.application.progress.ProgressManager;
 import consulo.component.ProcessCanceledException;
 import consulo.execution.ExecutableValidator;
 import consulo.logging.Logger;
@@ -109,7 +107,7 @@ public final class GitVersion implements Comparable<GitVersion> {
      * Parses output of "git version" command.
      */
     @Nonnull
-    public static GitVersion parse(@Nonnull String output) throws ParseException {
+    public static GitVersion parse(@Nonnull String output, @Nonnull Platform platform) throws ParseException {
         if (StringUtil.isEmptyOrSpaces(output)) {
             throw new ParseException("Empty git --version output: " + output, 0);
         }
@@ -123,7 +121,7 @@ public final class GitVersion implements Comparable<GitVersion> {
         int patch = getIntGroup(m, 4);
         boolean msys = (m.groupCount() >= 5) && m.group(5) != null && m.group(5).toLowerCase().contains("msysgit");
         Type type;
-        if (Platform.current().os().isWindows()) {
+        if (platform.os().isWindows()) {
             type = msys ? Type.MSYS : Type.CYGWIN;
         }
         else {
@@ -146,17 +144,12 @@ public final class GitVersion implements Comparable<GitVersion> {
     }
 
     @Nonnull
-    public static GitVersion identifyVersion(@Nonnull String gitExecutable) throws TimeoutException, ExecutionException, ParseException {
-        ProgressIndicator indicator = ProgressManager.getInstance().getProgressIndicator();
-        return identifyVersion(gitExecutable, indicator);
-    }
-
-    @Nonnull
-    public static GitVersion identifyVersion(@Nonnull String gitExecutable, @Nullable ProgressIndicator indicator)
+    public static GitVersion identifyVersion(@Nonnull Platform platform, @Nonnull String gitExecutable)
         throws TimeoutException, ExecutionException, ParseException {
         UIAccess.assetIsNotUIThread();
 
         GeneralCommandLine commandLine = new GeneralCommandLine();
+        commandLine.withPlatform(platform);
         commandLine.setExePath(gitExecutable);
         commandLine.addParameter("--version");
         commandLine.setCharset(CharsetToolkit.getDefaultSystemCharset());
@@ -172,7 +165,7 @@ public final class GitVersion implements Comparable<GitVersion> {
             LOG.info("getVersion exitCode=" + result.getExitCode() + " errors: " + result.getStderr());
             // anyway trying to parse
             try {
-                parse(result.getStdout());
+                parse(result.getStdout(), platform);
             }
             catch (ParseException pe) {
                 throw new ExecutionException(
@@ -180,7 +173,7 @@ public final class GitVersion implements Comparable<GitVersion> {
                 );
             }
         }
-        return parse(result.getStdout());
+        return parse(result.getStdout(), platform);
     }
 
     /**

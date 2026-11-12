@@ -67,7 +67,7 @@ public class GitUntrackedFilesHelper {
         @Nonnull LocalizeValue description
     ) {
         Collection<String> absolutePaths = GitUtil.toAbsolute(root, relativePaths);
-        List<VirtualFile> untrackedFiles = ContainerUtil.mapNotNull(absolutePaths, GitUtil::findRefreshFileOrLog);
+        List<VirtualFile> untrackedFiles = ContainerUtil.mapNotNull(absolutePaths, path -> GitUtil.findRefreshFileOrLog(root, path));
 
         NotificationService.getInstance().newError(VcsNotifier.IMPORTANT_ERROR_NOTIFICATION)
             .title(LocalizeValue.localizeTODO(operation.capitalize() + " failed"))
@@ -128,7 +128,7 @@ public class GitUntrackedFilesHelper {
         @Nonnull Collection<String> relativePaths
     ) {
         Collection<String> absolutePaths = GitUtil.toAbsolute(root, relativePaths);
-        List<VirtualFile> untrackedFiles = ContainerUtil.mapNotNull(absolutePaths, GitUtil::findRefreshFileOrLog);
+        List<VirtualFile> untrackedFiles = ContainerUtil.mapNotNull(absolutePaths, path -> GitUtil.findRefreshFileOrLog(root, path));
 
         SimpleReference<Boolean> rollback = SimpleReference.create();
         Application application = project.getApplication();

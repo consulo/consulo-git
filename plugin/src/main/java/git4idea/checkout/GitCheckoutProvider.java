@@ -45,6 +45,7 @@ import jakarta.inject.Inject;
 
 import java.io.File;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.nio.file.Path;
 
 /**
  * Checkout provider for the Git
@@ -120,14 +121,14 @@ public class GitCheckoutProvider implements CheckoutProvider {
         @Nullable String puttyKey,
         @Nullable GitShallowCloneOptions shallowCloneOptions
     ) {
-        return cloneNatively(project, indicator, git, new File(parentDirectory), sourceRepositoryURL, directoryName, puttyKey, shallowCloneOptions);
+        return cloneNatively(project, indicator, git, Path.of(parentDirectory), sourceRepositoryURL, directoryName, puttyKey, shallowCloneOptions);
     }
 
     private static boolean cloneNatively(
         @Nonnull Project project,
         @Nonnull ProgressIndicator indicator,
         @Nonnull Git git,
-        @Nonnull File directory,
+        @Nonnull Path directory,
         @Nonnull String url,
         @Nonnull String cloneDirectoryName,
         @Nullable String puttyKey,

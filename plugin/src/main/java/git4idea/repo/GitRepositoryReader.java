@@ -29,8 +29,9 @@ import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import org.jetbrains.annotations.NonNls;
 
-import java.io.File;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -39,7 +40,7 @@ import static java.util.Collections.emptyList;
 
 /**
  * <p>Reads information about the Git repository from Git service files located in the {@code .git} folder.</p>
- * <p>NB: works with {@link File}, i.e. reads from disk. Consider using caching.
+ * <p>NB: works with {@link Path}, i.e. reads from disk (of the local machine or of the platform of a remote project). Consider using caching.
  * Throws a {@link RepoStateException} in the case of incorrect Git file format.</p>
  */
 public class GitRepositoryReader {
@@ -52,13 +53,13 @@ public class GitRepositoryReader {
     private static final String REFS_REMOTES_PREFIX = "refs/remotes/";
 
     @Nonnull
-    private final File myHeadFile;       // .git/HEAD
+    private final Path myHeadFile;       // .git/HEAD
     @Nonnull
-    private final File myRefsHeadsDir;   // .git/refs/heads/
+    private final Path myRefsHeadsDir;   // .git/refs/heads/
     @Nonnull
-    private final File myRefsRemotesDir; // .git/refs/remotes/
+    private final Path myRefsRemotesDir; // .git/refs/remotes/
     @Nonnull
-    private final File myPackedRefsFile; // .git/packed-refs
+    private final Path myPackedRefsFile; // .git/packed-refs
     @Nonnull
     private final GitRepositoryFiles myGitFiles;
 
@@ -107,8 +108,8 @@ public class GitRepositoryReader {
         );
     }
 
-    private static boolean isExistingExecutableFile(@Nonnull File file) {
-        return file.exists() && file.canExecute();
+    private static boolean isExistingExecutableFile(@Nonnull Path file) {
+        return Files.exists(file) && Files.isExecutable(file);
     }
 
     @Nullable
@@ -169,10 +170,10 @@ public class GitRepositoryReader {
     }
 
     @Nullable
-    private static String readRebaseDirBranchFile(@NonNls File rebaseDir) {
-        if (rebaseDir.exists()) {
-            File headName = new File(rebaseDir, "head-name");
-            if (headName.exists()) {
+    private static String readRebaseDirBranchFile(@NonNls Path rebaseDir) {
+        if (Files.exists(rebaseDir)) {
+            Path headName = rebaseDir.resolve("head-name");
+            if (Files.exists(headName)) {
                 return DvcsUtil.tryLoadFileOrReturn(headName, null, StandardCharsets.UTF_8);
             }
         }
@@ -180,16 +181,16 @@ public class GitRepositoryReader {
     }
 
     private boolean isMergeInProgress() {
-        return myGitFiles.getMergeHeadFile().exists();
+        return Files.exists(myGitFiles.getMergeHeadFile());
     }
 
     private boolean isRebaseInProgress() {
-        return myGitFiles.getRebaseApplyDir().exists() || myGitFiles.getRebaseMergeDir().exists();
+        return Files.exists(myGitFiles.getRebaseApplyDir()) || Files.exists(myGitFiles.getRebaseMergeDir());
     }
 
     @Nonnull
     private Map<String, String> readPackedBranches() {
-        if (!myPackedRefsFile.exists()) {
+        if (!Files.exists(myPackedRefsFile)) {
             return Collections.emptyMap();
         }
         try {

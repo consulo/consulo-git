@@ -29,7 +29,7 @@ import git4idea.commands.GitLineHandler;
 import git4idea.commands.GitLineHandlerAdapter;
 import git4idea.repo.GitRepository;
 
-import java.io.File;
+import java.nio.file.Path;
 import java.util.List;
 
 public class GitRepositoryCommitter {
@@ -62,12 +62,7 @@ public class GitRepositoryCommitter {
         GitCheckinEnvironment.runWithMessageFile(getProject(), getRoot(), commitMessage, this::performCommit);
     }
 
-    @Deprecated
-    public void commitStaged(File messageFile) throws VcsException {
-        performCommit(messageFile);
-    }
-
-    private void performCommit(File messageFile) throws VcsException {
+    private void performCommit(Path messageFile) throws VcsException {
         boolean[] emptyCommitDetected = new boolean[1];
         GitLineHandler handler = new GitLineHandler(getProject(), getRoot(), GitCommand.COMMIT);
         handler.setStdoutSuppressed(false);

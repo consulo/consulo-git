@@ -17,7 +17,6 @@ package git4idea.commands;
 
 import java.nio.file.Path;
 import java.nio.file.Files;
-import consulo.process.CommandLineUtil;
 import consulo.component.ProcessCanceledException;
 import consulo.disposer.Disposable;
 import consulo.disposer.Disposer;
@@ -33,7 +32,9 @@ import consulo.http.HttpProxyManager;
 import consulo.application.Application;
 import consulo.logging.Logger;
 import consulo.platform.Platform;
+import consulo.process.CommandLineUtil;
 import consulo.process.ExecutionException;
+import consulo.process.ProcessHandler;
 import consulo.process.cmd.GeneralCommandLine;
 import consulo.process.local.EnvironmentUtil;
 import consulo.project.Project;
@@ -49,9 +50,8 @@ import consulo.versionControlSystem.ProcessEventListener;
 import consulo.versionControlSystem.VcsException;
 import consulo.versionControlSystem.VcsLocaleHelper;
 import consulo.versionControlSystem.util.VcsFileUtil;
-import consulo.virtualFileSystem.LocalFileSystem;
 import consulo.virtualFileSystem.VirtualFile;
-import consulo.virtualFileSystem.util.VirtualFileUtil;
+import consulo.virtualFileSystem.VirtualFileManager;
 import git4idea.GitVcs;
 import git4idea.config.GitExecutableManager;
 import git4idea.config.GitVcsApplicationSettings;
@@ -92,11 +92,16 @@ public abstract class GitHandler {
     private final int LAST_OUTPUT_SIZE = 5;
     final GeneralCommandLine myCommandLine;
     @SuppressWarnings({"FieldAccessedSynchronizedAndUnsynchronized"})
-    Process myProcess;
+    @Nullable
+    ProcessHandler myProcessHandler;
 
     private boolean myStdoutSuppressed; // If true, the standard output is not copied to version control console
     private boolean myStderrSuppressed; // If true, the standard error is not copied to version control console
-    private final File myWorkingDirectory;
+    private final Path myWorkingDirectory;
+    // the working directory as its virtual file names it - file paths of the command line are relative to it
+    private final String myWorkingDirectoryVfsPath;
+    // the machine git runs on - of the project
+    private final Platform myPlatform;
 
     private boolean myEnvironmentCleanedUp = true;
     // the flag indicating that environment has been cleaned up, by default is true because there is nothing to clean
@@ -150,7 +155,7 @@ public abstract class GitHandler {
 
     private boolean myWithLowPriority;
 
-    protected GitHandler(@Nonnull Project project, @Nonnull File directory, @Nonnull GitCommand command) {
+    protected GitHandler(@Nonnull Project project, @Nonnull Path directory, @Nonnull GitCommand command) {
         this(project, directory, command, Collections.emptyList());
     }
 
@@ -163,21 +168,31 @@ public abstract class GitHandler {
      * @param configParameters list of config parameters to use for this git execution
      */
     protected GitHandler(@Nonnull Project project,
-                         @Nonnull File directory,
+                         @Nonnull Path directory,
                          @Nonnull GitCommand command,
                          @Nonnull List<String> configParameters) {
+        this(project, directory, toVfsPath(directory), command, configParameters);
+    }
+
+    private GitHandler(@Nonnull Project project,
+                       @Nonnull Path directory,
+                       @Nonnull String directoryVfsPath,
+                       @Nonnull GitCommand command,
+                       @Nonnull List<String> configParameters) {
         myProject = project;
         myCommand = command;
         myAppSettings = GitVcsApplicationSettings.getInstance();
         myProjectSettings = GitVcsSettings.getInstance(myProject);
-        myEnv = new HashMap<>(EnvironmentUtil.getEnvironmentMap());
+        myPlatform = project.getPlatform();
+        // a git of another machine runs with the environment of that machine - the agent gives it
+        myEnv = isLocal() ? new HashMap<>(EnvironmentUtil.getEnvironmentMap()) : new HashMap<>();
         myVcs = ObjectUtil.assertNotNull(GitVcs.getInstance(project));
         myWorkingDirectory = directory;
+        myWorkingDirectoryVfsPath = directoryVfsPath;
         myCommandLine = new GeneralCommandLine();
-        if (myAppSettings != null) {
-            myCommandLine.setExePath(GitExecutableManager.getInstance().getPathToGit(project));
-        }
-        myCommandLine.setWorkDirectory(myWorkingDirectory);
+        myCommandLine.setPlatform(myPlatform);
+        myCommandLine.setExePath(GitExecutableManager.getInstance().getPathToGit(project));
+        myCommandLine.setWorkingDirectory(myWorkingDirectory);
         if (GitVersionSpecialty.CAN_OVERRIDE_GIT_CONFIG_FOR_COMMAND.existsIn(myVcs.getVersion())) {
             myCommandLine.addParameters("-c", "core.quotepath=false");
             myCommandLine.addParameters("-c", "log.showSignature=false");
@@ -198,11 +213,20 @@ public abstract class GitHandler {
      * @param command a command to execute
      */
     protected GitHandler(Project project, VirtualFile vcsRoot, GitCommand command) {
-        this(project, VirtualFileUtil.virtualToIoFile(vcsRoot), command);
+        this(project, vcsRoot, command, Collections.emptyList());
     }
 
     protected GitHandler(Project project, VirtualFile vcsRoot, GitCommand command, List<String> configParameters) {
-        this(project, VirtualFileUtil.virtualToIoFile(vcsRoot), command, configParameters);
+        this(project, vcsRoot.toNioPath(), vcsRoot.getPath(), command, configParameters);
+    }
+
+    private static String toVfsPath(Path directory) {
+        String url = VirtualFileManager.getInstance().getUrl(directory);
+        return url != null ? VirtualFileManager.extractPath(url) : FileUtil.toSystemIndependentName(directory.toString());
+    }
+
+    private boolean isLocal() {
+        return myPlatform == Platform.current();
     }
 
     /**
@@ -287,7 +311,7 @@ public abstract class GitHandler {
     /**
      * @return the current working directory
      */
-    public File workingDirectory() {
+    public Path workingDirectory() {
         return myWorkingDirectory;
     }
 
@@ -295,7 +319,7 @@ public abstract class GitHandler {
      * @return the current working directory
      */
     public VirtualFile workingDirectoryFile() {
-        VirtualFile file = LocalFileSystem.getInstance().findFileByIoFile(workingDirectory());
+        VirtualFile file = VirtualFileManager.getInstance().findFileByNioPath(workingDirectory());
         if (file == null) {
             throw new IllegalStateException("The working directly should be available: " + workingDirectory());
         }
@@ -344,9 +368,12 @@ public abstract class GitHandler {
         addParameters(Arrays.asList(parameters));
     }
 
-    public void addAbsoluteFile(@Nonnull File file) {
+    /**
+     * Adds a path of the machine git runs on, as it is there.
+     */
+    public void addAbsoluteFile(@Nonnull Path file) {
         checkNotStarted();
-        myCommandLine.addParameter(file.getAbsolutePath());
+        myCommandLine.addParameter(file.toAbsolutePath().toString());
     }
 
     /**
@@ -370,11 +397,11 @@ public abstract class GitHandler {
     }
 
     private boolean escapeNeeded(@Nonnull String parameter) {
-        return Platform.current().os().isWindows() && isCmd() && parameter.contains("^");
+        return myPlatform.os().isWindows() && isCmd() && parameter.contains("^");
     }
 
     private boolean isCmd() {
-        return myAppSettings.getPathToGit().toLowerCase().endsWith("cmd");
+        return StringUtil.notNullize(myCommandLine.getExePath()).toLowerCase().endsWith("cmd");
     }
 
     @Nonnull
@@ -405,7 +432,7 @@ public abstract class GitHandler {
     public void addRelativePaths(@Nonnull Collection<FilePath> filePaths) {
         checkNotStarted();
         for (FilePath path : filePaths) {
-            myCommandLine.addParameter(VcsFileUtil.relativePath(myWorkingDirectory, path));
+            myCommandLine.addParameter(VcsFileUtil.relativeVfsPath(myWorkingDirectoryVfsPath, path.getPath()));
         }
     }
 
@@ -419,7 +446,7 @@ public abstract class GitHandler {
     public void addRelativeFiles(@Nonnull Collection<VirtualFile> files) {
         checkNotStarted();
         for (VirtualFile file : files) {
-            myCommandLine.addParameter(VcsFileUtil.relativePath(myWorkingDirectory, file));
+            myCommandLine.addParameter(VcsFileUtil.relativeVfsPath(myWorkingDirectoryVfsPath, file.getPath()));
         }
     }
 
@@ -462,7 +489,7 @@ public abstract class GitHandler {
      * @return true if process is started
      */
     public final synchronized boolean isStarted() {
-        return myProcess != null;
+        return myProcessHandler != null;
     }
 
     /**
@@ -499,7 +526,12 @@ public abstract class GitHandler {
             }
 
             // setup environment
-            if (isRemote()) {
+            if (isRemote() && !isLocal()) {
+                // the helpers of the IDE (askpass, ssh) run on this machine - git of another one asks its own credential helpers,
+                // and must not wait for a terminal
+                myEnv.put("GIT_TERMINAL_PROMPT", "0");
+            }
+            else if (isRemote()) {
                 switch (myProjectSettings.getAppSettings().getSshExecutableType()) {
                     case IDEA_SSH:
                         setupSshAuthenticator();
@@ -521,7 +553,7 @@ public abstract class GitHandler {
                 setupLowPriorityExecution(myCommandLine);
             }
             // start process
-            myProcess = startProcess();
+            myProcessHandler = startProcess();
             startHandlingStreams();
         }
         catch (ProcessCanceledException pce) {
@@ -550,7 +582,7 @@ public abstract class GitHandler {
         GitHttpAuthenticator httpAuthenticator = service.createAuthenticator(
             myProject,
             ObjectUtil.assertNotNull(myUrls),
-            myWorkingDirectory.toPath(),
+            myWorkingDirectory,
             getAuthenticationGateOrPassthrough(),
             myIgnoreAuthenticationRequest
         );
@@ -705,7 +737,8 @@ public abstract class GitHandler {
         return myHttpAuthFailed;
     }
 
-    protected abstract Process startProcess() throws ExecutionException;
+    @Nullable
+    protected abstract ProcessHandler startProcess() throws ExecutionException;
 
     /**
      * Start handling process output streams for the handler.
@@ -781,8 +814,10 @@ public abstract class GitHandler {
     public void waitFor() {
         checkStarted();
         try {
-            if (myInputProcessor != null && myProcess != null) {
-                myInputProcessor.consume(myProcess.getOutputStream());
+            ProcessHandler processHandler = myProcessHandler;
+            OutputStream input = processHandler != null ? processHandler.getProcessInput() : null;
+            if (myInputProcessor != null && input != null) {
+                myInputProcessor.consume(input);
             }
         }
         catch (IOException e) {
@@ -919,15 +954,16 @@ public abstract class GitHandler {
     private String stringifyWorkingDir() {
         String basePath = myProject.getBasePath();
         if (basePath != null) {
-            String relPath = FileUtil.getRelativePath(basePath, FileUtil.toSystemIndependentName(myWorkingDirectory.getPath()), '/');
+            String relPath = FileUtil.getRelativePath(basePath, FileUtil.toSystemIndependentName(myWorkingDirectory.toString()), '/');
             if (".".equals(relPath)) {
-                return myWorkingDirectory.getName();
+                Path name = myWorkingDirectory.getFileName();
+                return name != null ? name.toString() : myWorkingDirectory.toString();
             }
             else if (relPath != null) {
                 return FileUtil.toSystemDependentName(relPath);
             }
         }
-        return myWorkingDirectory.getPath();
+        return myWorkingDirectory.toString();
     }
 
     private void logTime() {
@@ -955,11 +991,11 @@ public abstract class GitHandler {
         return myCommandLine.toString();
     }
 
-    private static void setupLowPriorityExecution(GeneralCommandLine commandLine) {
-        if (Platform.current().os().isWindows()) {
-            commandLine.withWrappingCommand(CommandLineUtil.getWinShellName(), "/c", "start", "/b", "/low", "/wait", GeneralCommandLine.inescapableQuote(""));
+    private void setupLowPriorityExecution(GeneralCommandLine commandLine) {
+        if (myPlatform.os().isWindows()) {
+            commandLine.withWrappingCommand(isLocal() ? CommandLineUtil.getWinShellName() : "cmd.exe", "/c", "start", "/b", "/low", "/wait", GeneralCommandLine.inescapableQuote(""));
         }
-        else if (Files.exists(Path.of(NICE_PATH))) {
+        else if (Files.exists(myPlatform.fs().getPath(NICE_PATH))) {
             commandLine.withWrappingCommand(NICE_PATH, "-n", "10");
         }
     }

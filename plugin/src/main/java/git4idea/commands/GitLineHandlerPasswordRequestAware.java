@@ -20,7 +20,7 @@ import consulo.util.dataholder.Key;
 import consulo.virtualFileSystem.VirtualFile;
 import jakarta.annotation.Nonnull;
 
-import java.io.File;
+import java.nio.file.Path;
 
 /**
  * {@link GitLineHandler} that listens to Git output and kills itself if "username" or "password" is queried throughout the prompt.
@@ -36,7 +36,7 @@ public class GitLineHandlerPasswordRequestAware extends GitLineHandler {
     super(project, vcsRoot, command);
   }
 
-  public GitLineHandlerPasswordRequestAware(@Nonnull Project project, @Nonnull File directory, @Nonnull GitCommand clone) {
+  public GitLineHandlerPasswordRequestAware(@Nonnull Project project, @Nonnull Path directory, @Nonnull GitCommand clone) {
     super(project, directory, clone);
   }
 

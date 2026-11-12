@@ -17,15 +17,17 @@ package git4idea.repo;
 
 import consulo.logging.Logger;
 import consulo.util.io.FileUtil;
-import consulo.virtualFileSystem.LocalFileSystem;
 import consulo.virtualFileSystem.VirtualFile;
+import consulo.virtualFileSystem.VirtualFileManager;
 import consulo.virtualFileSystem.util.VirtualFileUtil;
+import git4idea.GitUtil;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Set;
@@ -45,7 +47,8 @@ public class GitRepositoryFiles {
     private static final String HEAD = "HEAD";
     private static final String INDEX = "index";
     private static final String INFO = "info";
-    private static final String INFO_EXCLUDE = INFO + "/exclude";
+    private static final String EXCLUDE = "exclude";
+    private static final String INFO_EXCLUDE = INFO + "/" + EXCLUDE;
     private static final String MERGE_HEAD = "MERGE_HEAD";
     private static final String MERGE_MSG = "MERGE_MSG";
     private static final String ORIG_HEAD = "ORIG_HEAD";
@@ -63,6 +66,10 @@ public class GitRepositoryFiles {
 
     private final VirtualFile myMainDir;
     private final VirtualFile myWorktreeDir;
+    @Nonnull
+    private final Path myMainNioDir;
+    @Nonnull
+    private final Path myWorktreeNioDir;
 
     private final String myConfigFilePath;
     private final String myHeadFilePath;
@@ -86,6 +93,8 @@ public class GitRepositoryFiles {
     private GitRepositoryFiles(@Nonnull VirtualFile mainDir, @Nonnull VirtualFile worktreeDir) {
         myMainDir = mainDir;
         myWorktreeDir = worktreeDir;
+        myMainNioDir = mainDir.toNioPath();
+        myWorktreeNioDir = mainDir.equals(worktreeDir) ? myMainNioDir : worktreeDir.toNioPath();
 
         String mainPath = myMainDir.getPath();
         myConfigFilePath = mainPath + slash(CONFIG);
@@ -126,26 +135,25 @@ public class GitRepositoryFiles {
      */
     @Nullable
     private static VirtualFile getMainGitDirForWorktree(@Nonnull VirtualFile gitDir) {
-        File gitDirFile = VirtualFileUtil.virtualToIoFile(gitDir);
-        File commonDir = new File(gitDirFile, "commondir");
-        if (!commonDir.exists()) {
+        Path gitDirPath = gitDir.toNioPath();
+        Path commonDir = gitDirPath.resolve("commondir");
+        if (!Files.exists(commonDir)) {
             return null;
         }
         String pathToMain;
         try {
-            pathToMain = Files.readString(commonDir.toPath()).trim();
+            pathToMain = Files.readString(commonDir, StandardCharsets.UTF_8).trim();
         }
         catch (IOException e) {
             LOG.error("Couldn't load " + commonDir, e);
             return null;
         }
-        String mainDir = FileUtil.toCanonicalPath(gitDirFile.getPath() + File.separator + pathToMain, true);
-        LocalFileSystem lfs = LocalFileSystem.getInstance();
-        VirtualFile mainDirVF = lfs.refreshAndFindFileByPath(mainDir);
-        if (mainDirVF != null) {
-            return mainDirVF;
+        // relative to the git dir; an absolute path is also possible
+        Path mainDir = GitUtil.resolvePathWrittenByGit(gitDirPath, pathToMain);
+        if (mainDir == null) {
+            return null;
         }
-        return lfs.refreshAndFindFileByPath(pathToMain); // absolute path is also possible
+        return VirtualFileManager.getInstance().refreshAndFindFileByNioPath(mainDir);
     }
 
     @Nonnull
@@ -162,23 +170,23 @@ public class GitRepositoryFiles {
     }
 
     @Nonnull
-    File getRefsHeadsFile() {
-        return file(myRefsHeadsDirPath);
+    Path getRefsHeadsFile() {
+        return myMainNioDir.resolve(REFS).resolve(HEADS);
     }
 
     @Nonnull
-    File getRefsRemotesFile() {
-        return file(myRefsRemotesDirPath);
+    Path getRefsRemotesFile() {
+        return myMainNioDir.resolve(REFS).resolve(REMOTES);
     }
 
     @Nonnull
-    File getRefsTagsFile() {
-        return file(myRefsTagsPath);
+    Path getRefsTagsFile() {
+        return myMainNioDir.resolve(REFS).resolve(TAGS);
     }
 
     @Nonnull
-    File getPackedRefsPath() {
-        return file(myPackedRefsPath);
+    Path getPackedRefsPath() {
+        return myMainNioDir.resolve(PACKED_REFS);
     }
 
     /**
@@ -211,58 +219,53 @@ public class GitRepositoryFiles {
     }
 
     @Nonnull
-    public File getHeadFile() {
-        return file(myHeadFilePath);
+    public Path getHeadFile() {
+        return myWorktreeNioDir.resolve(HEAD);
     }
 
     @Nonnull
-    File getConfigFile() {
-        return file(myConfigFilePath);
+    Path getConfigFile() {
+        return myMainNioDir.resolve(CONFIG);
     }
 
     @Nonnull
-    public File getRebaseMergeDir() {
-        return file(myRebaseMergePath);
+    public Path getRebaseMergeDir() {
+        return myWorktreeNioDir.resolve(REBASE_MERGE);
     }
 
     @Nonnull
-    public File getRebaseApplyDir() {
-        return file(myRebaseApplyPath);
+    public Path getRebaseApplyDir() {
+        return myWorktreeNioDir.resolve(REBASE_APPLY);
     }
 
     @Nonnull
-    public File getMergeHeadFile() {
-        return file(myMergeHeadPath);
+    public Path getMergeHeadFile() {
+        return myWorktreeNioDir.resolve(MERGE_HEAD);
     }
 
     @Nonnull
-    public File getCherryPickHead() {
-        return file(myCherryPickHeadPath);
+    public Path getCherryPickHead() {
+        return myWorktreeNioDir.resolve(CHERRY_PICK_HEAD);
     }
 
     @Nonnull
-    public File getMergeMessageFile() {
-        return file(myMergeMessagePath);
+    public Path getMergeMessageFile() {
+        return myWorktreeNioDir.resolve(MERGE_MSG);
     }
 
     @Nonnull
-    public File getSquashMessageFile() {
-        return file(myMergeSquashPath);
+    public Path getSquashMessageFile() {
+        return myWorktreeNioDir.resolve(SQUASH_MSG);
     }
 
     @Nonnull
-    public File getPreCommitHookFile() {
-        return file(myHooksDirPath + slash(PRE_COMMIT_HOOK));
+    public Path getPreCommitHookFile() {
+        return myMainNioDir.resolve(HOOKS).resolve(PRE_COMMIT_HOOK);
     }
 
     @Nonnull
-    public File getPrePushHookFile() {
-        return file(myHooksDirPath + slash(PRE_PUSH_HOOK));
-    }
-
-    @Nonnull
-    private static File file(@Nonnull String filePath) {
-        return new File(FileUtil.toSystemDependentName(filePath));
+    public Path getPrePushHookFile() {
+        return myMainNioDir.resolve(HOOKS).resolve(PRE_PUSH_HOOK);
     }
 
     /**
@@ -351,8 +354,8 @@ public class GitRepositoryFiles {
     }
 
     @Nonnull
-    public File getExcludeFile() {
-        return file(myExcludePath);
+    public Path getExcludeFile() {
+        return myMainNioDir.resolve(INFO).resolve(EXCLUDE);
     }
 
     /**
@@ -378,7 +381,7 @@ public class GitRepositoryFiles {
      * but some of it will be updated synchronously, the rest - asynchronously.
      */
     public void refreshNonTrackedData() {
-        VirtualFile tagsDir = LocalFileSystem.getInstance().refreshAndFindFileByPath(myRefsTagsPath);
+        VirtualFile tagsDir = VirtualFileManager.getInstance().refreshAndFindFileByNioPath(getRefsTagsFile());
         VirtualFileUtil.markDirtyAndRefresh(true, true, false, tagsDir);
     }
 

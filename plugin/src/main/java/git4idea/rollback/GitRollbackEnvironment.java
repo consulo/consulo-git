@@ -43,6 +43,8 @@ import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
 import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.*;
 
 /**
@@ -147,10 +149,10 @@ public class GitRollbackEnvironment implements RollbackEnvironment {
         for (FilePath file : toDelete) {
             listener.accept(file);
             try {
-                File ioFile = file.getIOFile();
-                if (ioFile.exists() && !ioFile.delete()) {
-                    //noinspection ThrowableInstanceNeverThrown
-                    exceptions.add(new VcsException("Unable to delete file: " + file));
+                // on the machine of the file
+                Path nioPath = file.getNioPath();
+                if (nioPath != null) {
+                    Files.deleteIfExists(nioPath);
                 }
             }
             catch (Exception e) {
@@ -219,7 +221,7 @@ public class GitRollbackEnvironment implements RollbackEnvironment {
             GitRepository repo = GitUtil.getRepositoryManager(myProject).getRepositoryForRoot(root);
             GitUntrackedFilesHolder untrackedFilesHolder = (repo == null ? null : repo.getUntrackedFilesHolder());
             for (FilePath path : files) {
-                VirtualFile vf = VcsUtil.getVirtualFile(path.getIOFile());
+                VirtualFile vf = path.getVirtualFile();
                 if (untrackedFilesHolder != null && vf != null) {
                     untrackedFilesHolder.add(vf);
                 }

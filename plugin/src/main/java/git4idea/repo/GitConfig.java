@@ -28,8 +28,9 @@ import jakarta.annotation.Nullable;
 import org.ini4j.Ini;
 import org.ini4j.Profile;
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -122,11 +123,11 @@ public class GitConfig {
      * <p>If some section is invalid, it is skipped, and a warning is reported.</p>
      */
     @Nonnull
-    static GitConfig read(@Nonnull File configFile) {
+    static GitConfig read(@Nonnull Path configFile) {
         GitConfig emptyConfig =
             new GitConfig(Collections.<Remote>emptyList(), Collections.<Url>emptyList(), Collections.<BranchConfig>emptyList());
-        if (!configFile.exists()) {
-            LOG.info("No .git/config file at " + configFile.getPath());
+        if (!Files.exists(configFile)) {
+            LOG.info("No .git/config file at " + configFile);
             return emptyConfig;
         }
 

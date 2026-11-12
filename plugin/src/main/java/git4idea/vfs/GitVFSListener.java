@@ -23,7 +23,6 @@ import consulo.localize.LocalizeValue;
 import consulo.platform.Platform;
 import consulo.project.Project;
 import consulo.project.ui.util.AppUIUtil;
-import consulo.util.io.FileUtil;
 import consulo.util.lang.Pair;
 import consulo.versionControlSystem.FilePath;
 import consulo.versionControlSystem.VcsException;
@@ -43,7 +42,7 @@ import git4idea.util.GitFileUtils;
 import git4idea.util.GitVcsConsoleWriter;
 import jakarta.annotation.Nonnull;
 
-import java.io.File;
+import java.nio.file.Path;
 import java.util.*;
 import java.util.function.Function;
 
@@ -138,7 +137,7 @@ public class GitVFSListener extends VcsVFSListener {
             }
 
             @Override
-            public Collection<File> getFilesToRefresh() {
+            public Collection<Path> getFilesToRefresh() {
                 return Collections.emptyList();
             }
         });
@@ -168,7 +167,7 @@ public class GitVFSListener extends VcsVFSListener {
             filesToDelete,
             GitLocalize.removeRemoving(),
             new LongOperationPerRootExecutor() {
-                Set<File> filesToRefresh = new HashSet<>();
+                Set<Path> filesToRefresh = new HashSet<>();
 
                 @Override
                 public void execute(@Nonnull VirtualFile root, @Nonnull List<FilePath> files) throws VcsException {
@@ -176,16 +175,16 @@ public class GitVFSListener extends VcsVFSListener {
                     if (!myProject.isDisposed()) {
                         VcsFileUtil.markFilesDirty(myProject, files);
                     }
-                    File rootFile = new File(root.getPath());
+                    Path rootPath = root.toNioPath();
                     for (FilePath p : files) {
-                        for (File f = p.getIOFile(); f != null && !FileUtil.filesEqual(f, rootFile); f = f.getParentFile()) {
+                        for (Path f = p.getNioPath(); f != null && !f.equals(rootPath); f = f.getParent()) {
                             filesToRefresh.add(f);
                         }
                     }
                 }
 
                 @Override
-                public Collection<File> getFilesToRefresh() {
+                public Collection<Path> getFilesToRefresh() {
                     return filesToRefresh;
                 }
             }
@@ -200,7 +199,7 @@ public class GitVFSListener extends VcsVFSListener {
         for (MovedFileInfo movedInfo : movedFiles) {
             String oldPath = movedInfo.myOldPath;
             String newPath = movedInfo.myNewPath;
-            if (!Platform.current().fs().isCaseSensitive() && GitUtil.isCaseOnlyChange(oldPath, newPath)) {
+            if (!myProject.getPlatform().fs().isCaseSensitive() && GitUtil.isCaseOnlyChange(oldPath, newPath)) {
                 toForceMove.add(movedInfo);
             }
             else {
@@ -215,7 +214,7 @@ public class GitVFSListener extends VcsVFSListener {
 
     private void performForceMove(@Nonnull List<MovedFileInfo> files) {
         Map<FilePath, MovedFileInfo> filesToMove = map2Map(files, (info) -> Pair.create(VcsUtil.getFilePath(info.myNewPath), info));
-        Set<File> toRefresh = new HashSet<>();
+        Set<Path> toRefresh = new HashSet<>();
         performBackgroundOperation(
             filesToMove.keySet(),
             GitLocalize.progressTitleMovingFiles(),
@@ -225,15 +224,17 @@ public class GitVFSListener extends VcsVFSListener {
                     for (FilePath file : files) {
                         GitHandler h = new GitSimpleHandler(myProject, root, GitCommand.MV);
                         MovedFileInfo info = filesToMove.get(file);
-                        h.addParameters("-f", info.myOldPath, info.myNewPath);
+                        FilePath oldPath = VcsUtil.getFilePath(info.myOldPath);
+                        h.addParameters("-f");
+                        h.addRelativePaths(oldPath, file);
                         h.runInCurrentThread(null);
-                        toRefresh.add(new File(info.myOldPath));
-                        toRefresh.add(new File(info.myNewPath));
+                        toRefresh.add(oldPath.getNioPath());
+                        toRefresh.add(file.getNioPath());
                     }
                 }
 
                 @Override
-                public Collection<File> getFilesToRefresh() {
+                public Collection<Path> getFilesToRefresh() {
                     return toRefresh;
                 }
             }
@@ -290,6 +291,6 @@ public class GitVFSListener extends VcsVFSListener {
     private interface LongOperationPerRootExecutor {
         void execute(@Nonnull VirtualFile root, @Nonnull List<FilePath> files) throws VcsException;
 
-        Collection<File> getFilesToRefresh();
+        Collection<Path> getFilesToRefresh();
     }
 }

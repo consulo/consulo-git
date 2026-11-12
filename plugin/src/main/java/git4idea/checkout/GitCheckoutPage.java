@@ -41,8 +41,8 @@ import git4idea.ui.GitShallowCloneComponentFactory;
 import git4idea.ui.GitShallowCloneViewModel;
 import org.jspecify.annotations.Nullable;
 
-import java.io.File;
 import java.util.function.Consumer;
+import java.nio.file.Path;
 
 /**
  * @author VISTALL
@@ -93,7 +93,7 @@ public class GitCheckoutPage extends DvcsCheckoutPage {
     @RequiredUIAccess
     protected void test(String url, Consumer<Boolean> result) {
         GitLineHandlerPasswordRequestAware handler =
-            new GitLineHandlerPasswordRequestAware(myProject, new File("."), GitCommand.LS_REMOTE);
+            new GitLineHandlerPasswordRequestAware(myProject, Path.of("."), GitCommand.LS_REMOTE);
         handler.setPuttyKey(getPuttyKeyFile());
         handler.setUrl(url);
         handler.addParameters(url, "master");

@@ -25,7 +25,6 @@ import git4idea.history.GitFileHistory;
 import consulo.application.util.function.AsynchConsumer;
 import consulo.logging.Logger;
 import consulo.project.Project;
-import consulo.util.io.FileUtil;
 import consulo.util.lang.Pair;
 import consulo.util.lang.StringUtil;
 import consulo.versionControlSystem.*;
@@ -252,7 +251,7 @@ public class GitCommittedChangeListProvider implements CommittedChangesProvider<
 		}
 		for(Change change : changes)
 		{
-			if(change.getAfterRevision() != null && FileUtil.filesEqual(filePath.getIOFile(), change.getAfterRevision().getFile().getIOFile()))
+			if(change.getAfterRevision() != null && filePath.equals(change.getAfterRevision().getFile()))
 			{
 				return new Pair<CommittedChangeList, FilePath>(commit, filePath);
 			}

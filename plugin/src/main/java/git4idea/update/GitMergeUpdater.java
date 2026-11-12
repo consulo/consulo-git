@@ -46,7 +46,8 @@ import git4idea.util.GitUIUtil;
 import git4idea.util.GitUntrackedFilesHelper;
 import jakarta.annotation.Nonnull;
 
-import java.io.File;
+import java.nio.file.Path;
+import java.nio.file.Files;
 import java.util.*;
 
 import static java.util.Arrays.asList;
@@ -174,8 +175,8 @@ public class GitMergeUpdater extends GitUpdater {
             }
             Collection<String> remotelyChanged =
                 GitUtil.getPathsDiffBetweenRefs(Git.getInstance(), repository, currentBranch, remoteBranch);
-            List<File> locallyChanged = myChangeListManager.getAffectedPaths();
-            for (File localPath : locallyChanged) {
+            List<FilePath> locallyChanged = myChangeListManager.getAffectedPaths();
+            for (FilePath localPath : locallyChanged) {
                 if (ContainerUtil.exists(
                     remotelyChanged,
                     remotelyChangedPath -> FileUtil.pathsEqual(localPath.getPath(), remotelyChangedPath)
@@ -218,12 +219,11 @@ public class GitMergeUpdater extends GitUpdater {
             }
             line = line.trim();
 
-            String path;
             try {
-                path = myRoot.getPath() + "/" + GitUtil.unescapePath(line);
-                File file = new File(path);
-                if (file.exists()) {
-                    paths.add(VcsUtil.getFilePath(file, false));
+                FilePath filePath = VcsUtil.getFilePath(myRoot, GitUtil.unescapePath(line), false);
+                Path nioPath = filePath.getNioPath();
+                if (nioPath != null && Files.exists(nioPath)) {
+                    paths.add(filePath);
                 }
             }
             catch (VcsException e) { // just continue

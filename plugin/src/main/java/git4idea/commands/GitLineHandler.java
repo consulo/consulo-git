@@ -25,7 +25,7 @@ import consulo.versionControlSystem.util.LineHandlerHelper;
 import consulo.virtualFileSystem.VirtualFile;
 import jakarta.annotation.Nonnull;
 
-import java.io.File;
+import java.nio.file.Path;
 import java.util.Iterator;
 
 /**
@@ -53,7 +53,7 @@ public class GitLineHandler extends GitTextHandler {
    * @param command   a command to execute
    */
   @SuppressWarnings({"WeakerAccess"})
-  public GitLineHandler(@Nonnull Project project, @Nonnull File directory, @Nonnull GitCommand command) {
+  public GitLineHandler(@Nonnull Project project, @Nonnull Path directory, @Nonnull GitCommand command) {
     super(project, directory, command);
   }
 

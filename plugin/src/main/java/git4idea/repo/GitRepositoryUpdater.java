@@ -21,9 +21,10 @@ import consulo.disposer.Disposable;
 import consulo.project.Project;
 import consulo.util.collection.ContainerUtil;
 import consulo.versionControlSystem.distributed.DvcsUtil;
-import consulo.versionControlSystem.util.VcsUtil;
 import consulo.virtualFileSystem.LocalFileSystem;
 import consulo.virtualFileSystem.VirtualFile;
+import consulo.virtualFileSystem.VirtualFileManager;
+import consulo.virtualFileSystem.VirtualFileSystem;
 import consulo.virtualFileSystem.event.BulkFileListener;
 import consulo.virtualFileSystem.event.VFileEvent;
 import git4idea.util.GitFileUtils;
@@ -59,14 +60,22 @@ final class GitRepositoryUpdater implements Disposable, BulkFileListener {
 
     GitRepositoryUpdater(@Nonnull GitRepository repository, @Nonnull GitRepositoryFiles gitFiles) {
         myRepository = repository;
-        Collection<String> rootPaths = ContainerUtil.map(gitFiles.getRootDirs(), VirtualFile::getPath);
-        myWatchRequests = LocalFileSystem.getInstance().addRootsToWatch(rootPaths, true);
+        Collection<VirtualFile> rootDirs = gitFiles.getRootDirs();
+        if (ContainerUtil.and(rootDirs, VirtualFile::isInLocalFileSystem)) {
+            Collection<String> rootPaths = ContainerUtil.map(rootDirs, VirtualFile::getPath);
+            myWatchRequests = LocalFileSystem.getInstance().addRootsToWatch(rootPaths, true);
+        }
+        else {
+            // there is no file watching for files of a remote machine (yet)
+            myWatchRequests = null;
+        }
 
         myRepositoryFiles = gitFiles;
         visitSubDirsInVfs();
-        myHeadsDir = VcsUtil.getVirtualFile(myRepositoryFiles.getRefsHeadsFile());
-        myRemotesDir = VcsUtil.getVirtualFile(myRepositoryFiles.getRefsRemotesFile());
-        myTagsDir = VcsUtil.getVirtualFile(myRepositoryFiles.getRefsTagsFile());
+        VirtualFileManager virtualFileManager = VirtualFileManager.getInstance();
+        myHeadsDir = virtualFileManager.findFileByNioPath(myRepositoryFiles.getRefsHeadsFile());
+        myRemotesDir = virtualFileManager.findFileByNioPath(myRepositoryFiles.getRefsRemotesFile());
+        myTagsDir = virtualFileManager.findFileByNioPath(myRepositoryFiles.getRefsTagsFile());
 
         Project project = repository.getProject();
         myUpdateQueue = new QueueProcessor<>(new DvcsUtil.Updater(repository), project.getDisposed());
@@ -81,7 +90,9 @@ final class GitRepositoryUpdater implements Disposable, BulkFileListener {
 
     @Override
     public void dispose() {
-        LocalFileSystem.getInstance().removeWatchedRoots(myWatchRequests);
+        if (myWatchRequests != null) {
+            LocalFileSystem.getInstance().removeWatchedRoots(myWatchRequests);
+        }
         if (myMessageBusConnection != null) {
             myMessageBusConnection.disconnect();
         }
@@ -149,8 +160,10 @@ final class GitRepositoryUpdater implements Disposable, BulkFileListener {
         for (VirtualFile rootDir : myRepositoryFiles.getRootDirs()) {
             rootDir.getChildren();
         }
+        // the dirs to watch are inside the main .git dir: their paths are of its file system
+        VirtualFileSystem fileSystem = myRepositoryFiles.getCommonGitDir().getFileSystem();
         for (String path : myRepositoryFiles.getDirsToWatch()) {
-            DvcsUtil.ensureAllChildrenInVfs(LocalFileSystem.getInstance().refreshAndFindFileByPath(path));
+            DvcsUtil.ensureAllChildrenInVfs(fileSystem.refreshAndFindFileByPath(path));
         }
     }
 }

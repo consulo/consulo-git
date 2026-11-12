@@ -28,6 +28,8 @@ import consulo.localize.LocalizeValue;
 import consulo.platform.base.icon.PlatformIconGroup;
 import consulo.process.cmd.ParametersListUtil;
 import consulo.project.Project;
+import consulo.util.lang.StringUtil;
+import consulo.platform.Platform;
 import consulo.ui.Alert;
 import consulo.ui.Alerts;
 import consulo.ui.Button;
@@ -113,12 +115,19 @@ public class GitVcsConfigurable extends SimpleConfigurableByProperties implement
         gitPathBuilder.dialogDescription(GitLocalize.findGitDescription());
         gitPathBuilder.fileChooserDescriptor(FileChooserDescriptorFactory.createSingleFileNoJarsDescriptor());
         FileChooserTextBoxBuilder.Controller gitField = gitPathBuilder.build();
+        // a remote project has the git of its platform - kept with the project, not in the settings of this machine
+        boolean local = myProject.getPlatform() == Platform.current();
         propertyBuilder.add(
             () -> gitField.getValue().trim(),
             gitField::setValue,
-            appSettings::getPathToGit,
+            () -> local ? appSettings.getPathToGit() : StringUtil.notNullize(settings.getPathToGit()),
             path -> {
-                appSettings.setPathToGit(path);
+                if (local) {
+                    appSettings.setPathToGit(path);
+                }
+                else {
+                    settings.setPathToGit(StringUtil.nullize(path));
+                }
                 // run check later
                 myProject.getUIAccess().give(() -> Task.Backgroundable.queue(
                     myProject,
@@ -249,7 +258,9 @@ public class GitVcsConfigurable extends SimpleConfigurableByProperties implement
      */
     @RequiredUIAccess
     private void testConnection(Component parent, String executable) {
-        myAppSettings.setPathToGit(executable);
+        if (myProject.getPlatform() == Platform.current()) {
+            myAppSettings.setPathToGit(executable);
+        }
 
         UIAccess uiAccess = UIAccess.current();
 
@@ -260,7 +271,7 @@ public class GitVcsConfigurable extends SimpleConfigurableByProperties implement
             indicator -> {
                 GitVersion version;
                 try {
-                    version = GitVersion.identifyVersion(executable);
+                    version = GitVersion.identifyVersion(myProject.getPlatform(), executable.isEmpty() ? "git" : executable);
                 }
                 catch (Exception e) {
                     uiAccess.give(() -> Alerts.okInfo(LocalizeValue.of(e.getLocalizedMessage()))

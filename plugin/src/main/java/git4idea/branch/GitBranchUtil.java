@@ -37,10 +37,10 @@ import git4idea.ui.branch.GitMultiRootBranchConfig;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
@@ -419,9 +419,9 @@ public class GitBranchUtil {
             // the case after git init and before first commit - there is no branch and no output, and we'll take refs/heads/master
             String head;
             try {
-                File headFile =
+                Path headFile =
                     assertNotNull(GitUtil.getRepositoryManager(project).getRepositoryForRoot(root)).getRepositoryFiles().getHeadFile();
-                head = Files.readString(headFile.toPath(), StandardCharsets.UTF_8).trim();
+                head = Files.readString(headFile, StandardCharsets.UTF_8).trim();
                 String prefix = "ref: refs/heads/";
                 return head.startsWith(prefix) ? Collections.singletonList(head.substring(prefix.length())) : Collections.<String>emptyList();
             }

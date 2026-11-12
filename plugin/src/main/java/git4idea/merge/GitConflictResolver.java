@@ -41,7 +41,7 @@ import git4idea.repo.GitRepositoryManager;
 import git4idea.util.StringScanner;
 import jakarta.annotation.Nonnull;
 
-import java.io.File;
+import java.nio.file.Path;
 import java.util.*;
 
 import static consulo.util.lang.ObjectUtil.assertNotNull;
@@ -340,7 +340,8 @@ public class GitConflictResolver {
             return Collections.emptyList();
         }
         else {
-            List<File> files = ContainerUtil.map(unmergedPaths, path -> new File(root.getPath(), path));
+            Path rootPath = root.toNioPath();
+            List<Path> files = ContainerUtil.map(unmergedPaths, rootPath::resolve);
             return sortVirtualFilesByPresentation(findVirtualFilesWithRefresh(files));
         }
     }

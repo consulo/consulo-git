@@ -18,12 +18,14 @@ package git4idea.roots;
 import consulo.annotation.component.ExtensionImpl;
 import consulo.versionControlSystem.VcsKey;
 import consulo.versionControlSystem.VcsRootChecker;
+import consulo.virtualFileSystem.VirtualFile;
 import git4idea.GitUtil;
 import git4idea.GitVcs;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 
-import java.io.File;
+import java.nio.file.InvalidPathException;
+import java.nio.file.Path;
 
 /**
  * @author Kirill Likhodedov
@@ -31,8 +33,26 @@ import java.io.File;
 @ExtensionImpl
 public class GitRootChecker extends VcsRootChecker {
     @Override
+    public boolean isRoot(@Nonnull VirtualFile file) {
+        Path path = GitUtil.toNioPathOrNull(file);
+        return path != null && GitUtil.isGitRoot(path);
+    }
+
+    @Override
+    public boolean validateRoot(@Nonnull VirtualFile file) {
+        return isRoot(file);
+    }
+
+    @Override
     public boolean isRoot(@Nonnull String path) {
-        return GitUtil.isGitRoot(new File(path));
+        Path folder;
+        try {
+            folder = Path.of(path);
+        }
+        catch (InvalidPathException e) {
+            return false;
+        }
+        return GitUtil.isGitRoot(folder);
     }
 
     @Override

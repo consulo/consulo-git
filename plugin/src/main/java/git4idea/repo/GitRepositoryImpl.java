@@ -21,7 +21,6 @@ import consulo.project.Project;
 import consulo.versionControlSystem.distributed.repository.RepositoryImpl;
 import consulo.versionControlSystem.util.StopWatch;
 import consulo.virtualFileSystem.VirtualFile;
-import consulo.virtualFileSystem.util.VirtualFileUtil;
 import git4idea.GitLocalBranch;
 import git4idea.GitUtil;
 import git4idea.GitVcs;
@@ -30,7 +29,7 @@ import git4idea.ignore.GitRepositoryIgnoredFilesHolder;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 
-import java.io.File;
+import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Objects;
 
@@ -240,7 +239,7 @@ public class GitRepositoryImpl extends RepositoryImpl implements GitRepository {
     @Nonnull
     private GitRepoInfo readRepoInfo() {
         StopWatch sw = StopWatch.start("Reading Git repo info in " + getShortRepositoryName(this));
-        File configFile = myRepositoryFiles.getConfigFile();
+        Path configFile = myRepositoryFiles.getConfigFile();
         GitConfig config = GitConfig.read(configFile);
         Collection<GitRemote> remotes = config.parseRemotes();
         GitBranchState state = myReader.readState(remotes);
@@ -263,8 +262,8 @@ public class GitRepositoryImpl extends RepositoryImpl implements GitRepository {
     }
 
     @Nonnull
-    private File getSubmoduleFile() {
-        return new File(VirtualFileUtil.virtualToIoFile(getRoot()), ".gitmodules");
+    private Path getSubmoduleFile() {
+        return getRoot().toNioPath().resolve(".gitmodules");
     }
 
     private static void notifyIfRepoChanged(

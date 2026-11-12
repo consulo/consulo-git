@@ -320,7 +320,8 @@ public class GitVcs extends AbstractVcs<CommittedChangeList> {
     private void checkExecutableAndVersion() {
         boolean executableIsAlreadyCheckedAndFine = false;
         String pathToGit = myGitExecutableManager.getPathToGit(myProject);
-        if (!pathToGit.contains(File.separator)) { // no path, just sole executable, with a hope that it is in path
+        boolean local = myProject.getPlatform() == Platform.current();
+        if (local && !pathToGit.contains(File.separator)) { // no path, just sole executable, with a hope that it is in path
             // subject to redetect the path if executable validator fails
             if (!myExecutableValidator.isExecutableValid()) {
                 myAppSettings.setPathToGit(new GitExecutableDetector().detect());
@@ -406,7 +407,7 @@ public class GitVcs extends AbstractVcs<CommittedChangeList> {
     public void checkVersion() {
         String executable = myGitExecutableManager.getPathToGit(myProject);
         try {
-            myVersion = GitVersion.identifyVersion(executable);
+            myVersion = GitVersion.identifyVersion(myProject.getPlatform(), executable);
             if (!myVersion.isSupported()) {
                 log.info("Unsupported Git version: " + myVersion);
                 final String SETTINGS_LINK = "settings";

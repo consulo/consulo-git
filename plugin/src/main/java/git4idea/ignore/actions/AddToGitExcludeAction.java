@@ -16,8 +16,8 @@ import consulo.versionControlSystem.change.IgnoredFileBean;
 import consulo.versionControlSystem.change.action.ScheduleForAdditionAction;
 import consulo.versionControlSystem.change.ignore.action.IgnoreFileAction;
 import consulo.versionControlSystem.localize.VcsLocalize;
-import consulo.virtualFileSystem.LocalFileSystem;
 import consulo.virtualFileSystem.VirtualFile;
+import consulo.virtualFileSystem.VirtualFileManager;
 import git4idea.GitUtil;
 import git4idea.GitVcs;
 import git4idea.repo.GitRepository;
@@ -82,8 +82,8 @@ public class AddToGitExcludeAction extends DefaultGitExcludeAction {
                 }
                 for (Map.Entry<GitRepository, List<VirtualFile>> entry : filesToIgnore.entrySet()) {
                     GitRepository repository = entry.getKey();
-                    VirtualFile gitExclude = LocalFileSystem.getInstance()
-                        .refreshAndFindFileByIoFile(repository.getRepositoryFiles().getExcludeFile());
+                    VirtualFile gitExclude = VirtualFileManager.getInstance()
+                        .refreshAndFindFileByNioPath(repository.getRepositoryFiles().getExcludeFile());
                     if (gitExclude == null) {
                         continue;
                     }

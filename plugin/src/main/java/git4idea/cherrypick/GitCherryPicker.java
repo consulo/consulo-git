@@ -44,8 +44,8 @@ import consulo.versionControlSystem.log.VcsLog;
 import consulo.versionControlSystem.log.util.VcsUserUtil;
 import consulo.versionControlSystem.merge.MergeDialogCustomizer;
 import consulo.versionControlSystem.update.RefreshVFsSynchronously;
-import consulo.virtualFileSystem.LocalFileSystem;
 import consulo.virtualFileSystem.VirtualFile;
+import consulo.virtualFileSystem.VirtualFileManager;
 import git4idea.GitActivity;
 import git4idea.GitLocalBranch;
 import git4idea.GitUtil;
@@ -63,8 +63,8 @@ import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import jakarta.inject.Inject;
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Semaphore;
@@ -435,8 +435,8 @@ public class GitCherryPicker extends VcsCherryPicker {
 
     @RequiredUIAccess
     private void removeCherryPickHead(@Nonnull GitRepository repository) {
-        File cherryPickHeadFile = repository.getRepositoryFiles().getCherryPickHead();
-        final VirtualFile cherryPickHead = LocalFileSystem.getInstance().refreshAndFindFileByIoFile(cherryPickHeadFile);
+        Path cherryPickHeadFile = repository.getRepositoryFiles().getCherryPickHead();
+        final VirtualFile cherryPickHead = VirtualFileManager.getInstance().refreshAndFindFileByNioPath(cherryPickHeadFile);
 
         if (cherryPickHead != null && cherryPickHead.exists()) {
             myProject.getApplication().runWriteAction(new Runnable() {

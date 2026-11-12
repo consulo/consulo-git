@@ -27,7 +27,6 @@ import consulo.ui.ex.awt.DialogWrapper;
 import consulo.ui.ex.awt.JBScrollPane;
 import consulo.ui.ex.awt.JBUI;
 import consulo.ui.ex.awt.event.DocumentAdapter;
-import consulo.util.io.FileUtil;
 import consulo.versionControlSystem.VcsException;
 import consulo.versionControlSystem.VcsNotifier;
 import consulo.virtualFileSystem.VirtualFile;
@@ -43,6 +42,8 @@ import javax.swing.*;
 import javax.swing.event.DocumentEvent;
 import java.awt.*;
 import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -158,12 +159,12 @@ public class GitTagDialog extends DialogWrapper {
     public void runAction(List<VcsException> exceptions) {
         String message = myMessageTextArea.getText();
         boolean hasMessage = message.trim().length() != 0;
-        File messageFile;
+        Path messageFile;
         if (hasMessage) {
             try {
-                messageFile = FileUtil.createTempFile(MESSAGE_FILE_PREFIX, MESSAGE_FILE_SUFFIX);
-                messageFile.deleteOnExit();
-                try (Writer out = new OutputStreamWriter(new FileOutputStream(messageFile), MESSAGE_FILE_ENCODING)) {
+                // on the machine git runs on - it reads the file
+                messageFile = myProject.getPlatform().fs().createTempFile(MESSAGE_FILE_PREFIX, MESSAGE_FILE_SUFFIX);
+                try (Writer out = new OutputStreamWriter(Files.newOutputStream(messageFile), MESSAGE_FILE_ENCODING)) {
                     out.write(message);
                 }
             }
@@ -186,7 +187,7 @@ public class GitTagDialog extends DialogWrapper {
                 h.addParameters("-f");
             }
             if (hasMessage) {
-                h.addParameters("-F", messageFile.getAbsolutePath());
+                h.addParameters("-F", messageFile.toString());
             }
             h.addParameters(myTagNameTextField.getText());
             String object = myCommitTextField.getText().trim();
@@ -208,8 +209,11 @@ public class GitTagDialog extends DialogWrapper {
         }
         finally {
             if (messageFile != null) {
-                //noinspection ResultOfMethodCallIgnored
-                messageFile.delete();
+                try {
+                    Files.deleteIfExists(messageFile);
+                }
+                catch (IOException ignored) {
+                }
             }
         }
     }

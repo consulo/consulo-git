@@ -32,7 +32,9 @@ import consulo.versionControlSystem.action.VcsContextFactory;
 import consulo.versionControlSystem.change.*;
 import consulo.versionControlSystem.history.VcsRevisionNumber;
 import consulo.versionControlSystem.util.VcsUtil;
-import consulo.virtualFileSystem.LocalFileSystem;
+import consulo.virtualFileSystem.VirtualFileManager;
+
+import java.nio.file.Path;
 import consulo.virtualFileSystem.VirtualFile;
 import consulo.virtualFileSystem.status.FileStatus;
 import git4idea.GitContentRevision;
@@ -132,17 +134,14 @@ public class GitChangeProvider implements ChangeProvider {
             return;
         }
 
-        final LocalFileSystem lfs = LocalFileSystem.getInstance();
         final Set<VirtualFile> rootsUnderGit = new HashSet<VirtualFile>(Arrays.asList(vcsManager.getRootsUnderVcs(vcs)));
         final Set<VirtualFile> inputColl = new HashSet<VirtualFile>(rootsUnderGit);
         final Set<VirtualFile> existingInScope = new HashSet<VirtualFile>();
         for (FilePath dir : recursivelyDirtyDirectories) {
             VirtualFile vf = dir.getVirtualFile();
-            if (vf == null) {
-                vf = lfs.findFileByIoFile(dir.getIOFile());
-            }
-            if (vf == null) {
-                vf = lfs.refreshAndFindFileByIoFile(dir.getIOFile());
+            Path nioPath = vf == null ? dir.getNioPath() : null;
+            if (nioPath != null) {
+                vf = VirtualFileManager.getInstance().refreshAndFindFileByNioPath(nioPath);
             }
             if (vf != null) {
                 existingInScope.add(vf);

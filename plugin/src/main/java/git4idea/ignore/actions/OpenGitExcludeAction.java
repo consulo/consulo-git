@@ -7,8 +7,8 @@ import consulo.navigation.OpenFileDescriptorFactory;
 import consulo.project.Project;
 import consulo.ui.annotation.RequiredUIAccess;
 import consulo.ui.ex.action.AnActionEvent;
-import consulo.virtualFileSystem.LocalFileSystem;
 import consulo.virtualFileSystem.VirtualFile;
+import consulo.virtualFileSystem.VirtualFileManager;
 import git4idea.GitUtil;
 import git4idea.repo.GitRepository;
 
@@ -26,7 +26,8 @@ public class OpenGitExcludeAction extends DefaultGitExcludeAction {
             return;
         }
         for (GitRepository repository : GitUtil.getRepositories(project)) {
-            VirtualFile excludeVf = LocalFileSystem.getInstance().refreshAndFindFileByIoFile(repository.getRepositoryFiles().getExcludeFile());
+            VirtualFile excludeVf =
+                VirtualFileManager.getInstance().refreshAndFindFileByNioPath(repository.getRepositoryFiles().getExcludeFile());
             if (excludeVf != null) {
                 OpenFileDescriptorFactory.getInstance(project).newBuilder(excludeVf).build().navigate(true);
             }

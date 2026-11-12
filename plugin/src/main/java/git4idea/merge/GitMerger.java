@@ -27,7 +27,8 @@ import git4idea.commands.GitSimpleHandler;
 import git4idea.repo.GitRepositoryManager;
 import jakarta.annotation.Nonnull;
 
-import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Collection;
 
 import static consulo.util.collection.ContainerUtil.filter;
@@ -61,14 +62,15 @@ public class GitMerger {
         GitSimpleHandler handler = new GitSimpleHandler(myProject, root, GitCommand.COMMIT);
         handler.setStdoutSuppressed(false);
 
-        File messageFile = assertNotNull(myRepositoryManager.getRepositoryForRoot(root)).getRepositoryFiles().getMergeMessageFile();
-        if (!messageFile.exists()) {
+        Path messageFile = assertNotNull(myRepositoryManager.getRepositoryForRoot(root)).getRepositoryFiles().getMergeMessageFile();
+        if (!Files.exists(messageFile)) {
             GitBranch branch = GitBranchUtil.getCurrentBranch(myProject, root);
             String branchName = branch != null ? branch.getName() : "";
             handler.addParameters("-m", "Merge branch '" + branchName + "' of " + root.getPresentableUrl() + " with conflicts.");
         }
         else {
-            handler.addParameters("-F", messageFile.getAbsolutePath());
+            // the path on the machine of the repository, where git runs
+            handler.addParameters("-F", messageFile.toAbsolutePath().toString());
         }
         handler.endOptions();
         handler.run();

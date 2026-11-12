@@ -34,11 +34,9 @@ import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 
 import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -229,18 +227,18 @@ public class GitRebaseUtils {
      * @return the rebase directory or null if it does not exist.
      */
     @Nullable
-    private static File getRebaseDir(@Nonnull Project project, @Nonnull VirtualFile root) {
+    private static Path getRebaseDir(@Nonnull Project project, @Nonnull VirtualFile root) {
         GitRepository repository = GitUtil.getRepositoryManager(project).getRepositoryForRootQuick(root);
         if (repository == null) {
             return null;
         }
 
-        File f = repository.getRepositoryFiles().getRebaseApplyDir();
-        if (f.exists()) {
+        Path f = repository.getRepositoryFiles().getRebaseApplyDir();
+        if (Files.exists(f)) {
             return f;
         }
         f = repository.getRepositoryFiles().getRebaseMergeDir();
-        if (f.exists()) {
+        if (Files.exists(f)) {
             return f;
         }
         return null;
@@ -255,25 +253,25 @@ public class GitRebaseUtils {
      */
     @Nullable
     public static CommitInfo getCurrentRebaseCommit(@Nonnull Project project, @Nonnull VirtualFile root) {
-        File rebaseDir = getRebaseDir(project, root);
+        Path rebaseDir = getRebaseDir(project, root);
         if (rebaseDir == null) {
             LOG.warn("No rebase dir found for " + root.getPath());
             return null;
         }
-        File nextFile = new File(rebaseDir, "next");
+        Path nextFile = rebaseDir.resolve("next");
         int next;
         try {
-            next = Integer.parseInt(Files.readString(nextFile.toPath(), StandardCharsets.UTF_8).trim());
+            next = Integer.parseInt(Files.readString(nextFile, StandardCharsets.UTF_8).trim());
         }
         catch (Exception e) {
-            LOG.warn("Failed to load next commit number from file " + nextFile.getPath(), e);
+            LOG.warn("Failed to load next commit number from file " + nextFile, e);
             return null;
         }
-        File commitFile = new File(rebaseDir, String.format("%04d", next));
+        Path commitFile = rebaseDir.resolve(String.format("%04d", next));
         String hash = null;
         String subject = null;
         try {
-            BufferedReader in = new BufferedReader(new InputStreamReader(new FileInputStream(commitFile), StandardCharsets.UTF_8));
+            BufferedReader in = Files.newBufferedReader(commitFile, StandardCharsets.UTF_8);
             try {
                 String line;
                 while ((line = in.readLine()) != null) {

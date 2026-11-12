@@ -83,6 +83,7 @@ import org.slf4j.LoggerFactory;
 import java.io.*;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.text.SimpleDateFormat;
 import java.util.List;
 import java.util.*;
@@ -158,14 +159,14 @@ public class GitCheckinEnvironment implements CheckinEnvironment {
                 LOG.warn("Unregistered repository: {}", root);
                 continue;
             }
-            File mergeMsg = repository.getRepositoryFiles().getMergeMessageFile();
-            File squashMsg = repository.getRepositoryFiles().getSquashMessageFile();
+            Path mergeMsg = repository.getRepositoryFiles().getMergeMessageFile();
+            Path squashMsg = repository.getRepositoryFiles().getSquashMessageFile();
             try {
-                if (!mergeMsg.exists() && !squashMsg.exists()) {
+                if (!Files.exists(mergeMsg) && !Files.exists(squashMsg)) {
                     continue;
                 }
                 String encoding = GitConfigUtil.getCommitEncoding(myProject, root);
-                if (mergeMsg.exists()) {
+                if (Files.exists(mergeMsg)) {
                     messages.add(loadMessage(mergeMsg, encoding));
                 }
                 else {
@@ -179,9 +180,9 @@ public class GitCheckinEnvironment implements CheckinEnvironment {
         return DvcsUtil.joinMessagesOrNull(messages);
     }
 
-    private static String loadMessage(@Nonnull File messageFile, @Nonnull String encoding) throws IOException {
+    private static String loadMessage(@Nonnull Path messageFile, @Nonnull String encoding) throws IOException {
         Charset charset = Charset.forName(encoding);
-        return Files.readString(messageFile.toPath(), charset);
+        return Files.readString(messageFile, charset);
     }
 
     @Override
@@ -221,9 +222,9 @@ public class GitCheckinEnvironment implements CheckinEnvironment {
         commitContext.setFreshUnhostedRoots(findFreshUnhostedRoots(sortedChanges.keySet()));
         for (Map.Entry<VirtualFile, Collection<Change>> entry : sortedChanges.entrySet()) {
             VirtualFile root = entry.getKey();
-            File messageFile;
+            Path messageFile;
             try {
-                messageFile = createMessageFile(root, message);
+                messageFile = createCommitMessageFile(myProject, root, message);
             }
             catch (IOException ex) {
                 //noinspection ThrowableInstanceNeverThrown
@@ -246,7 +247,7 @@ public class GitCheckinEnvironment implements CheckinEnvironment {
                     case MOVED:
                         FilePath afterPath = change.getAfterRevision().getFile();
                         FilePath beforePath = change.getBeforeRevision().getFile();
-                        if (!Platform.current().fs().isCaseSensitive()
+                        if (!myProject.getPlatform().fs().isCaseSensitive()
                             && GitUtil.isCaseOnlyChange(beforePath.getPath(), afterPath.getPath())) {
                             caseOnlyRenames.add(change);
                         }
@@ -288,9 +289,7 @@ public class GitCheckinEnvironment implements CheckinEnvironment {
                 exceptions.add(cleanupExceptionText(e));
             }
             finally {
-                if (!messageFile.delete()) {
-                    LOG.warn("Failed to remove temporary file: {}", messageFile);
-                }
+                deleteMessageFile(messageFile);
             }
         }
         if (GitCommitAndPushExecutor.isPushAfterCommit(commitContext) && exceptions.isEmpty()) {
@@ -317,7 +316,7 @@ public class GitCheckinEnvironment implements CheckinEnvironment {
         @Nonnull Set<Change> caseOnlyRenames,
         @Nonnull Set<FilePath> added,
         @Nonnull Set<FilePath> removed,
-        @Nonnull File messageFile,
+        @Nonnull Path messageFile,
         @Nullable String author
     ) {
         String rootPath = root.getPath();
@@ -433,7 +432,7 @@ public class GitCheckinEnvironment implements CheckinEnvironment {
         VirtualFile root,
         Set<FilePath> added,
         Set<FilePath> removed,
-        File messageFile,
+        Path messageFile,
         String author,
         List<VcsException> exceptions,
         @Nonnull PartialOperation partialOperation
@@ -517,12 +516,12 @@ public class GitCheckinEnvironment implements CheckinEnvironment {
     private void commitWithoutPaths(
         @Nonnull Project project,
         @Nonnull VirtualFile root,
-        @Nonnull File messageFile,
+        @Nonnull Path messageFile,
         @Nullable String author
     ) throws VcsException {
         GitSimpleHandler handler = new GitSimpleHandler(project, root, GitCommand.COMMIT);
         handler.setStdoutSuppressed(false);
-        handler.addParameters("-F", messageFile.getAbsolutePath());
+        handler.addParameters("-F", messageFile.toString());
         if (author != null) {
             handler.addParameters("--author=" + author);
         }
@@ -589,25 +588,6 @@ public class GitCheckinEnvironment implements CheckinEnvironment {
         return rc;
     }
 
-    /**
-     * Create a file that contains the specified message
-     *
-     * @param root    a git repository root
-     * @param message a message to write
-     * @return a file reference
-     * @throws IOException if file cannot be created
-     */
-    private File createMessageFile(VirtualFile root, String message) throws IOException {
-        // filter comment lines
-        File file = FileUtil.createTempFile(GIT_COMMIT_MSG_FILE_PREFIX, GIT_COMMIT_MSG_FILE_EXT);
-        file.deleteOnExit();
-        String encoding = GitConfigUtil.getCommitEncoding(myProject, root);
-        try (Writer out = new OutputStreamWriter(new FileOutputStream(file), encoding)) {
-            out.write(message);
-        }
-        return file;
-    }
-
     @Override
     public List<VcsException> scheduleMissingFileForDeletion(List<FilePath> files) {
         List<VcsException> rc = new ArrayList<>();
@@ -636,7 +616,7 @@ public class GitCheckinEnvironment implements CheckinEnvironment {
         @Nonnull Project project,
         @Nonnull VirtualFile root,
         @Nonnull Collection<FilePath> files,
-        @Nonnull File message
+        @Nonnull Path message
     ) throws VcsException {
         boolean amend = myNextCommitAmend;
         for (List<String> paths : VcsFileUtil.chunkPaths(root, files)) {
@@ -651,7 +631,7 @@ public class GitCheckinEnvironment implements CheckinEnvironment {
             else {
                 amend = true;
             }
-            handler.addParameters("--only", "-F", message.getAbsolutePath());
+            handler.addParameters("--only", "-F", message.toString());
             if (myNextCommitAuthor != null) {
                 handler.addParameters("--author=" + myNextCommitAuthor);
             }
@@ -979,22 +959,30 @@ public class GitCheckinEnvironment implements CheckinEnvironment {
      * @return a file reference
      * @throws IOException if file cannot be created
      */
-    public static File createCommitMessageFile(Project project, VirtualFile root, String message) throws IOException {
-        // filter comment lines
-        File file = FileUtil.createTempFile(GIT_COMMIT_MSG_FILE_PREFIX, GIT_COMMIT_MSG_FILE_EXT);
-        file.deleteOnExit();
+    public static Path createCommitMessageFile(Project project, VirtualFile root, String message) throws IOException {
+        // on the machine git runs on - it reads the file
+        Path file = project.getPlatform().fs().createTempFile(GIT_COMMIT_MSG_FILE_PREFIX, GIT_COMMIT_MSG_FILE_EXT);
         String encoding = GitConfigUtil.getCommitEncoding(project, root);
-        try (Writer out = new OutputStreamWriter(new FileOutputStream(file), encoding)) {
+        try (Writer out = new OutputStreamWriter(Files.newOutputStream(file), encoding)) {
             out.write(message);
         }
         return file;
     }
 
+    private static void deleteMessageFile(Path messageFile) {
+        try {
+            Files.deleteIfExists(messageFile);
+        }
+        catch (IOException e) {
+            LOG.warn("Failed to remove temporary file: {}", messageFile, e);
+        }
+    }
+
     public static void runWithMessageFile(Project project,
                                           VirtualFile root,
                                           String message,
-                                          ThrowableConsumer<? super File, ? extends VcsException> task) throws VcsException {
-        File messageFile;
+                                          ThrowableConsumer<? super Path, ? extends VcsException> task) throws VcsException {
+        Path messageFile;
         try {
             messageFile = createCommitMessageFile(project, root, message);
         }
@@ -1006,9 +994,7 @@ public class GitCheckinEnvironment implements CheckinEnvironment {
             task.consume(messageFile);
         }
         finally {
-            if (!messageFile.delete()) {
-                LOG.warn("Failed to remove temporary file: {}", messageFile);
-            }
+            deleteMessageFile(messageFile);
         }
     }
 

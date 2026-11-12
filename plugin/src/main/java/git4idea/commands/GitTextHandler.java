@@ -17,7 +17,6 @@ package git4idea.commands;
 
 import java.util.List;
 import consulo.process.ExecutionException;
-import consulo.process.NativeProcessHandler;
 import consulo.process.ProcessHandler;
 import consulo.process.ProcessHandlerBuilder;
 import consulo.process.cmd.GeneralCommandLine;
@@ -29,7 +28,7 @@ import consulo.virtualFileSystem.VirtualFile;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
-import java.io.File;
+import java.nio.file.Path;
 
 /**
  * The handler for git commands with text outputs
@@ -41,7 +40,7 @@ public abstract class GitTextHandler extends GitHandler {
   private volatile boolean myIsDestroyed;
   private final Object myProcessStateLock = new Object();
 
-  protected GitTextHandler(@Nonnull Project project, @Nonnull File directory, @Nonnull GitCommand command) {
+  protected GitTextHandler(@Nonnull Project project, @Nonnull Path directory, @Nonnull GitCommand command) {
     super(project, directory, command);
   }
 
@@ -55,14 +54,13 @@ public abstract class GitTextHandler extends GitHandler {
 
   @Nullable
   @Override
-  protected Process startProcess() throws ExecutionException {
+  protected ProcessHandler startProcess() throws ExecutionException {
     synchronized (myProcessStateLock) {
       if (myIsDestroyed) {
         return null;
       }
-      final ProcessHandler processHandler = createProcess(myCommandLine);
-      myHandler = processHandler;
-      return ((NativeProcessHandler) myHandler).getProcess();
+      myHandler = createProcess(myCommandLine);
+      return myHandler;
     }
   }
 

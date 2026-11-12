@@ -51,7 +51,6 @@ import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import jakarta.inject.Singleton;
 
-import java.io.File;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -130,11 +129,10 @@ public class GitImpl implements Git {
     h.endOptions();
     final String output = h.run();
     if (!StringUtil.isEmptyOrSpaces(output)) {
-      String rootPath = root.getPath();
       for (String relPath : output.split("\u0000")) {
         if (!relPath.isEmpty()) {
           // Use path-based FilePath (not VirtualFile-based) so files not in the VFS are still tracked
-          ignoredFilePaths.add(VcsUtil.getFilePath(new File(rootPath + "/" + relPath), false));
+          ignoredFilePaths.add(VcsUtil.getFilePath(root, relPath, false));
         }
       }
     }
@@ -179,7 +177,7 @@ public class GitImpl implements Git {
   @Override
   @Nonnull
   public GitCommandResult clone(@Nonnull final Project project,
-                                @Nonnull final File parentDirectory,
+                                @Nonnull final Path parentDirectory,
                                 @Nonnull final String url,
                                 @Nullable final String puttyKey,
                                 @Nonnull final String clonedDirectoryName,
@@ -639,7 +637,7 @@ public class GitImpl implements Git {
 
   @Nonnull
   @Override
-  public GitCommandResult lsRemote(@Nonnull final Project project, @Nonnull final File workingDir, @Nonnull final String url) {
+  public GitCommandResult lsRemote(@Nonnull final Project project, @Nonnull final Path workingDir, @Nonnull final String url) {
     return doLsRemote(project, workingDir, url, singleton(url));
   }
 
@@ -649,7 +647,7 @@ public class GitImpl implements Git {
                                    @Nonnull VirtualFile workingDir,
                                    @Nonnull GitRemote remote,
                                    String... additionalParameters) {
-    return doLsRemote(project, VirtualFileUtil.virtualToIoFile(workingDir), remote.getName(), remote.getUrls(), additionalParameters);
+    return doLsRemote(project, workingDir.toNioPath(), remote.getName(), remote.getUrls(), additionalParameters);
   }
 
   @Nonnull
@@ -755,7 +753,7 @@ public class GitImpl implements Git {
 
   @Nonnull
   private static GitCommandResult doLsRemote(@Nonnull final Project project,
-                                             @Nonnull final File workingDir,
+                                             @Nonnull final Path workingDir,
                                              @Nonnull final String remoteId,
                                              @Nonnull final Collection<String> authenticationUrls,
                                              final String... additionalParameters) {
@@ -873,7 +871,7 @@ public class GitImpl implements Git {
     handler.setStdoutSuppressed(false);
     handler.setStderrSuppressed(false);
     handler.addParameters("remove");
-    handler.addAbsoluteFile(tree.getPath().getIOFile());
+    handler.addAbsoluteFile(tree.getPath().getNioPath());
     handler.addParameters("--force");
     return runCommand(handler);
   }
@@ -882,12 +880,12 @@ public class GitImpl implements Git {
   @Nonnull
   public GitCommandResult deleteWorkingTreeWithoutProject(@Nonnull Path mainWorktreePath, @Nonnull GitWorkingTree tree) {
     Project defaultProject = ProjectManager.getInstance().getDefaultProject();
-    GitLineHandler handler = new GitLineHandler(defaultProject, mainWorktreePath.toFile(), GitCommand.WORKTREE);
+    GitLineHandler handler = new GitLineHandler(defaultProject, mainWorktreePath, GitCommand.WORKTREE);
     handler.setSilent(false);
     handler.setStdoutSuppressed(false);
     handler.setStderrSuppressed(false);
     handler.addParameters("remove");
-    handler.addAbsoluteFile(tree.getPath().getIOFile());
+    handler.addAbsoluteFile(tree.getPath().getNioPath());
     handler.addParameters("--force");
     return runCommand(handler);
   }
@@ -924,7 +922,7 @@ public class GitImpl implements Git {
     if (newBranchName != null) {
       handler.addParameters("-b", newBranchName);
     }
-    handler.addAbsoluteFile(workingTreePath.getIOFile());
+    handler.addAbsoluteFile(workingTreePath.getNioPath());
     handler.addParameters(sourceRef instanceof GitBranch ? sourceRef.getName() : sourceRef.getFullName());
     return runCommand(handler);
   }
@@ -945,7 +943,7 @@ public class GitImpl implements Git {
     handler.setStdoutSuppressed(false);
     handler.setStderrSuppressed(false);
     handler.addParameters("lock");
-    handler.addAbsoluteFile(tree.getPath().getIOFile());
+    handler.addAbsoluteFile(tree.getPath().getNioPath());
     return runCommand(handler);
   }
 
@@ -957,7 +955,7 @@ public class GitImpl implements Git {
     handler.setStdoutSuppressed(false);
     handler.setStderrSuppressed(false);
     handler.addParameters("unlock");
-    handler.addAbsoluteFile(tree.getPath().getIOFile());
+    handler.addAbsoluteFile(tree.getPath().getNioPath());
     return runCommand(handler);
   }
 

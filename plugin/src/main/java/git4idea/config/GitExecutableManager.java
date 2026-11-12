@@ -11,6 +11,11 @@ import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
 import jakarta.annotation.Nonnull;
+import consulo.platform.Platform;
+
+import java.nio.file.Path;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Manager for "current git executable".
@@ -29,6 +34,8 @@ public class GitExecutableManager {
     private final GitVcsApplicationSettings myApplicationSettings;
     @Nonnull
     private final AtomicNotNullLazyValue<String> myDetectedExecutable;
+    // platform id -> git found there
+    private final Map<String, String> myDetectedOnPlatforms = new ConcurrentHashMap<>();
 
     @Inject
     public GitExecutableManager(@Nonnull GitVcsApplicationSettings applicationSettings) {
@@ -42,10 +49,31 @@ public class GitExecutableManager {
         return path == null ? getDetectedExecutable() : path;
     }
 
+    /**
+     * The git of the machine of the project - for a remote project the one of its platform: set in the project settings, or found
+     * in the {@code PATH} there.
+     */
     @Nonnull
     public String getPathToGit(@Nonnull Project project) {
         String path = GitVcsSettings.getInstance(project).getPathToGit();
-        return path == null ? getPathToGit() : path;
+        if (path != null) {
+            return path;
+        }
+        Platform platform = project.getPlatform();
+        if (platform == Platform.current()) {
+            return getPathToGit();
+        }
+        String detected = myDetectedOnPlatforms.get(platform.getId());
+        if (detected != null) {
+            return detected;
+        }
+        Path git = platform.findExecutableInPath("git");
+        if (git == null) {
+            // not cached - it may be installed later
+            return "git";
+        }
+        myDetectedOnPlatforms.put(platform.getId(), git.toString());
+        return git.toString();
     }
 
     @Nonnull

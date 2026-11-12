@@ -5,8 +5,9 @@ import jakarta.annotation.Nonnull;
 import org.ini4j.Ini;
 import org.ini4j.Profile;
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -25,8 +26,8 @@ public class GitModulesFileReader {
     private static final Pattern MODULE_SECTION = Pattern.compile("submodule \"(.*)\"", Pattern.CASE_INSENSITIVE);
 
     @Nonnull
-    public static Collection<GitSubmoduleInfo> read(File file) {
-        if (!file.exists()) {
+    public static Collection<GitSubmoduleInfo> read(Path file) {
+        if (!Files.exists(file)) {
             return Collections.emptyList();
         }
 

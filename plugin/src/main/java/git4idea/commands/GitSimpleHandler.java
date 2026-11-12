@@ -24,7 +24,7 @@ import consulo.versionControlSystem.VcsException;
 import consulo.virtualFileSystem.VirtualFile;
 import jakarta.annotation.Nonnull;
 
-import java.io.File;
+import java.nio.file.Path;
 
 /**
  * Simple Git handler that accumulates stdout and stderr and has nothing on stdin.
@@ -61,7 +61,7 @@ public class GitSimpleHandler extends GitTextHandler {
      * @param command   a command to execute
      */
     @SuppressWarnings({"WeakerAccess"})
-    public GitSimpleHandler(@Nonnull Project project, @Nonnull File directory, @Nonnull GitCommand command) {
+    public GitSimpleHandler(@Nonnull Project project, @Nonnull Path directory, @Nonnull GitCommand command) {
         super(project, directory, command);
     }
 

@@ -31,10 +31,10 @@ import git4idea.util.StringScanner;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.*;
 
 import static consulo.util.lang.ObjectUtil.assertNotNull;
@@ -128,10 +128,10 @@ public class MergeChangeCollector {
             // should be available. In case of --no-commit option, the MERGE_HEAD might contain
             // multiple heads separated by newline. The changes are collected separately for each head
             // and they are merged using TreeSet class (that also sorts the changes).
-            File mergeHeadsFile = myRepository.getRepositoryFiles().getMergeHeadFile();
+            Path mergeHeadsFile = myRepository.getRepositoryFiles().getMergeHeadFile();
             try {
-                if (mergeHeadsFile.exists()) {
-                    String mergeHeads = Files.readString(mergeHeadsFile.toPath(), StandardCharsets.UTF_8);
+                if (Files.exists(mergeHeadsFile)) {
+                    String mergeHeads = Files.readString(mergeHeadsFile, StandardCharsets.UTF_8);
                     for (StringScanner s = new StringScanner(mergeHeads); s.hasMoreData(); ) {
                         String head = s.line();
                         if (head.length() == 0) {

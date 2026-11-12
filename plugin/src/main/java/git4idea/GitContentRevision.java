@@ -15,7 +15,6 @@
  */
 package git4idea;
 
-import consulo.application.util.SystemInfo;
 import consulo.project.Project;
 import consulo.versionControlSystem.FilePath;
 import consulo.versionControlSystem.VcsException;
@@ -25,16 +24,13 @@ import consulo.versionControlSystem.change.ContentRevision;
 import consulo.versionControlSystem.change.ContentRevisionCache;
 import consulo.versionControlSystem.change.CurrentContentRevision;
 import consulo.versionControlSystem.history.VcsRevisionNumber;
-import consulo.versionControlSystem.util.VcsFilePathUtil;
 import consulo.versionControlSystem.util.VcsFileUtil;
 import consulo.versionControlSystem.util.VcsUtil;
-import consulo.virtualFileSystem.LocalFileSystem;
 import consulo.virtualFileSystem.VirtualFile;
 import git4idea.util.GitFileUtils;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
 
@@ -159,7 +155,7 @@ public class GitContentRevision implements ByteBackedContentRevision {
                                                  boolean unescapePath) throws VcsException {
         final FilePath file;
         if (project.isDisposed()) {
-            file = VcsContextFactory.getInstance().createFilePathOn(new File(makeAbsolutePath(vcsRoot, path, unescapePath)), false);
+            file = VcsUtil.getFilePath(vcsRoot, makeRelativePath(path, unescapePath), false);
         }
         else {
             file = createPath(vcsRoot, path, isDeleted, canBeDeleted, unescapePath);
@@ -185,9 +181,9 @@ public class GitContentRevision implements ByteBackedContentRevision {
                                                               boolean unescapePath) throws VcsException {
         final FilePath filePath;
         if (revisionNumber == null) {
-            File file = new File(makeAbsolutePath(vcsRoot, path, unescapePath));
-            VirtualFile virtualFile = LocalFileSystem.getInstance().refreshAndFindFileByIoFile(file);
-            filePath = virtualFile == null ? VcsContextFactory.getInstance().createFilePathOn(file, false) : VcsContextFactory.getInstance().createFilePathOn(virtualFile);
+            String relativePath = makeRelativePath(path, unescapePath);
+            VirtualFile virtualFile = vcsRoot.getFileSystem().refreshAndFindFileByPath(vcsRoot.getPath() + "/" + relativePath);
+            filePath = virtualFile == null ? VcsUtil.getFilePath(vcsRoot, relativePath, false) : VcsUtil.getFilePath(virtualFile);
         }
         else {
             filePath = createPath(vcsRoot, path, false, false, unescapePath);
@@ -202,8 +198,7 @@ public class GitContentRevision implements ByteBackedContentRevision {
 
     @Nonnull
     public static FilePath createPath(@Nonnull VirtualFile vcsRoot, @Nonnull String unescapedPath, boolean isDirectory) {
-        String absolutePath = vcsRoot.getPath() + "/" + unescapedPath;
-        return VcsUtil.getFilePath(absolutePath, isDirectory);
+        return VcsUtil.getFilePath(vcsRoot, unescapedPath, isDirectory);
     }
 
     public static FilePath createPath(@Nonnull VirtualFile vcsRoot,
@@ -211,13 +206,7 @@ public class GitContentRevision implements ByteBackedContentRevision {
                                       boolean isDeleted,
                                       boolean canBeDeleted,
                                       boolean unescapePath) throws VcsException {
-        final String absolutePath = makeAbsolutePath(vcsRoot, path, unescapePath);
-        FilePath file = isDeleted ? VcsUtil.getFilePathForDeletedFile(absolutePath, false) : VcsUtil.getFilePath(absolutePath, false);
-        if (canBeDeleted && (!SystemInfo.isFileSystemCaseSensitive) && VcsFilePathUtil.caseDiffers(file.getPath(), absolutePath)) {
-            // as for deleted file
-            file = VcsContextFactory.getInstance().createFilePathOn(new File(absolutePath), false);
-        }
-        return file;
+        return VcsUtil.getFilePath(vcsRoot, makeRelativePath(path, unescapePath), false);
     }
 
     public static FilePath createPathFromEscaped(VirtualFile vcsRoot, String path) throws VcsException {
@@ -225,13 +214,11 @@ public class GitContentRevision implements ByteBackedContentRevision {
     }
 
     public static FilePath createPathFromEscaped(VirtualFile vcsRoot, String path, boolean isDirectory) throws VcsException {
-        String absolutePath = makeAbsolutePath(vcsRoot, path, true);
-        return VcsUtil.getFilePath(absolutePath, isDirectory);
+        return VcsUtil.getFilePath(vcsRoot, makeRelativePath(path, true), isDirectory);
     }
 
-    private static String makeAbsolutePath(@Nonnull VirtualFile vcsRoot, @Nonnull String path, boolean unescapePath) throws VcsException {
-        final String unescapedPath = unescapePath ? GitUtil.unescapePath(path) : path;
-        return vcsRoot.getPath() + "/" + unescapedPath;
+    private static String makeRelativePath(@Nonnull String path, boolean unescapePath) throws VcsException {
+        return unescapePath ? GitUtil.unescapePath(path) : path;
     }
 
     public static ContentRevision createRevision(@Nonnull final VirtualFile file,

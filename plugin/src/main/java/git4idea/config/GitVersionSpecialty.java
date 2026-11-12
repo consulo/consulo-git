@@ -105,7 +105,7 @@ public enum GitVersionSpecialty {
     DOESNT_DEFINE_HOME_ENV_VAR {
         @Override
         public boolean existsIn(@Nonnull GitVersion version) {
-            return Platform.current().os().isWindows() && version.isOlderOrEqual(new GitVersion(1, 7, 0, 2));
+            return isWindows(version) && version.isOlderOrEqual(new GitVersion(1, 7, 0, 2));
         }
     },
 
@@ -261,11 +261,18 @@ public enum GitVersionSpecialty {
         @Override
         public boolean existsIn(@Nonnull GitVersion version) {
             // before 2.8.0 git for windows expects to have LF symbol as line separator in standard input instead of CRLF
-            return Platform.current().os().isWindows() && !version.isLaterOrEqual(new GitVersion(2, 8, 0, 0));
+            return isWindows(version) && !version.isLaterOrEqual(new GitVersion(2, 8, 0, 0));
         }
     };
 
     public abstract boolean existsIn(@Nonnull GitVersion version);
+
+    /**
+     * A git of windows - the type is of the machine git runs on.
+     */
+    private static boolean isWindows(@Nonnull GitVersion version) {
+        return version.getType() == GitVersion.Type.MSYS || version.getType() == GitVersion.Type.CYGWIN;
+    }
 
     /**
      * Check version of configured git executable.
