@@ -29,7 +29,7 @@ import consulo.versionControlSystem.rollback.RollbackEnvironment;
 import consulo.versionControlSystem.rollback.RollbackProgressListener;
 import consulo.versionControlSystem.util.VcsFileUtil;
 import consulo.versionControlSystem.util.VcsUtil;
-import consulo.virtualFileSystem.LocalFileSystem;
+import consulo.virtualFileSystem.RefreshQueue;
 import consulo.virtualFileSystem.VirtualFile;
 import git4idea.GitUtil;
 import git4idea.commands.GitCommand;
@@ -42,7 +42,6 @@ import jakarta.annotation.Nonnull;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
-import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
@@ -170,19 +169,24 @@ public class GitRollbackEnvironment implements RollbackEnvironment {
                 exceptions.add(e);
             }
         }
-        LocalFileSystem lfs = LocalFileSystem.getInstance();
-        Set<File> filesToRefresh = new HashSet<>();
+        Set<Path> filesToRefresh = new HashSet<>();
         for (Change c : changes) {
             ContentRevision before = c.getBeforeRevision();
             if (before != null) {
-                filesToRefresh.add(new File(before.getFile().getPath()));
+                Path beforePath = before.getFile().getNioPath();
+                if (beforePath != null) {
+                    filesToRefresh.add(beforePath);
+                }
             }
             ContentRevision after = c.getAfterRevision();
             if (after != null) {
-                filesToRefresh.add(new File(after.getFile().getPath()));
+                Path afterPath = after.getFile().getNioPath();
+                if (afterPath != null) {
+                    filesToRefresh.add(afterPath);
+                }
             }
         }
-        lfs.refreshIoFiles(filesToRefresh);
+        RefreshQueue.getInstance().refreshPaths(false, false, null, filesToRefresh);
 
         for (GitRepository repo : GitUtil.getRepositoryManager(myProject).getRepositories()) {
             repo.update();

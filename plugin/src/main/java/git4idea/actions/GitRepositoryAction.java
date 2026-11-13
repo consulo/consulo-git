@@ -32,7 +32,7 @@ import consulo.versionControlSystem.TransactionRunnable;
 import consulo.versionControlSystem.VcsException;
 import consulo.versionControlSystem.distributed.repository.Repository;
 import consulo.versionControlSystem.util.VcsFileUtil;
-import consulo.virtualFileSystem.LocalFileSystem;
+import consulo.virtualFileSystem.RefreshQueue;
 import consulo.virtualFileSystem.VirtualFile;
 import consulo.virtualFileSystem.util.VirtualFileUtil;
 import git4idea.GitUtil;
@@ -118,8 +118,7 @@ public abstract class GitRepositoryAction extends DumbAwareAction implements AnA
         @Nonnull List<VcsException> exceptions
     ) {
         VirtualFileUtil.markDirty(true, false, ArrayUtil.toObjectArray(affectedRoots, VirtualFile.class));
-        LocalFileSystem.getInstance().refreshFiles(
-            affectedRoots,
+        RefreshQueue.getInstance().refresh(
             true,
             true,
             () -> {
@@ -129,7 +128,8 @@ public abstract class GitRepositoryAction extends DumbAwareAction implements AnA
                 }
                 myDelayedTasks.clear();
                 vcs.showErrors(exceptions, actionName);
-            }
+            },
+            affectedRoots
         );
     }
 

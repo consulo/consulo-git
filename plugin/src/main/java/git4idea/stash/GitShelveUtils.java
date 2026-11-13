@@ -29,7 +29,7 @@ import consulo.util.collection.ContainerUtil;
 import consulo.versionControlSystem.VcsException;
 import consulo.versionControlSystem.change.Change;
 import consulo.versionControlSystem.change.shelf.*;
-import consulo.virtualFileSystem.LocalFileSystem;
+import consulo.virtualFileSystem.RefreshQueue;
 import consulo.virtualFileSystem.VirtualFile;
 import consulo.virtualFileSystem.util.VirtualFileUtil;
 import jakarta.annotation.Nonnull;
@@ -129,7 +129,7 @@ public class GitShelveUtils {
                 filesToRefresh.add(new File(projectPath + f.getAfterPath()));
             }
         }
-        LocalFileSystem.getInstance().refreshIoFiles(filesToRefresh);
+        RefreshQueue.getInstance().refreshPaths(false, false, null, ContainerUtil.map(filesToRefresh, File::toPath));
     }
 
     /**

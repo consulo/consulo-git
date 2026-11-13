@@ -21,16 +21,18 @@ import consulo.disposer.Disposable;
 import consulo.project.Project;
 import consulo.util.collection.ContainerUtil;
 import consulo.versionControlSystem.distributed.DvcsUtil;
-import consulo.virtualFileSystem.LocalFileSystem;
+import consulo.virtualFileSystem.FileWatchService;
 import consulo.virtualFileSystem.VirtualFile;
 import consulo.virtualFileSystem.VirtualFileManager;
 import consulo.virtualFileSystem.VirtualFileSystem;
 import consulo.virtualFileSystem.event.BulkFileListener;
 import consulo.virtualFileSystem.event.VFileEvent;
+import git4idea.GitUtil;
 import git4idea.util.GitFileUtils;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 
+import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
@@ -55,14 +57,14 @@ final class GitRepositoryUpdater implements Disposable, BulkFileListener {
     private final VirtualFile myHeadsDir;
     @Nullable
     private final VirtualFile myTagsDir;
-    private final Set<LocalFileSystem.WatchRequest> myWatchRequests;
+    private final Set<FileWatchService.WatchRequest> myWatchRequests;
 
     GitRepositoryUpdater(@Nonnull GitRepository repository, @Nonnull GitRepositoryFiles gitFiles) {
         myRepository = repository;
         Collection<VirtualFile> rootDirs = gitFiles.getRootDirs();
-        // the local file system watches the roots of a remote machine through the file system of that machine
-        Collection<String> rootPaths = ContainerUtil.map(rootDirs, VirtualFile::getPath);
-        myWatchRequests = LocalFileSystem.getInstance().addRootsToWatch(rootPaths, true);
+        // of any machine - the watch service passes each root to the watcher of its file system
+        Collection<Path> rootPaths = ContainerUtil.mapNotNull(rootDirs, GitUtil::toNioPathOrNull);
+        myWatchRequests = FileWatchService.getInstance().addRootsToWatch(rootPaths, true);
 
         myRepositoryFiles = gitFiles;
         visitSubDirsInVfs();
@@ -84,7 +86,7 @@ final class GitRepositoryUpdater implements Disposable, BulkFileListener {
 
     @Override
     public void dispose() {
-        LocalFileSystem.getInstance().removeWatchedRoots(myWatchRequests);
+        FileWatchService.getInstance().removeWatchedRoots(myWatchRequests);
         if (myMessageBusConnection != null) {
             myMessageBusConnection.disconnect();
         }
