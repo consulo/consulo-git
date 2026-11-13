@@ -425,7 +425,7 @@ public class GitVcs extends AbstractVcs<CommittedChangeList> {
                         @Override
                         public void hyperlinkActivated(@Nonnull Notification notification, @Nonnull HyperlinkEvent e) {
                             if (SETTINGS_LINK.equals(e.getDescription())) {
-                                ShowSettingsUtil.getInstance().showSettingsDialog(myProject, getConfigurable().getDisplayName().get());
+                                ShowSettingsUtil.getInstance().showAndSelect(myProject, GitVcsConfigurable.class);
                             }
                             else if (UPDATE_LINK.equals(e.getDescription())) {
                                 Platform.current().openInBrowser("http://git-scm.com");
