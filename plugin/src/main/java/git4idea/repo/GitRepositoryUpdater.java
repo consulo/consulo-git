@@ -55,20 +55,14 @@ final class GitRepositoryUpdater implements Disposable, BulkFileListener {
     private final VirtualFile myHeadsDir;
     @Nullable
     private final VirtualFile myTagsDir;
-    @Nullable
     private final Set<LocalFileSystem.WatchRequest> myWatchRequests;
 
     GitRepositoryUpdater(@Nonnull GitRepository repository, @Nonnull GitRepositoryFiles gitFiles) {
         myRepository = repository;
         Collection<VirtualFile> rootDirs = gitFiles.getRootDirs();
-        if (ContainerUtil.and(rootDirs, VirtualFile::isInLocalFileSystem)) {
-            Collection<String> rootPaths = ContainerUtil.map(rootDirs, VirtualFile::getPath);
-            myWatchRequests = LocalFileSystem.getInstance().addRootsToWatch(rootPaths, true);
-        }
-        else {
-            // there is no file watching for files of a remote machine (yet)
-            myWatchRequests = null;
-        }
+        // the local file system watches the roots of a remote machine through the file system of that machine
+        Collection<String> rootPaths = ContainerUtil.map(rootDirs, VirtualFile::getPath);
+        myWatchRequests = LocalFileSystem.getInstance().addRootsToWatch(rootPaths, true);
 
         myRepositoryFiles = gitFiles;
         visitSubDirsInVfs();
@@ -90,9 +84,7 @@ final class GitRepositoryUpdater implements Disposable, BulkFileListener {
 
     @Override
     public void dispose() {
-        if (myWatchRequests != null) {
-            LocalFileSystem.getInstance().removeWatchedRoots(myWatchRequests);
-        }
+        LocalFileSystem.getInstance().removeWatchedRoots(myWatchRequests);
         if (myMessageBusConnection != null) {
             myMessageBusConnection.disconnect();
         }
